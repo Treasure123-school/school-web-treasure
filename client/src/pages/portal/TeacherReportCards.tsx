@@ -45,8 +45,8 @@ import {
   FilePen,
   Sparkles,
   ChevronDown,
-  Download,
-  FileSpreadsheet,
+  ChevronLeft,
+  ChevronRight,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -132,6 +132,8 @@ export default function TeacherReportCards() {
   const [remarks, setRemarks] = useState({ teacher: '', principal: '' });
   const [sortField, setSortField] = useState<SortField>('position');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const { data: gradingConfig } = useQuery({
     queryKey: ['/api/grading-config', selectedGradingScale],
@@ -566,42 +568,28 @@ export default function TeacherReportCards() {
       return 0;
     });
 
-  const handleExportCSV = () => {
-    if (!filteredReportCards.length) {
-      toast({ title: "No Data", description: "No report cards to export", variant: "destructive" });
-      return;
+  // Pagination logic with clamping to prevent empty results
+  const totalPages = Math.max(1, Math.ceil(filteredReportCards.length / itemsPerPage));
+  
+  // Clamp currentPage to valid range when filtered results change
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
     }
-    const selectedClassName = classes.find((c: any) => c.id.toString() === selectedClass)?.name || 'Class';
-    const selectedTermName = terms.find((t: any) => t.id.toString() === selectedTerm)?.name || 'Term';
-    
-    const headers = ['Position', 'Student Name', 'Username', 'Admission No.', 'Average %', 'Grade', 'Status'];
-    const rows = filteredReportCards.map((rc: any) => [
-      rc.position ? formatPosition(rc.position) : '-',
-      rc.studentName || '',
-      rc.studentUsername || '-',
-      rc.admissionNumber || '-',
-      `${rc.averagePercentage || 0}%`,
-      rc.overallGrade || '-',
-      rc.status || 'draft'
-    ]);
-    
-    const csvContent = [headers, ...rows]
-      .map(row => row.map((cell: string) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-      .join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `Report_Cards_${selectedClassName}_${selectedTermName}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-    
-    toast({ title: "Exported", description: `Report cards exported as CSV` });
+  }, [filteredReportCards.length, totalPages, currentPage]);
+  
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedReportCards = filteredReportCards.slice(startIndex, startIndex + itemsPerPage);
+  
+  // Reset to page 1 when filters change
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
   };
-
-  const handlePrintAll = () => {
-    window.print();
-    toast({ title: "Print", description: "Print dialog opened" });
+  
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value);
+    setCurrentPage(1);
   };
 
   const statistics = reportCards.length > 0 ? {
@@ -643,11 +631,11 @@ export default function TeacherReportCards() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-4 items-end">
-              <div className="flex flex-col gap-2">
-                <Label>Class</Label>
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs sm:text-sm">Class</Label>
                 <Select value={selectedClass} onValueChange={setSelectedClass}>
-                  <SelectTrigger className="w-40" data-testid="select-class">
+                  <SelectTrigger className="w-full" data-testid="select-class">
                     <SelectValue placeholder="Select Class" />
                   </SelectTrigger>
                   <SelectContent>
@@ -666,10 +654,10 @@ export default function TeacherReportCards() {
                 </Select>
               </div>
               
-              <div className="flex flex-col gap-2">
-                <Label>Term</Label>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs sm:text-sm">Term</Label>
                 <Select value={selectedTerm} onValueChange={setSelectedTerm}>
-                  <SelectTrigger className="w-48" data-testid="select-term">
+                  <SelectTrigger className="w-full" data-testid="select-term">
                     <SelectValue placeholder="Select Term" />
                   </SelectTrigger>
                   <SelectContent>
@@ -682,10 +670,10 @@ export default function TeacherReportCards() {
                 </Select>
               </div>
               
-              <div className="flex flex-col gap-2">
-                <Label>Grading Scale</Label>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs sm:text-sm">Grading Scale</Label>
                 <Select value={selectedGradingScale} onValueChange={setSelectedGradingScale}>
-                  <SelectTrigger className="w-40" data-testid="select-grading-scale">
+                  <SelectTrigger className="w-full" data-testid="select-grading-scale">
                     <SelectValue placeholder="Grading Scale" />
                   </SelectTrigger>
                   <SelectContent>
@@ -694,16 +682,12 @@ export default function TeacherReportCards() {
                     <SelectItem value="percentage">Percentage</SelectItem>
                   </SelectContent>
                 </Select>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <BarChart3 className="w-3 h-3" />
-                  <span>Test: {testWeight}% | Exam: {examWeight}%</span>
-                </div>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <Label>Status Filter</Label>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-40" data-testid="select-status-filter">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs sm:text-sm">Status Filter</Label>
+                <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+                  <SelectTrigger className="w-full" data-testid="select-status-filter">
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -713,103 +697,17 @@ export default function TeacherReportCards() {
                     <SelectItem value="published">Published</SelectItem>
                   </SelectContent>
                 </Select>
-                {statusFilter !== 'all' && (
-                  <span className="text-xs text-muted-foreground">
-                    Showing {filteredReportCards.length} of {reportCards.length}
-                  </span>
-                )}
               </div>
-
-              {/* Real-time connection indicator */}
-              {realtimeConnected && (
-                <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  Live
-                </div>
-              )}
-
-              {/* Export Buttons */}
-              {reportCards.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant="outline"
-                      data-testid="button-export"
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Export
-                      <ChevronDown className="w-4 h-4 ml-2" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem 
-                      onClick={handleExportCSV}
-                      className="cursor-pointer"
-                      data-testid="export-csv"
-                    >
-                      <FileSpreadsheet className="w-4 h-4 mr-2 text-green-600" />
-                      <span>Export as CSV</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onClick={handlePrintAll}
-                      className="cursor-pointer"
-                      data-testid="export-print"
-                    >
-                      <Printer className="w-4 h-4 mr-2 text-blue-600" />
-                      <span>Print Report Cards</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-
-              {/* Bulk Actions Dropdown */}
-              {reportCards.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      disabled={bulkStatusMutation.isPending}
-                      data-testid="button-bulk-actions"
-                    >
-                      {bulkStatusMutation.isPending ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <MoreVertical className="w-4 h-4 mr-2" />
-                      )}
-                      Bulk Actions
-                      <ChevronDown className="w-4 h-4 ml-2" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuItem 
-                      onClick={() => handleBulkStatusUpdate('finalized')}
-                      disabled={statistics?.draftCount === 0}
-                      className="cursor-pointer"
-                      data-testid="bulk-finalize-all"
-                    >
-                      <FileCheck className="w-4 h-4 mr-2 text-blue-500" />
-                      <span>Finalize All Drafts ({statistics?.draftCount || 0})</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onClick={() => handleBulkStatusUpdate('published')}
-                      disabled={statistics?.finalizedCount === 0}
-                      className="cursor-pointer"
-                      data-testid="bulk-publish-all"
-                    >
-                      <Send className="w-4 h-4 mr-2 text-green-500" />
-                      <span>Publish All Finalized ({statistics?.finalizedCount || 0})</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      onClick={() => refetchReportCards()}
-                      className="cursor-pointer"
-                      data-testid="bulk-refresh"
-                    >
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      <span>Refresh Report Cards</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+            </div>
+            
+            {/* Weight info shown below filters */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-3 pt-3 border-t">
+              <BarChart3 className="w-3 h-3" />
+              <span>Test: {testWeight}% | Exam: {examWeight}%</span>
+              {statusFilter !== 'all' && (
+                <span className="ml-auto">
+                  Showing {filteredReportCards.length} of {reportCards.length}
+                </span>
               )}
             </div>
           </CardContent>
@@ -842,71 +740,67 @@ export default function TeacherReportCards() {
 
             <TabsContent value="overview" className="space-y-4">
               {statistics && (
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Total</CardTitle>
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{statistics.totalStudents}</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Passed</CardTitle>
-                      <CheckCircle className="h-4 w-4 text-green-500" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold text-green-600">{statistics.passedStudents}</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Failed</CardTitle>
-                      <AlertCircle className="h-4 w-4 text-red-500" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold text-red-600">{statistics.failedStudents}</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Average</CardTitle>
-                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{statistics.classAverage}%</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Draft</CardTitle>
-                      <Clock className="h-4 w-4 text-yellow-500" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold text-yellow-600">{statistics.draftCount}</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Finalized</CardTitle>
-                      <CheckCircle className="h-4 w-4 text-blue-500" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold text-blue-600">{statistics.finalizedCount}</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Published</CardTitle>
-                      <Send className="h-4 w-4 text-green-500" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold text-green-600">{statistics.publishedCount}</div>
-                    </CardContent>
-                  </Card>
-                </div>
+                <Card data-testid="overview-stats-card">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4" />
+                      Class Overview
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4">
+                      <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
+                        <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <div className="min-w-0">
+                          <div className="text-xs text-muted-foreground">Total</div>
+                          <div className="text-lg font-bold truncate">{statistics.totalStudents}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 p-2 rounded-md bg-green-50 dark:bg-green-900/20">
+                        <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <div className="text-xs text-muted-foreground">Passed</div>
+                          <div className="text-lg font-bold text-green-600 dark:text-green-400 truncate">{statistics.passedStudents}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 p-2 rounded-md bg-red-50 dark:bg-red-900/20">
+                        <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <div className="text-xs text-muted-foreground">Failed</div>
+                          <div className="text-lg font-bold text-red-600 dark:text-red-400 truncate">{statistics.failedStudents}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
+                        <TrendingUp className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <div className="min-w-0">
+                          <div className="text-xs text-muted-foreground">Average</div>
+                          <div className="text-lg font-bold truncate">{statistics.classAverage}%</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 p-2 rounded-md bg-yellow-50 dark:bg-yellow-900/20">
+                        <Clock className="h-4 w-4 text-yellow-500 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <div className="text-xs text-muted-foreground">Draft</div>
+                          <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400 truncate">{statistics.draftCount}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 p-2 rounded-md bg-blue-50 dark:bg-blue-900/20">
+                        <CheckCircle className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <div className="text-xs text-muted-foreground">Finalized</div>
+                          <div className="text-lg font-bold text-blue-600 dark:text-blue-400 truncate">{statistics.finalizedCount}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 p-2 rounded-md bg-green-50 dark:bg-green-900/20">
+                        <Send className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <div className="text-xs text-muted-foreground">Published</div>
+                          <div className="text-lg font-bold text-green-600 dark:text-green-400 truncate">{statistics.publishedCount}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
 
               <Card>
@@ -928,126 +822,203 @@ export default function TeacherReportCards() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <div className="relative max-w-sm">
+                      <div className="relative w-full sm:max-w-sm">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                         <Input
                           placeholder="Search students..."
                           value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
+                          onChange={(e) => handleSearchChange(e.target.value)}
                           className="pl-10"
                           data-testid="input-search-students"
                         />
                       </div>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead 
-                              className="cursor-pointer select-none"
-                              onClick={() => handleSort('position')}
-                              data-testid="sort-position"
-                            >
-                              <div className="flex items-center">
-                                Pos
-                                {getSortIcon('position')}
-                              </div>
-                            </TableHead>
-                            <TableHead 
-                              className="cursor-pointer select-none"
-                              onClick={() => handleSort('studentName')}
-                              data-testid="sort-name"
-                            >
-                              <div className="flex items-center">
-                                Student
-                                {getSortIcon('studentName')}
-                              </div>
-                            </TableHead>
-                            <TableHead>Username</TableHead>
-                            <TableHead>Adm. No.</TableHead>
-                            <TableHead 
-                              className="cursor-pointer select-none"
-                              onClick={() => handleSort('averagePercentage')}
-                              data-testid="sort-average"
-                            >
-                              <div className="flex items-center">
-                                Average
-                                {getSortIcon('averagePercentage')}
-                              </div>
-                            </TableHead>
-                            <TableHead 
-                              className="cursor-pointer select-none"
-                              onClick={() => handleSort('overallGrade')}
-                              data-testid="sort-grade"
-                            >
-                              <div className="flex items-center">
-                                Grade
-                                {getSortIcon('overallGrade')}
-                              </div>
-                            </TableHead>
-                            <TableHead 
-                              className="cursor-pointer select-none"
-                              onClick={() => handleSort('status')}
-                              data-testid="sort-status"
-                            >
-                              <div className="flex items-center">
-                                Status
-                                {getSortIcon('status')}
-                              </div>
-                            </TableHead>
-                            <TableHead>Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredReportCards.map((rc: any) => (
-                            <TableRow key={rc.id} data-testid={`row-report-${rc.id}`}>
-                              <TableCell className="font-medium">
-                                {rc.position ? formatPosition(rc.position) : '-'} of {rc.totalStudentsInClass || reportCards.length}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-3">
-                                  <Avatar className="h-8 w-8">
-                                    {rc.studentPhoto ? (
-                                      <AvatarImage src={rc.studentPhoto} alt={rc.studentName} />
-                                    ) : null}
-                                    <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                                      {rc.studentName?.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || <User className="w-4 h-4" />}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span className="font-medium">{rc.studentName}</span>
+                      
+                      {/* Mobile Card View */}
+                      <div className="block sm:hidden space-y-3">
+                        {paginatedReportCards.map((rc: any) => (
+                          <div 
+                            key={rc.id} 
+                            className="border rounded-md p-3 hover-elevate cursor-pointer"
+                            onClick={() => handleViewReportCard(rc)}
+                            data-testid={`mobile-row-${rc.id}`}
+                          >
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Avatar className="h-10 w-10 flex-shrink-0">
+                                  {rc.studentPhoto ? (
+                                    <AvatarImage src={rc.studentPhoto} alt={rc.studentName} />
+                                  ) : null}
+                                  <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                                    {rc.studentName?.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || <User className="w-4 h-4" />}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="min-w-0">
+                                  <div className="font-medium text-sm truncate">{rc.studentName}</div>
+                                  <div className="text-xs text-muted-foreground font-mono">{rc.studentUsername || '-'}</div>
                                 </div>
-                              </TableCell>
-                              <TableCell>
-                                <span className="text-sm text-muted-foreground font-mono">
-                                  {rc.studentUsername || '-'}
-                                </span>
-                              </TableCell>
-                              <TableCell>{rc.admissionNumber || '-'}</TableCell>
-                              <TableCell>
-                                <span className={(rc.averagePercentage || 0) >= 50 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
-                                  {rc.averagePercentage || 0}%
-                                </span>
-                              </TableCell>
-                              <TableCell>
-                                <Badge className={getGradeColor(rc.overallGrade)}>
+                              </div>
+                              <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                <Badge className={`text-xs ${getGradeColor(rc.overallGrade)}`}>
                                   {rc.overallGrade || '-'}
                                 </Badge>
-                              </TableCell>
-                              <TableCell>
-                                {getStatusBadge(rc.status)}
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleViewReportCard(rc)}
-                                  data-testid={`button-view-${rc.id}`}
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </Button>
-                              </TableCell>
+                                <span className={`text-xs font-semibold ${(rc.averagePercentage || 0) >= 50 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {rc.averagePercentage || 0}%
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
+                              <span>{rc.position ? formatPosition(rc.position) : '-'} of {rc.totalStudentsInClass || reportCards.length}</span>
+                              {getStatusBadge(rc.status)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {/* Desktop Table View */}
+                      <div className="hidden sm:block">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead 
+                                className="cursor-pointer select-none"
+                                onClick={() => handleSort('position')}
+                                data-testid="sort-position"
+                              >
+                                <div className="flex items-center">
+                                  Pos
+                                  {getSortIcon('position')}
+                                </div>
+                              </TableHead>
+                              <TableHead 
+                                className="cursor-pointer select-none"
+                                onClick={() => handleSort('studentName')}
+                                data-testid="sort-name"
+                              >
+                                <div className="flex items-center">
+                                  Student
+                                  {getSortIcon('studentName')}
+                                </div>
+                              </TableHead>
+                              <TableHead>Username</TableHead>
+                              <TableHead 
+                                className="cursor-pointer select-none"
+                                onClick={() => handleSort('averagePercentage')}
+                                data-testid="sort-average"
+                              >
+                                <div className="flex items-center">
+                                  Average
+                                  {getSortIcon('averagePercentage')}
+                                </div>
+                              </TableHead>
+                              <TableHead 
+                                className="cursor-pointer select-none"
+                                onClick={() => handleSort('overallGrade')}
+                                data-testid="sort-grade"
+                              >
+                                <div className="flex items-center">
+                                  Grade
+                                  {getSortIcon('overallGrade')}
+                                </div>
+                              </TableHead>
+                              <TableHead 
+                                className="cursor-pointer select-none"
+                                onClick={() => handleSort('status')}
+                                data-testid="sort-status"
+                              >
+                                <div className="flex items-center">
+                                  Status
+                                  {getSortIcon('status')}
+                                </div>
+                              </TableHead>
+                              <TableHead>Actions</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                          </TableHeader>
+                          <TableBody>
+                            {paginatedReportCards.map((rc: any) => (
+                              <TableRow key={rc.id} data-testid={`row-report-${rc.id}`}>
+                                <TableCell className="font-medium">
+                                  {rc.position ? formatPosition(rc.position) : '-'} of {rc.totalStudentsInClass || reportCards.length}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-3">
+                                    <Avatar className="h-8 w-8">
+                                      {rc.studentPhoto ? (
+                                        <AvatarImage src={rc.studentPhoto} alt={rc.studentName} />
+                                      ) : null}
+                                      <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                                        {rc.studentName?.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || <User className="w-4 h-4" />}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="font-medium">{rc.studentName}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <span className="text-sm text-muted-foreground font-mono">
+                                    {rc.studentUsername || '-'}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <span className={(rc.averagePercentage || 0) >= 50 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+                                    {rc.averagePercentage || 0}%
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className={getGradeColor(rc.overallGrade)}>
+                                    {rc.overallGrade || '-'}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  {getStatusBadge(rc.status)}
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleViewReportCard(rc)}
+                                    data-testid={`button-view-${rc.id}`}
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      
+                      {/* Pagination Controls */}
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between pt-4 border-t">
+                          <div className="text-xs sm:text-sm text-muted-foreground">
+                            Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredReportCards.length)} of {filteredReportCards.length}
+                          </div>
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                              disabled={currentPage === 1}
+                              className="h-8 w-8"
+                              data-testid="pagination-prev"
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <span className="text-xs sm:text-sm font-medium px-2">
+                              {currentPage} / {totalPages}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                              disabled={currentPage === totalPages}
+                              className="h-8 w-8"
+                              data-testid="pagination-next"
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </CardContent>
@@ -1073,17 +1044,17 @@ export default function TeacherReportCards() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="relative max-w-sm">
+                    <div className="relative w-full sm:max-w-sm">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                       <Input
                         placeholder="Search by name or ID..."
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => handleSearchChange(e.target.value)}
                         className="pl-10"
                       />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {filteredReportCards.map((rc: any) => (
+                      {paginatedReportCards.map((rc: any) => (
                         <Card 
                           key={rc.id} 
                           className="hover-elevate cursor-pointer group relative overflow-visible" 
@@ -1130,6 +1101,38 @@ export default function TeacherReportCards() {
                         </Card>
                       ))}
                     </div>
+                    
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between pt-4 border-t">
+                        <div className="text-xs sm:text-sm text-muted-foreground">
+                          Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredReportCards.length)} of {filteredReportCards.length}
+                        </div>
+                        <div className="flex items-center gap-1 sm:gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="h-8 w-8"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <span className="text-xs sm:text-sm font-medium px-2">
+                            {currentPage} / {totalPages}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="h-8 w-8"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
