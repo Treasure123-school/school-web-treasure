@@ -9404,45 +9404,25 @@ Treasure-Home School Administration
           return res.status(404).json({ message: 'Report card not found' });
         }
         
-        // Calculate permission flags for each item based on logged-in user
+        // Calculate permission flags for each item using the shared permission utility
+        // This ensures identical logic between this GET endpoint and the PATCH override endpoint
         const userId = req.user!.id;
         const userRoleId = req.user!.roleId;
-        const isAdmin = userRoleId === 1 || userRoleId === 2; // Super Admin or Admin
+        const { calculateScorePermissions } = await import('@shared/score-permissions');
         
-        // Enhance items with permission flags
-        // Permission rule: Teachers can ONLY edit scores if they CREATED the exam
-        // The assignment to class/subject does NOT grant edit rights to another teacher's exams
         const enhancedItems = reportCard.items.map((item: any) => {
-          if (isAdmin) {
-            // Admins can edit everything
-            return {
-              ...item,
-              canEditTest: true,
-              canEditExam: true,
-              canEditRemarks: true
-            };
-          }
-          
-          // Teacher can edit test if:
-          // - No test exam exists yet (testExamCreatedBy is null) - allows adding new test scores, OR
-          // - They are the one who created the test exam
-          // NOTE: Being assigned to the class/subject does NOT override exam ownership
-          const canEditTest = !item.testExamCreatedBy || item.testExamCreatedBy === userId;
-          
-          // Teacher can edit exam if:
-          // - No main exam exists yet (examExamCreatedBy is null) - allows adding new exam scores, OR
-          // - They are the one who created the main exam
-          // NOTE: Being assigned to the class/subject does NOT override exam ownership
-          const canEditExam = !item.examExamCreatedBy || item.examExamCreatedBy === userId;
-          
-          // Can add remarks if they can edit at least one score type
-          const canEditRemarks = canEditTest || canEditExam;
+          const permissions = calculateScorePermissions({
+            loggedInUserId: userId,
+            loggedInRoleId: userRoleId,
+            testExamCreatedBy: item.testExamCreatedBy,
+            examExamCreatedBy: item.examExamCreatedBy
+          });
           
           return {
             ...item,
-            canEditTest,
-            canEditExam,
-            canEditRemarks
+            canEditTest: permissions.canEditTest,
+            canEditExam: permissions.canEditExam,
+            canEditRemarks: permissions.canEditRemarks
           };
         });
         
@@ -9547,22 +9527,20 @@ Treasure-Home School Administration
           });
         }
         
-        // Admin (roleId 2) and Super Admin (roleId 1) can edit all scores
-        const isAdmin = userRoleId === 1 || userRoleId === 2;
+        // Use shared permission utility for consistent permission checks
+        // This ensures identical logic between GET /api/reports/:id/full and this PATCH endpoint
+        const { calculateScorePermissions, getPermissionDeniedMessage } = await import('@shared/score-permissions');
         
-        // Permission rule: Teachers can ONLY edit scores if they CREATED the exam
-        // Being assigned to the class/subject does NOT override exam ownership
-        // This ensures teachers cannot modify another teacher's exam scores
+        const permissions = calculateScorePermissions({
+          loggedInUserId: userId,
+          loggedInRoleId: userRoleId,
+          testExamCreatedBy: currentItem.testExamCreatedBy,
+          examExamCreatedBy: currentItem.examExamCreatedBy
+        });
         
-        // Determine what the teacher can edit based on OWNERSHIP only (not assignment)
-        const canEditTest = isAdmin || 
-                           !currentItem.testExamCreatedBy || 
-                           currentItem.testExamCreatedBy === userId;
-                           
-        const canEditExam = isAdmin || 
-                           !currentItem.examExamCreatedBy || 
-                           currentItem.examExamCreatedBy === userId;
-                           
+        const isAdmin = permissions.isAdmin;
+        const canEditTest = permissions.canEditTest;
+        const canEditExam = permissions.canEditExam;
         const canEditAny = canEditTest || canEditExam;
         
         // Validate and check permissions for each score type
@@ -9571,10 +9549,18 @@ Treasure-Home School Administration
         const isEditingRemarks = teacherRemarks !== undefined;
         
         // Permission checks for teachers (ownership-based only)
+        // Uses shared getPermissionDeniedMessage for consistent error messaging
+        const permissionContext = {
+          loggedInUserId: userId,
+          loggedInRoleId: userRoleId,
+          testExamCreatedBy: currentItem.testExamCreatedBy,
+          examExamCreatedBy: currentItem.examExamCreatedBy
+        };
+        
         if (!isAdmin) {
           if (isEditingRemarks && !canEditAny) {
             return res.status(403).json({ 
-              message: 'You can only add remarks for subjects where you created an exam. Contact an administrator if you need to update remarks for another teacher\'s exam.',
+              message: getPermissionDeniedMessage('remarks', permissionContext),
               code: 'PERMISSION_DENIED_REMARKS',
               details: { subjectId: currentItem.subjectId }
             });
@@ -9582,7 +9568,7 @@ Treasure-Home School Administration
           
           if (isEditingTestScore && !canEditTest) {
             return res.status(403).json({ 
-              message: 'You cannot edit this test score because the test was created by another teacher. Only the teacher who created the test (or an administrator) can modify these scores.',
+              message: getPermissionDeniedMessage('test', permissionContext),
               code: 'PERMISSION_DENIED_TEST',
               details: { 
                 subjectId: currentItem.subjectId,
@@ -9593,7 +9579,7 @@ Treasure-Home School Administration
           
           if (isEditingExamScore && !canEditExam) {
             return res.status(403).json({ 
-              message: 'You cannot edit this exam score because the exam was created by another teacher. Only the teacher who created the exam (or an administrator) can modify these scores.',
+              message: getPermissionDeniedMessage('exam', permissionContext),
               code: 'PERMISSION_DENIED_EXAM',
               details: { 
                 subjectId: currentItem.subjectId,
