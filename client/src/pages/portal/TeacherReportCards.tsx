@@ -1406,89 +1406,156 @@ export default function TeacherReportCards() {
                   </DropdownMenu>
                 </div>
 
-                {/* Subject Scores - Responsive Table */}
+                {/* Subject Scores - Responsive Layout */}
                 <div>
                   <h4 className="font-semibold mb-2 sm:mb-3 text-sm sm:text-base">Subject Scores</h4>
-                  <div className="overflow-x-auto -mx-2 sm:mx-0">
-                    <div className="min-w-[500px] sm:min-w-0 px-2 sm:px-0">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-xs sm:text-sm">Subject</TableHead>
-                            <TableHead className="text-center text-xs sm:text-sm whitespace-nowrap">Test<br className="sm:hidden"/><span className="hidden sm:inline"> </span>({testWeight}%)</TableHead>
-                            <TableHead className="text-center text-xs sm:text-sm whitespace-nowrap">Exam<br className="sm:hidden"/><span className="hidden sm:inline"> </span>({examWeight}%)</TableHead>
-                            <TableHead className="text-center text-xs sm:text-sm">Total</TableHead>
-                            <TableHead className="text-xs sm:text-sm">Grade</TableHead>
-                            <TableHead className="text-xs sm:text-sm">Edit</TableHead>
+                  
+                  {/* Mobile Card View - visible only on small screens */}
+                  <div className="block sm:hidden space-y-2">
+                    {fullReportCard.items?.map((item: ReportCardItem) => (
+                      <div 
+                        key={item.id} 
+                        className={`border rounded-md p-3 ${item.isOverridden ? 'bg-yellow-50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-800' : 'border-border'}`}
+                        data-testid={`mobile-subject-${item.id}`}
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium text-sm truncate">{item.subjectName}</span>
+                              {item.isOverridden && (
+                                <PenTool className="w-3 h-3 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <Badge className={`text-xs ${getGradeColor(item.grade)}`}>
+                              {item.grade || '-'}
+                            </Badge>
+                            {(item.canEditTest !== false || item.canEditExam !== false) ? (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={(e) => { e.stopPropagation(); handleOverrideScore(item); }}
+                                disabled={fullReportCard.status !== 'draft'}
+                                className="h-7 w-7"
+                                data-testid={`button-override-mobile-${item.id}`}
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </Button>
+                            ) : (
+                              <div className="h-7 w-7 flex items-center justify-center">
+                                <Lock className="w-3.5 h-3.5 text-muted-foreground/50" />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div className="bg-muted/50 rounded px-2 py-1.5">
+                            <div className="text-[10px] text-muted-foreground mb-0.5">Test ({testWeight}%)</div>
+                            <div className="text-xs font-medium">
+                              {item.testScore !== null ? `${item.testScore}/${item.testMaxScore}` : '-'}
+                            </div>
+                            {item.testWeightedScore !== null && (
+                              <div className="text-[10px] text-muted-foreground">({item.testWeightedScore})</div>
+                            )}
+                          </div>
+                          <div className="bg-muted/50 rounded px-2 py-1.5">
+                            <div className="text-[10px] text-muted-foreground mb-0.5">Exam ({examWeight}%)</div>
+                            <div className="text-xs font-medium">
+                              {item.examScore !== null ? `${item.examScore}/${item.examMaxScore}` : '-'}
+                            </div>
+                            {item.examWeightedScore !== null && (
+                              <div className="text-[10px] text-muted-foreground">({item.examWeightedScore})</div>
+                            )}
+                          </div>
+                          <div className="bg-muted/50 rounded px-2 py-1.5">
+                            <div className="text-[10px] text-muted-foreground mb-0.5">Total</div>
+                            <div className="text-xs font-medium">{item.obtainedMarks}/{item.totalMarks}</div>
+                            <div className="text-[10px] text-muted-foreground">({item.percentage}%)</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop Table View - visible only on larger screens */}
+                  <div className="hidden sm:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-sm">Subject</TableHead>
+                          <TableHead className="text-center text-sm">Test ({testWeight}%)</TableHead>
+                          <TableHead className="text-center text-sm">Exam ({examWeight}%)</TableHead>
+                          <TableHead className="text-center text-sm">Total</TableHead>
+                          <TableHead className="text-sm">Grade</TableHead>
+                          <TableHead className="text-sm">Edit</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {fullReportCard.items?.map((item: ReportCardItem) => (
+                          <TableRow key={item.id} className={item.isOverridden ? 'bg-yellow-50 dark:bg-yellow-900/10' : ''}>
+                            <TableCell className="font-medium text-sm py-4">
+                              <div className="flex items-center gap-2">
+                                <span>{item.subjectName}</span>
+                                {item.isOverridden && (
+                                  <Badge variant="outline" className="text-xs">
+                                    <PenTool className="w-3 h-3 mr-1" />
+                                    Modified
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center text-sm py-4">
+                              {item.testScore !== null ? `${item.testScore}/${item.testMaxScore}` : '-'}
+                              {item.testWeightedScore !== null && (
+                                <span className="text-xs text-muted-foreground block">({item.testWeightedScore})</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-center text-sm py-4">
+                              {item.examScore !== null ? `${item.examScore}/${item.examMaxScore}` : '-'}
+                              {item.examWeightedScore !== null && (
+                                <span className="text-xs text-muted-foreground block">({item.examWeightedScore})</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-center font-medium text-sm py-4">
+                              {item.obtainedMarks}/{item.totalMarks}
+                              <span className="text-xs text-muted-foreground block">({item.percentage}%)</span>
+                            </TableCell>
+                            <TableCell className="py-4">
+                              <Badge className={`text-xs ${getGradeColor(item.grade)}`}>
+                                {item.grade || '-'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="py-4">
+                              {(item.canEditTest !== false || item.canEditExam !== false) ? (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => handleOverrideScore(item)}
+                                  disabled={fullReportCard.status !== 'draft'}
+                                  data-testid={`button-override-${item.id}`}
+                                  title={
+                                    item.canEditTest && item.canEditExam 
+                                      ? "Edit test and exam scores" 
+                                      : item.canEditTest 
+                                        ? "Edit test score only" 
+                                        : item.canEditExam 
+                                          ? "Edit exam score only" 
+                                          : undefined
+                                  }
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground" title="You can only edit subjects where you created the exams">
+                                  <Lock className="w-4 h-4 text-muted-foreground/50" />
+                                </span>
+                              )}
+                            </TableCell>
                           </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {fullReportCard.items?.map((item: ReportCardItem) => (
-                            <TableRow key={item.id} className={item.isOverridden ? 'bg-yellow-50 dark:bg-yellow-900/10' : ''}>
-                              <TableCell className="font-medium text-xs sm:text-sm py-2 sm:py-4">
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                                  <span className="truncate max-w-[100px] sm:max-w-none">{item.subjectName}</span>
-                                  {item.isOverridden && (
-                                    <Badge variant="outline" className="text-[10px] sm:text-xs w-fit">
-                                      <PenTool className="w-2 h-2 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
-                                      Modified
-                                    </Badge>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-center text-xs sm:text-sm py-2 sm:py-4">
-                                {item.testScore !== null ? `${item.testScore}/${item.testMaxScore}` : '-'}
-                                {item.testWeightedScore !== null && (
-                                  <span className="text-[10px] sm:text-xs text-muted-foreground block">({item.testWeightedScore})</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center text-xs sm:text-sm py-2 sm:py-4">
-                                {item.examScore !== null ? `${item.examScore}/${item.examMaxScore}` : '-'}
-                                {item.examWeightedScore !== null && (
-                                  <span className="text-[10px] sm:text-xs text-muted-foreground block">({item.examWeightedScore})</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center font-medium text-xs sm:text-sm py-2 sm:py-4">
-                                {item.obtainedMarks}/{item.totalMarks}
-                                <span className="text-[10px] sm:text-xs text-muted-foreground block">({item.percentage}%)</span>
-                              </TableCell>
-                              <TableCell className="py-2 sm:py-4">
-                                <Badge className={`text-[10px] sm:text-xs ${getGradeColor(item.grade)}`}>
-                                  {item.grade || '-'}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="py-2 sm:py-4">
-                                {(item.canEditTest !== false || item.canEditExam !== false) ? (
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => handleOverrideScore(item)}
-                                    disabled={fullReportCard.status !== 'draft'}
-                                    className="h-7 w-7 sm:h-9 sm:w-9"
-                                    data-testid={`button-override-${item.id}`}
-                                    title={
-                                      item.canEditTest && item.canEditExam 
-                                        ? "Edit test and exam scores" 
-                                        : item.canEditTest 
-                                          ? "Edit test score only" 
-                                          : item.canEditExam 
-                                            ? "Edit exam score only" 
-                                            : undefined
-                                    }
-                                  >
-                                    <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
-                                  </Button>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground" title="You can only edit subjects where you created the exams">
-                                    <Lock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground/50" />
-                                  </span>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
                 </div>
 
