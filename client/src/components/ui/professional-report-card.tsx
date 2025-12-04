@@ -748,7 +748,7 @@ export function ProfessionalReportCard({
       </Card>
 
       {/* Grading Key - For Print */}
-      <Card className="print:shadow-none print:border-2 print:break-inside-avoid">
+      <Card className="mb-8 print:shadow-none print:border-2 print:break-inside-avoid">
         <CardHeader className="pb-2 pt-3 px-3 sm:px-4">
           <CardTitle className="text-sm">Grading Key</CardTitle>
         </CardHeader>

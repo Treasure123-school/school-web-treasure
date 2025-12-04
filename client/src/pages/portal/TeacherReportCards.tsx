@@ -1263,10 +1263,10 @@ export default function TeacherReportCards() {
               <p>Loading report card...</p>
             </div>
           ) : fullReportCard ? (
-            <ScrollArea className="max-h-[70vh]">
-              <div className="space-y-4 pr-2 sm:pr-4">
+            <ScrollArea className="h-[calc(90vh-140px)] min-h-[300px]">
+              <div className="space-y-4 pr-2 sm:pr-4 pb-6">
                 {/* Status Actions Bar */}
-                <div className="flex flex-wrap items-center gap-2 p-2 bg-muted/50 rounded-md sticky top-0 z-10">
+                <div className="flex flex-wrap items-center gap-2 p-2 bg-muted/50 rounded-md">
                   {/* Status indicator */}
                   <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
                     {fullReportCard.status === 'draft' ? (
