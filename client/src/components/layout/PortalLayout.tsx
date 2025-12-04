@@ -1,5 +1,11 @@
 import { useLocation } from 'wouter';
-import { GraduationCap, Home, Users, Calendar, BookOpen, MessageSquare, User, Settings, Bell, LogOut, ImageIcon, FileText, Menu, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, ChevronDown, History, UserCheck, Eye, Briefcase, Shield, Activity } from 'lucide-react';
+import { 
+  GraduationCap, Home, Users, Calendar, BookOpen, MessageSquare, User, Settings, 
+  Bell, LogOut, ImageIcon, FileText, Menu, ChevronLeft, ChevronRight, ClipboardCheck, 
+  ClipboardList, ChevronDown, History, UserCheck, Eye, Briefcase, Shield, Activity,
+  Clock, PenTool, CheckSquare, Award, Star, Library, DollarSign, Trophy, HelpCircle,
+  Inbox, Megaphone, MessagesSquare, ClipboardPen, BarChart3, FolderOpen
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -8,7 +14,6 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useState, useEffect } from 'react';
 import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Clock, PenTool, CheckSquare, Award, Star } from 'lucide-react';
 import { NotificationBell } from '@/components/NotificationBell';
 
 
@@ -70,15 +75,41 @@ export default function PortalLayout({ children, userRole, userName, userInitial
       case 'student':
         return [
           ...baseNav,
-          { name: 'My Exams', href: `/portal/${userRole}/exams`, icon: BookOpen },
-          { name: 'My Grades', href: `/portal/${userRole}/grades`, icon: BookOpen },
-          { name: 'Attendance', href: `/portal/${userRole}/attendance`, icon: Calendar },
-          { name: 'Announcements', href: `/portal/${userRole}/announcements`, icon: MessageSquare },
-          { name: 'Study Resources', href: `/portal/${userRole}/study-resources`, icon: FileText },
-          { name: 'Report Card', href: `/portal/${userRole}/report-card`, icon: FileText },
-          { name: 'Messages', href: `/portal/${userRole}/messages`, icon: MessageSquare },
-          { name: 'Gallery', href: `/portal/${userRole}/gallery`, icon: ImageIcon },
           { name: 'Profile', href: `/portal/${userRole}/profile`, icon: User },
+          {
+            type: 'group',
+            label: 'Academic',
+            icon: GraduationCap,
+            isOpen: openMenuKey === 'student-academic',
+            setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'student-academic' : null),
+            items: [
+              { href: `/portal/${userRole}/timetable`, icon: Clock, label: 'Class Schedule' },
+              { href: `/portal/${userRole}/subjects`, icon: BookOpen, label: 'Subjects' },
+              { href: `/portal/${userRole}/assignments`, icon: ClipboardPen, label: 'Assignments' },
+              { href: `/portal/${userRole}/exams`, icon: PenTool, label: 'Exams / Tests' },
+              { href: `/portal/${userRole}/grades`, icon: BarChart3, label: 'Gradebook' },
+              { href: `/portal/${userRole}/report-card`, icon: FileText, label: 'Report Card' },
+            ]
+          },
+          { name: 'Attendance', href: `/portal/${userRole}/attendance`, icon: Calendar },
+          { name: 'Learning Materials', href: `/portal/${userRole}/study-resources`, icon: FolderOpen },
+          {
+            type: 'group',
+            label: 'Communication',
+            icon: MessageSquare,
+            isOpen: openMenuKey === 'student-communication',
+            setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'student-communication' : null),
+            items: [
+              { href: `/portal/${userRole}/messages`, icon: Inbox, label: 'Messages' },
+              { href: `/portal/${userRole}/announcements`, icon: Megaphone, label: 'Announcements' },
+              { href: `/portal/${userRole}/forum`, icon: MessagesSquare, label: 'Discussion Forum' },
+            ]
+          },
+          { name: 'Fees & Payments', href: `/portal/${userRole}/fees`, icon: DollarSign },
+          { name: 'Library', href: `/portal/${userRole}/library`, icon: Library },
+          { name: 'Extracurricular', href: `/portal/${userRole}/extracurricular`, icon: Trophy },
+          { name: 'Help & Support', href: `/portal/${userRole}/help`, icon: HelpCircle },
+          { name: 'Logout', href: '#logout', icon: LogOut },
         ];
       case 'teacher':
         return [
@@ -282,23 +313,30 @@ export default function PortalLayout({ children, userRole, userName, userInitial
           }
           const navItem = item as NavItem;
           const navItemActive = isActive(navItem.href);
+          const isLogout = navItem.href === '#logout';
           return (
             <button
               key={navItem.name}
               type="button"
               onClick={() => {
                 onNavigate?.();
-                navigate(navItem.href);
+                if (isLogout) {
+                  handleLogout();
+                } else {
+                  navigate(navItem.href);
+                }
               }}
               className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ease-in-out w-full ${
-                navItemActive 
-                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/50 dark:shadow-blue-500/30 scale-105' 
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 hover:text-blue-700 dark:hover:text-blue-300 hover:scale-102'
+                isLogout
+                  ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-300'
+                  : navItemActive 
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/50 dark:shadow-blue-500/30 scale-105' 
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 hover:text-blue-700 dark:hover:text-blue-300 hover:scale-102'
               }`}
               data-testid={`nav-${navItem.name.toLowerCase().replace(/\s+/g, '-')}`}
               title={collapsed ? navItem.name : undefined}
             >
-              <Icon className={`h-4 w-4 transition-all duration-300 ease-in-out ${navItemActive ? '' : ''}`} />
+              <Icon className={`h-4 w-4 transition-all duration-300 ease-in-out ${isLogout ? 'text-red-600 dark:text-red-400' : ''}`} />
               {!collapsed && <span className="transition-opacity duration-300 ease-in-out">{navItem.name}</span>}
             </button>
           );
