@@ -61,6 +61,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
 import { STANDARD_GRADING_SCALE, GRADING_SCALES, formatPosition } from '@shared/grading-utils';
+import { ProfessionalReportCard } from '@/components/ui/professional-report-card';
 
 interface ReportCardItem {
   id: number;
@@ -603,6 +604,8 @@ export default function TeacherReportCards() {
     passedStudents: reportCards.filter((rc: any) => (rc.averagePercentage || 0) >= 50).length,
     failedStudents: reportCards.filter((rc: any) => (rc.averagePercentage || 0) < 50).length,
     classAverage: Math.round(reportCards.reduce((sum: number, rc: any) => sum + (rc.averagePercentage || 0), 0) / reportCards.length * 10) / 10,
+    classHighest: Math.max(...reportCards.map((rc: any) => rc.averagePercentage || 0)),
+    classLowest: Math.min(...reportCards.map((rc: any) => rc.averagePercentage || 0)),
     draftCount: reportCards.filter((rc: any) => rc.status === 'draft').length,
     finalizedCount: reportCards.filter((rc: any) => rc.status === 'finalized').length,
     publishedCount: reportCards.filter((rc: any) => rc.status === 'published').length,
@@ -1260,32 +1263,10 @@ export default function TeacherReportCards() {
               <p>Loading report card...</p>
             </div>
           ) : fullReportCard ? (
-            <ScrollArea className="max-h-[60vh]">
-              <div className="space-y-4 sm:space-y-6 pr-2 sm:pr-4">
-                {/* Summary - Responsive Grid */}
-                <div className="grid grid-cols-2 gap-2 sm:gap-4">
-                  <div className="bg-muted p-2 sm:p-3 rounded-md">
-                    <p className="text-xs sm:text-sm text-muted-foreground">Average</p>
-                    <p className="text-xl sm:text-2xl font-bold">{fullReportCard.averagePercentage || 0}%</p>
-                  </div>
-                  <div className="bg-muted p-2 sm:p-3 rounded-md">
-                    <p className="text-xs sm:text-sm text-muted-foreground">Grade</p>
-                    <Badge className={`text-base sm:text-lg ${getGradeColor(fullReportCard.overallGrade)}`}>
-                      {fullReportCard.overallGrade || '-'}
-                    </Badge>
-                  </div>
-                  <div className="bg-muted p-2 sm:p-3 rounded-md">
-                    <p className="text-xs sm:text-sm text-muted-foreground">Position</p>
-                    <p className="text-xl sm:text-2xl font-bold">{fullReportCard.position ? formatPosition(fullReportCard.position) : '-'} <span className="text-sm font-normal text-muted-foreground">of {fullReportCard.totalStudentsInClass || '-'}</span></p>
-                  </div>
-                  <div className="bg-muted p-2 sm:p-3 rounded-md">
-                    <p className="text-xs sm:text-sm text-muted-foreground">Status</p>
-                    <div className="mt-1">{getStatusBadge(fullReportCard.status)}</div>
-                  </div>
-                </div>
-
-                {/* Actions - Responsive with Dropdown Menu */}
-                <div className="flex flex-wrap items-center gap-2">
+            <ScrollArea className="max-h-[70vh]">
+              <div className="space-y-4 pr-2 sm:pr-4">
+                {/* Status Actions Bar */}
+                <div className="flex flex-wrap items-center gap-2 p-2 bg-muted/50 rounded-md sticky top-0 z-10">
                   {/* Status indicator */}
                   <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
                     {fullReportCard.status === 'draft' ? (
@@ -1295,93 +1276,43 @@ export default function TeacherReportCards() {
                     )}
                   </div>
                   
-                  {/* Refresh Scores - only enabled when in draft status */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => autoPopulateMutation.mutate(fullReportCard.id)}
-                    disabled={autoPopulateMutation.isPending || fullReportCard.status !== 'draft'}
-                    className="text-xs sm:text-sm"
-                    data-testid="button-refresh-scores"
-                  >
-                    {autoPopulateMutation.isPending ? (
-                      <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin" />
-                    ) : (
-                      <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                    )}
-                    <span className="hidden sm:inline">Refresh Scores</span>
-                    <span className="sm:hidden">Refresh</span>
-                  </Button>
-                  
-                  {/* Status Change Dropdown */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="default" 
-                        size="sm"
-                        className="text-xs sm:text-sm"
-                        data-testid="button-status-menu"
-                      >
-                        {fullReportCard.status === 'draft' && <FilePen className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />}
-                        {fullReportCard.status === 'finalized' && <FileCheck className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />}
-                        {fullReportCard.status === 'published' && <Send className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />}
-                        <span className="hidden sm:inline">Change Status</span>
-                        <span className="sm:hidden">Status</span>
-                        <MoreVertical className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      {/* Show options based on current status */}
-                      {fullReportCard.status === 'draft' && (
-                        <DropdownMenuItem 
-                          onClick={() => updateStatusMutation.mutate({ 
-                            reportCardId: fullReportCard.id, 
-                            status: 'finalized',
-                            classId: selectedClass,
-                            termId: selectedTerm
-                          })}
-                          className="cursor-pointer"
-                          data-testid="menu-finalize"
+                  <div className="ml-auto flex items-center gap-2">
+                    {/* Refresh Scores */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => autoPopulateMutation.mutate(fullReportCard.id)}
+                      disabled={autoPopulateMutation.isPending || fullReportCard.status !== 'draft'}
+                      className="text-xs sm:text-sm"
+                      data-testid="button-refresh-scores"
+                    >
+                      {autoPopulateMutation.isPending ? (
+                        <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                      )}
+                      <span className="hidden sm:inline">Refresh</span>
+                    </Button>
+                    
+                    {/* Status Change Dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button 
+                          variant="default" 
+                          size="sm"
+                          className="text-xs sm:text-sm"
+                          data-testid="button-status-menu"
                         >
-                          <FileCheck className="w-4 h-4 mr-2 text-blue-500" />
-                          <span>Finalize Report Card</span>
-                        </DropdownMenuItem>
-                      )}
-                      
-                      {fullReportCard.status === 'finalized' && (
-                        <>
-                          <DropdownMenuItem 
-                            onClick={() => updateStatusMutation.mutate({ 
-                              reportCardId: fullReportCard.id, 
-                              status: 'published',
-                              classId: selectedClass,
-                              termId: selectedTerm
-                            })}
-                            className="cursor-pointer"
-                            data-testid="menu-publish"
-                          >
-                            <Send className="w-4 h-4 mr-2 text-green-500" />
-                            <span>Publish to Parents/Students</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            onClick={() => updateStatusMutation.mutate({ 
-                              reportCardId: fullReportCard.id, 
-                              status: 'draft',
-                              classId: selectedClass,
-                              termId: selectedTerm
-                            })}
-                            className="cursor-pointer"
-                            data-testid="menu-revert-draft"
-                          >
-                            <FilePen className="w-4 h-4 mr-2 text-yellow-500" />
-                            <span>Revert to Draft (Edit)</span>
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                      
-                      {fullReportCard.status === 'published' && (
-                        <>
+                          {fullReportCard.status === 'draft' && <FilePen className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />}
+                          {fullReportCard.status === 'finalized' && <FileCheck className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />}
+                          {fullReportCard.status === 'published' && <Send className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />}
+                          <span className="hidden sm:inline">Change Status</span>
+                          <span className="sm:hidden">Status</span>
+                          <MoreVertical className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        {fullReportCard.status === 'draft' && (
                           <DropdownMenuItem 
                             onClick={() => updateStatusMutation.mutate({ 
                               reportCardId: fullReportCard.id, 
@@ -1390,231 +1321,128 @@ export default function TeacherReportCards() {
                               termId: selectedTerm
                             })}
                             className="cursor-pointer"
-                            data-testid="menu-revert-finalized"
+                            data-testid="menu-finalize"
                           >
                             <FileCheck className="w-4 h-4 mr-2 text-blue-500" />
-                            <span>Unpublish (Finalized)</span>
+                            <span>Finalize Report Card</span>
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            onClick={() => updateStatusMutation.mutate({ 
-                              reportCardId: fullReportCard.id, 
-                              status: 'draft',
-                              classId: selectedClass,
-                              termId: selectedTerm
-                            })}
-                            className="cursor-pointer"
-                            data-testid="menu-revert-draft-published"
-                          >
-                            <FilePen className="w-4 h-4 mr-2 text-yellow-500" />
-                            <span>Revert to Draft (Edit)</span>
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                {/* Subject Scores - Responsive Layout */}
-                <div>
-                  <h4 className="font-semibold mb-2 sm:mb-3 text-sm sm:text-base">Subject Scores</h4>
-                  
-                  {/* Mobile Card View - visible only on small screens */}
-                  <div className="block sm:hidden space-y-2">
-                    {fullReportCard.items?.map((item: ReportCardItem) => (
-                      <div 
-                        key={item.id} 
-                        className={`border rounded-md p-3 ${item.isOverridden ? 'bg-yellow-50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-800' : 'border-border'}`}
-                        data-testid={`mobile-subject-${item.id}`}
-                      >
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-medium text-sm truncate">{item.subjectName}</span>
-                              {item.isOverridden && (
-                                <PenTool className="w-3 h-3 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <Badge className={`text-xs ${getGradeColor(item.grade)}`}>
-                              {item.grade || '-'}
-                            </Badge>
-                            {(item.canEditTest !== false || item.canEditExam !== false) ? (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={(e) => { e.stopPropagation(); handleOverrideScore(item); }}
-                                disabled={fullReportCard.status !== 'draft'}
-                                className="h-7 w-7"
-                                data-testid={`button-override-mobile-${item.id}`}
-                              >
-                                <Edit className="w-3.5 h-3.5" />
-                              </Button>
-                            ) : (
-                              <div className="h-7 w-7 flex items-center justify-center">
-                                <Lock className="w-3.5 h-3.5 text-muted-foreground/50" />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-center">
-                          <div className="bg-muted/50 rounded px-2 py-1.5">
-                            <div className="text-[10px] text-muted-foreground mb-0.5">Test ({testWeight}%)</div>
-                            <div className="text-xs font-medium">
-                              {item.testScore !== null ? `${item.testScore}/${item.testMaxScore}` : '-'}
-                            </div>
-                            {item.testWeightedScore !== null && (
-                              <div className="text-[10px] text-muted-foreground">({item.testWeightedScore})</div>
-                            )}
-                          </div>
-                          <div className="bg-muted/50 rounded px-2 py-1.5">
-                            <div className="text-[10px] text-muted-foreground mb-0.5">Exam ({examWeight}%)</div>
-                            <div className="text-xs font-medium">
-                              {item.examScore !== null ? `${item.examScore}/${item.examMaxScore}` : '-'}
-                            </div>
-                            {item.examWeightedScore !== null && (
-                              <div className="text-[10px] text-muted-foreground">({item.examWeightedScore})</div>
-                            )}
-                          </div>
-                          <div className="bg-muted/50 rounded px-2 py-1.5">
-                            <div className="text-[10px] text-muted-foreground mb-0.5">Total</div>
-                            <div className="text-xs font-medium">{item.obtainedMarks}/{item.totalMarks}</div>
-                            <div className="text-[10px] text-muted-foreground">({item.percentage}%)</div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Desktop Table View - visible only on larger screens */}
-                  <div className="hidden sm:block">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-sm">Subject</TableHead>
-                          <TableHead className="text-center text-sm">Test ({testWeight}%)</TableHead>
-                          <TableHead className="text-center text-sm">Exam ({examWeight}%)</TableHead>
-                          <TableHead className="text-center text-sm">Total</TableHead>
-                          <TableHead className="text-sm">Grade</TableHead>
-                          <TableHead className="text-sm">Edit</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {fullReportCard.items?.map((item: ReportCardItem) => (
-                          <TableRow key={item.id} className={item.isOverridden ? 'bg-yellow-50 dark:bg-yellow-900/10' : ''}>
-                            <TableCell className="font-medium text-sm py-4">
-                              <div className="flex items-center gap-2">
-                                <span>{item.subjectName}</span>
-                                {item.isOverridden && (
-                                  <Badge variant="outline" className="text-xs">
-                                    <PenTool className="w-3 h-3 mr-1" />
-                                    Modified
-                                  </Badge>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center text-sm py-4">
-                              {item.testScore !== null ? `${item.testScore}/${item.testMaxScore}` : '-'}
-                              {item.testWeightedScore !== null && (
-                                <span className="text-xs text-muted-foreground block">({item.testWeightedScore})</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-center text-sm py-4">
-                              {item.examScore !== null ? `${item.examScore}/${item.examMaxScore}` : '-'}
-                              {item.examWeightedScore !== null && (
-                                <span className="text-xs text-muted-foreground block">({item.examWeightedScore})</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-center font-medium text-sm py-4">
-                              {item.obtainedMarks}/{item.totalMarks}
-                              <span className="text-xs text-muted-foreground block">({item.percentage}%)</span>
-                            </TableCell>
-                            <TableCell className="py-4">
-                              <Badge className={`text-xs ${getGradeColor(item.grade)}`}>
-                                {item.grade || '-'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="py-4">
-                              {(item.canEditTest !== false || item.canEditExam !== false) ? (
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleOverrideScore(item)}
-                                  disabled={fullReportCard.status !== 'draft'}
-                                  data-testid={`button-override-${item.id}`}
-                                  title={
-                                    item.canEditTest && item.canEditExam 
-                                      ? "Edit test and exam scores" 
-                                      : item.canEditTest 
-                                        ? "Edit test score only" 
-                                        : item.canEditExam 
-                                          ? "Edit exam score only" 
-                                          : undefined
-                                  }
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                              ) : (
-                                <span className="text-xs text-muted-foreground" title="You can only edit subjects where you created the exams">
-                                  <Lock className="w-4 h-4 text-muted-foreground/50" />
-                                </span>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        )}
+                        
+                        {fullReportCard.status === 'finalized' && (
+                          <>
+                            <DropdownMenuItem 
+                              onClick={() => updateStatusMutation.mutate({ 
+                                reportCardId: fullReportCard.id, 
+                                status: 'published',
+                                classId: selectedClass,
+                                termId: selectedTerm
+                              })}
+                              className="cursor-pointer"
+                              data-testid="menu-publish"
+                            >
+                              <Send className="w-4 h-4 mr-2 text-green-500" />
+                              <span>Publish to Parents/Students</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => updateStatusMutation.mutate({ 
+                                reportCardId: fullReportCard.id, 
+                                status: 'draft',
+                                classId: selectedClass,
+                                termId: selectedTerm
+                              })}
+                              className="cursor-pointer"
+                              data-testid="menu-revert-draft"
+                            >
+                              <FilePen className="w-4 h-4 mr-2 text-yellow-500" />
+                              <span>Revert to Draft (Edit)</span>
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                        
+                        {fullReportCard.status === 'published' && (
+                          <>
+                            <DropdownMenuItem 
+                              onClick={() => updateStatusMutation.mutate({ 
+                                reportCardId: fullReportCard.id, 
+                                status: 'finalized',
+                                classId: selectedClass,
+                                termId: selectedTerm
+                              })}
+                              className="cursor-pointer"
+                              data-testid="menu-revert-finalized"
+                            >
+                              <FileCheck className="w-4 h-4 mr-2 text-blue-500" />
+                              <span>Unpublish (Finalized)</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => updateStatusMutation.mutate({ 
+                                reportCardId: fullReportCard.id, 
+                                status: 'draft',
+                                classId: selectedClass,
+                                termId: selectedTerm
+                              })}
+                              className="cursor-pointer"
+                              data-testid="menu-revert-draft-published"
+                            >
+                              <FilePen className="w-4 h-4 mr-2 text-yellow-500" />
+                              <span>Revert to Draft (Edit)</span>
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
 
-                {/* Remarks - Responsive */}
-                <div className="space-y-3 sm:space-y-4">
-                  <h4 className="font-semibold text-sm sm:text-base">Remarks</h4>
-                  {fullReportCard.status !== 'draft' && (
-                    <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground bg-muted p-2 rounded-md">
-                      <Lock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                      <span>Remarks are locked. Revert to draft to edit.</span>
-                    </div>
-                  )}
-                  <div>
-                    <Label className="text-xs sm:text-sm">Teacher Remarks</Label>
-                    <Textarea
-                      value={remarks.teacher}
-                      onChange={(e) => setRemarks(prev => ({ ...prev, teacher: e.target.value }))}
-                      placeholder="Enter teacher remarks..."
-                      disabled={fullReportCard.status !== 'draft'}
-                      className="mt-1 text-sm min-h-[60px] sm:min-h-[80px]"
-                      data-testid="textarea-teacher-remarks"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs sm:text-sm">Principal Remarks</Label>
-                    <Textarea
-                      value={remarks.principal}
-                      onChange={(e) => setRemarks(prev => ({ ...prev, principal: e.target.value }))}
-                      placeholder="Enter principal remarks..."
-                      disabled={fullReportCard.status !== 'draft'}
-                      className="mt-1 text-sm min-h-[60px] sm:min-h-[80px]"
-                      data-testid="textarea-principal-remarks"
-                    />
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => updateRemarksMutation.mutate({
+                {/* Professional Report Card Component */}
+                <ProfessionalReportCard
+                  reportCard={{
+                    id: fullReportCard.id,
+                    studentId: fullReportCard.studentId,
+                    studentName: fullReportCard.studentName,
+                    studentPhoto: fullReportCard.studentPhoto,
+                    admissionNumber: fullReportCard.studentUsername || fullReportCard.admissionNumber,
+                    className: fullReportCard.className,
+                    termName: fullReportCard.termName,
+                    academicSession: fullReportCard.sessionYear || '2024/2025',
+                    averagePercentage: fullReportCard.averagePercentage || 0,
+                    overallGrade: fullReportCard.overallGrade || '-',
+                    position: fullReportCard.position || 0,
+                    totalStudentsInClass: fullReportCard.totalStudentsInClass || 0,
+                    totalScore: fullReportCard.totalScore,
+                    items: fullReportCard.items || [],
+                    teacherRemarks: fullReportCard.teacherRemarks,
+                    principalRemarks: fullReportCard.principalRemarks,
+                    status: fullReportCard.status,
+                    generatedAt: fullReportCard.generatedAt,
+                    classStatistics: {
+                      highestScore: statistics?.classHighest || 0,
+                      lowestScore: statistics?.classLowest || 0,
+                      classAverage: statistics?.classAverage || 0,
+                      totalStudents: fullReportCard.totalStudentsInClass || 0
+                    },
+                    attendance: {
+                      timesSchoolOpened: 0,
+                      timesPresent: 0,
+                      timesAbsent: 0,
+                      attendancePercentage: 0
+                    }
+                  }}
+                  testWeight={testWeight}
+                  examWeight={examWeight}
+                  onEditSubject={(item) => handleOverrideScore(item as ReportCardItem)}
+                  onSaveRemarks={(teacher, principal) => {
+                    updateRemarksMutation.mutate({
                       reportCardId: fullReportCard.id,
-                      teacherRemarks: remarks.teacher,
-                      principalRemarks: remarks.principal
-                    })}
-                    disabled={updateRemarksMutation.isPending || fullReportCard.status !== 'draft'}
-                    className="text-xs sm:text-sm"
-                    data-testid="button-save-remarks"
-                  >
-                    <Save className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                    Save Remarks
-                  </Button>
-                </div>
+                      teacherRemarks: teacher,
+                      principalRemarks: principal
+                    });
+                  }}
+                  canEditRemarks={fullReportCard.status === 'draft'}
+                  isLoading={updateRemarksMutation.isPending}
+                />
               </div>
             </ScrollArea>
           ) : (

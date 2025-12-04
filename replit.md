@@ -21,6 +21,7 @@ The backend is an Express.js application built with Node.js and TypeScript, leve
 - **Database Schema**: Over 40 tables covering academic and administrative functions.
 - **Exam System**: Features reliable submission, instant auto-scoring for MCQs, anti-cheat measures, auto-submission, and real-time progress saving. Exam creation is teacher-centric with strong validation.
 - **Report Card System**: Comprehensive auto-generation and score management with weighted scoring (40% test, 60% exam), teacher-specific editing permissions, auto-recalculation, max score handling, and status workflow (Draft → Finalized → Published). Supports Standard, WAEC, and Percentage grading scales.
+- **Professional Report Card Component**: A fully featured, print-ready report card component (`client/src/components/ui/professional-report-card.tsx`) with student info panel with avatar, subject performance table, affective traits ratings (6 traits), psychomotor skills assessment (5 skills), attendance summary, class statistics (highest/lowest/average), and editable remarks section. Features mobile-responsive design with collapsible sections and print-optimized styling.
 - **File Management**: Unified upload interface with Cloudinary CDN.
 - **Department-Aware Subject Mapping**: Students are assigned subjects based on class level and department. Teachers can be assigned to classes and subjects.
 - **Quick Student Creation**: Optimized "Create Student" modal with essential fields (Full Name, Gender, Date of Birth, Class, Department).
