@@ -11,6 +11,8 @@ export function MinimalRouteFallback() {
       className="min-h-screen w-full bg-background" 
       data-testid="minimal-route-fallback"
       style={{ opacity: 0.01 }}
+      aria-hidden="true"
+      role="presentation"
     />
   );
 }

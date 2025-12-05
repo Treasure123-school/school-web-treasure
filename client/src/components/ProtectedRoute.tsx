@@ -1,6 +1,6 @@
 import { useAuth } from '@/lib/auth';
 import { useLocation } from 'wouter';
-import { useEffect, useTransition } from 'react';
+import { useEffect, useTransition, useState } from 'react';
 import { getPortalByRoleId } from '@/lib/roles';
 
 interface ProtectedRouteProps {
@@ -15,27 +15,31 @@ export default function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [, navigate] = useLocation();
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  const isRoleAllowed = (userRoleId: number, allowed: number[]): boolean => {
+    return allowed.includes(userRoleId);
+  };
 
   useEffect(() => {
     if (isLoading) return;
     
     if (!isAuthenticated) {
+      setIsRedirecting(true);
       startTransition(() => navigate(fallbackPath));
       return;
     }
     if (user && !isRoleAllowed(user.roleId, allowedRoleIds)) {
       const correctPortal = getPortalByRoleId(user.roleId);
+      setIsRedirecting(true);
       startTransition(() => navigate(correctPortal));
       return;
     }
-  }, [isAuthenticated, isLoading, user, allowedRoleIds, navigate, fallbackPath, startTransition]);
+    setIsRedirecting(false);
+  }, [isAuthenticated, isLoading, user, allowedRoleIds, navigate, fallbackPath]);
 
-  const isRoleAllowed = (userRoleId: number, allowedRoleIds: number[]): boolean => {
-    return allowedRoleIds.includes(userRoleId);
-  };
-
-  if (isLoading) {
+  if (isLoading || isPending || isRedirecting) {
     return null;
   }
 
