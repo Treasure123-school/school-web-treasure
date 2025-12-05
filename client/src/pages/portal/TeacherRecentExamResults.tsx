@@ -460,35 +460,35 @@ function ExamResultCardMobile({
       className="border rounded-lg p-3 bg-muted/30"
       data-testid={`card-exam-mobile-${index}`}
     >
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex-1">
-          <h4 className="font-medium text-sm" data-testid={`text-exam-name-mobile-${index}`}>
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="flex-1 min-w-0">
+          <h4 className="font-medium text-sm line-clamp-2" data-testid={`text-exam-name-mobile-${index}`}>
             {exam.name}
           </h4>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground truncate">
             {getSubjectName(exam.subjectId)} • {exam.date ? format(new Date(exam.date), 'dd/MM/yyyy') : 'N/A'}
           </p>
         </div>
         <Badge 
           variant={exam.isPublished ? "default" : "outline"}
-          className="text-xs ml-2"
+          className="text-[10px] sm:text-xs flex-shrink-0"
           data-testid={`badge-status-mobile-${index}`}
         >
           {exam.isPublished ? 'Published' : 'Unpublished'}
         </Badge>
       </div>
       
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           <Badge 
             variant={totalSubmissions > 0 ? "default" : "secondary"} 
-            className="text-xs"
+            className="text-[10px] sm:text-xs"
             data-testid={`badge-submissions-mobile-${index}`}
           >
             {isLoading ? '...' : `${totalSubmissions} submissions`}
           </Badge>
           {averageScore !== null && (
-            <span className="text-xs text-primary font-medium" data-testid={`text-average-mobile-${index}`}>
+            <span className="text-[10px] sm:text-xs text-primary font-medium" data-testid={`text-average-mobile-${index}`}>
               {averageScore}% avg
             </span>
           )}
@@ -497,6 +497,7 @@ function ExamResultCardMobile({
           variant="outline"
           size="sm"
           asChild
+          className="text-xs h-7 sm:h-8"
           data-testid={`button-view-results-mobile-${index}`}
         >
           <Link href={`/portal/teacher/results/exam/${exam.id}`}>

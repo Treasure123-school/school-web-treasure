@@ -40,26 +40,26 @@ function RecentExamResultCard({ exam, index }: { exam: any, index: number }) {
   }
   return (
     <div 
-      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors"
+      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors"
       data-testid={`card-exam-result-${index}`}
     >
-      <div className="flex-1">
-        <div className="flex items-center space-x-2 mb-1">
-          <h4 className="font-medium text-sm" data-testid={`text-exam-name-${index}`}>
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1">
+          <h4 className="font-medium text-xs sm:text-sm line-clamp-2 sm:line-clamp-1" data-testid={`text-exam-name-${index}`}>
             {exam.name}
           </h4>
-          <Badge variant={totalSubmissions > 0 ? "default" : "secondary"} data-testid={`badge-submission-count-${index}`}>
+          <Badge variant={totalSubmissions > 0 ? "default" : "secondary"} className="text-[10px] sm:text-xs" data-testid={`badge-submission-count-${index}`}>
             {totalSubmissions} submissions
           </Badge>
         </div>
-        <p className="text-xs text-muted-foreground" data-testid={`text-exam-details-${index}`}>
+        <p className="text-[10px] sm:text-xs text-muted-foreground truncate" data-testid={`text-exam-details-${index}`}>
           {exam.subjectName || 'Subject'} • {examDate}
         </p>
       </div>
 
-      <div className="text-right space-y-1">
+      <div className="flex items-center justify-between sm:justify-end gap-2 sm:space-y-0 sm:flex-col sm:items-end sm:gap-1">
         {totalSubmissions > 0 && (
-          <p className="text-sm font-medium text-primary" data-testid={`text-exam-average-${index}`}>
+          <p className="text-xs sm:text-sm font-medium text-primary" data-testid={`text-exam-average-${index}`}>
             {averageScore}% avg
           </p>
         )}
@@ -67,6 +67,7 @@ function RecentExamResultCard({ exam, index }: { exam: any, index: number }) {
           variant="outline" 
           size="sm"
           asChild
+          className="text-xs h-7 sm:h-8"
           data-testid={`button-view-exam-results-${index}`}
         >
           <Link href={`/portal/teacher/results/exam/${exam.id}`}>
@@ -315,21 +316,21 @@ export default function TeacherDashboard() {
       </div>
 
       {/* Stats Cards - Modern Gradient Design */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 animate-slide-up">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-6 animate-slide-up">
         <Card className="group relative overflow-hidden border-none shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1" data-testid="stat-total-students">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 opacity-100"></div>
-          <CardContent className="relative p-6 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-100 text-sm font-medium">Total Students</p>
+          <CardContent className="relative p-3 sm:p-4 md:p-6 text-white">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-blue-100 text-xs sm:text-sm font-medium truncate">Total Students</p>
                 <AnimatedCounter
                   value={isLoading ? 0 : totalStudents}
-                  className="text-3xl font-bold mt-2"
+                  className="text-xl sm:text-2xl md:text-3xl font-bold mt-1 sm:mt-2"
                 />
-                <p className="text-blue-100 text-xs mt-2">Across all classes</p>
+                <p className="text-blue-100 text-[10px] sm:text-xs mt-1 sm:mt-2 truncate">Across all classes</p>
               </div>
-              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
-                <Users className="h-8 w-8 text-white" />
+              <div className="p-2 sm:p-3 bg-white/20 backdrop-blur-sm rounded-xl sm:rounded-2xl flex-shrink-0">
+                <Users className="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8 text-white" />
               </div>
             </div>
           </CardContent>
@@ -337,18 +338,18 @@ export default function TeacherDashboard() {
 
         <Card className="group relative overflow-hidden border-none shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1" data-testid="stat-classes">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 via-green-600 to-teal-600 opacity-100"></div>
-          <CardContent className="relative p-6 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-emerald-100 text-sm font-medium">Classes</p>
+          <CardContent className="relative p-3 sm:p-4 md:p-6 text-white">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-emerald-100 text-xs sm:text-sm font-medium truncate">Classes</p>
                 <AnimatedCounter
                   value={isLoading ? 0 : totalClasses}
-                  className="text-3xl font-bold mt-2"
+                  className="text-xl sm:text-2xl md:text-3xl font-bold mt-1 sm:mt-2"
                 />
-                <p className="text-emerald-100 text-xs mt-2">Teaching assignments</p>
+                <p className="text-emerald-100 text-[10px] sm:text-xs mt-1 sm:mt-2 truncate">Teaching assignments</p>
               </div>
-              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
-                <BookOpen className="h-8 w-8 text-white" />
+              <div className="p-2 sm:p-3 bg-white/20 backdrop-blur-sm rounded-xl sm:rounded-2xl flex-shrink-0">
+                <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8 text-white" />
               </div>
             </div>
           </CardContent>
@@ -356,18 +357,18 @@ export default function TeacherDashboard() {
 
         <Card className="group relative overflow-hidden border-none shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1" data-testid="stat-total-exams">
           <div className="absolute inset-0 bg-gradient-to-br from-purple-500 via-violet-600 to-purple-600 opacity-100"></div>
-          <CardContent className="relative p-6 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-purple-100 text-sm font-medium">Total Exams</p>
+          <CardContent className="relative p-3 sm:p-4 md:p-6 text-white">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-purple-100 text-xs sm:text-sm font-medium truncate">Total Exams</p>
                 <AnimatedCounter
                   value={isLoading ? 0 : (exams as any[]).filter((e: any) => e.createdBy === user.id).length}
-                  className="text-3xl font-bold mt-2"
+                  className="text-xl sm:text-2xl md:text-3xl font-bold mt-1 sm:mt-2"
                 />
-                <p className="text-purple-100 text-xs mt-2">Exams created</p>
+                <p className="text-purple-100 text-[10px] sm:text-xs mt-1 sm:mt-2 truncate">Exams created</p>
               </div>
-              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
-                <ClipboardList className="h-8 w-8 text-white" />
+              <div className="p-2 sm:p-3 bg-white/20 backdrop-blur-sm rounded-xl sm:rounded-2xl flex-shrink-0">
+                <ClipboardList className="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8 text-white" />
               </div>
             </div>
           </CardContent>
@@ -375,18 +376,18 @@ export default function TeacherDashboard() {
 
         <Card className="group relative overflow-hidden border-none shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1" data-testid="stat-pending-grades">
           <div className="absolute inset-0 bg-gradient-to-br from-amber-500 via-orange-600 to-red-500 opacity-100"></div>
-          <CardContent className="relative p-6 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-amber-100 text-sm font-medium">Pending Grades</p>
+          <CardContent className="relative p-3 sm:p-4 md:p-6 text-white">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-amber-100 text-xs sm:text-sm font-medium truncate">Pending Grades</p>
                 <AnimatedCounter
                   value={isLoading ? 0 : pendingGradesCount}
-                  className="text-3xl font-bold mt-2"
+                  className="text-xl sm:text-2xl md:text-3xl font-bold mt-1 sm:mt-2"
                 />
-                <p className="text-amber-100 text-xs mt-2">Awaiting review</p>
+                <p className="text-amber-100 text-[10px] sm:text-xs mt-1 sm:mt-2 truncate">Awaiting review</p>
               </div>
-              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
-                <MessageSquare className="h-8 w-8 text-white" />
+              <div className="p-2 sm:p-3 bg-white/20 backdrop-blur-sm rounded-xl sm:rounded-2xl flex-shrink-0">
+                <MessageSquare className="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8 text-white" />
               </div>
             </div>
           </CardContent>
