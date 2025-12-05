@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { 
   BookOpen, 
@@ -292,17 +293,15 @@ export default function StudentSubjects() {
 
                               {teacher && (
                                 <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
-                                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                    {teacher.profileImageUrl ? (
-                                      <img 
-                                        src={teacher.profileImageUrl} 
-                                        alt="" 
-                                        className="w-8 h-8 rounded-full object-cover"
-                                      />
-                                    ) : (
-                                      <User className="w-4 h-4 text-primary" />
-                                    )}
-                                  </div>
+                                  <Avatar className="w-8 h-8 shrink-0">
+                                    <AvatarImage 
+                                      src={teacher.profileImageUrl || undefined} 
+                                      alt={`${teacher.firstName} ${teacher.lastName}`}
+                                    />
+                                    <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                                      {(teacher.firstName?.[0] || '') + (teacher.lastName?.[0] || '')}
+                                    </AvatarFallback>
+                                  </Avatar>
                                   <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium truncate">
                                       {teacher.firstName} {teacher.lastName}
@@ -314,9 +313,11 @@ export default function StudentSubjects() {
 
                               {!teacher && (
                                 <div className="flex items-center gap-2 p-2 rounded-md bg-muted/30 border border-dashed">
-                                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                                    <User className="w-4 h-4 text-muted-foreground" />
-                                  </div>
+                                  <Avatar className="w-8 h-8 shrink-0">
+                                    <AvatarFallback className="bg-muted text-muted-foreground">
+                                      <User className="w-4 h-4" />
+                                    </AvatarFallback>
+                                  </Avatar>
                                   <div className="flex-1 min-w-0">
                                     <p className="text-sm text-muted-foreground">No teacher assigned</p>
                                   </div>
