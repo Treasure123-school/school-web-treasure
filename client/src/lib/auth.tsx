@@ -24,11 +24,13 @@ interface AuthContextType {
   logout: () => void;
   updateUser: (updates: Partial<AuthUser>) => void;
   isAuthenticated: boolean;
+  isLoading: boolean;
 }
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Check for stored auth data on mount
@@ -40,6 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('auth-user');
       }
     }
+    setIsLoading(false);
   }, []);
 
   const login = (userData: AuthUser, token: string) => {
@@ -65,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = user !== null;
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, updateUser, isAuthenticated }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser, isAuthenticated, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

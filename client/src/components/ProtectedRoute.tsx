@@ -13,35 +13,38 @@ export default function ProtectedRoute({
   allowedRoleIds, 
   fallbackPath = '/login' 
 }: ProtectedRouteProps) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const [, navigate] = useLocation();
 
   useEffect(() => {
-    // If not authenticated, redirect to login
+    if (isLoading) return;
+    
     if (!isAuthenticated) {
       navigate(fallbackPath);
       return;
     }
-    // If authenticated but wrong role, redirect based on user's actual role
     if (user && !isRoleAllowed(user.roleId, allowedRoleIds)) {
       const correctPortal = getPortalByRoleId(user.roleId);
       navigate(correctPortal);
       return;
     }
-  }, [isAuthenticated, user, allowedRoleIds, navigate, fallbackPath]);
+  }, [isAuthenticated, isLoading, user, allowedRoleIds, navigate, fallbackPath]);
 
-  // Helper function to check if role is allowed - now uses numeric comparison
   const isRoleAllowed = (userRoleId: number, allowedRoleIds: number[]): boolean => {
     return allowedRoleIds.includes(userRoleId);
   };
 
-  // Show loading or nothing while checking authentication
+  if (isLoading) {
+    return null;
+  }
+
   if (!isAuthenticated || !user) {
     return null;
   }
-  // Check if user has the right role
+
   if (!isRoleAllowed(user.roleId, allowedRoleIds)) {
     return null;
   }
+  
   return <>{children}</>;
 }
