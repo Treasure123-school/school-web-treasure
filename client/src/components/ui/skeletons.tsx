@@ -5,6 +5,16 @@ interface SkeletonBaseProps {
   className?: string;
 }
 
+export function MinimalRouteFallback() {
+  return (
+    <div 
+      className="min-h-screen w-full bg-background" 
+      data-testid="minimal-route-fallback"
+      style={{ opacity: 0.01 }}
+    />
+  );
+}
+
 export function SkeletonShimmer({ className, ...props }: SkeletonBaseProps & React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div

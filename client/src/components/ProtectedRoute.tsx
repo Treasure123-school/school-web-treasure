@@ -1,6 +1,6 @@
 import { useAuth } from '@/lib/auth';
 import { useLocation } from 'wouter';
-import { useEffect, useTransition, Suspense } from 'react';
+import { useEffect, useTransition } from 'react';
 import { getPortalByRoleId } from '@/lib/roles';
 
 interface ProtectedRouteProps {
@@ -47,9 +47,5 @@ export default function ProtectedRoute({
     return null;
   }
   
-  return (
-    <Suspense fallback={null}>
-      {children}
-    </Suspense>
-  );
+  return <>{children}</>;
 }
