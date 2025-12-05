@@ -1,4 +1,5 @@
 import { Switch, Route } from "wouter";
+import { lazy, Suspense } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -6,7 +7,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ROLE_IDS } from "@/lib/roles";
-// All pages eagerly loaded for instant navigation
+import PageLoader from "@/components/PageLoader";
+
+// Public pages - eagerly loaded for instant navigation
 import Home from "@/pages/Home";
 import Login from "@/pages/Login";
 import NotFound from "@/pages/not-found";
@@ -18,70 +21,70 @@ import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import JobVacancy from "@/pages/JobVacancy";
 
-// Super Admin pages
-import SuperAdminDashboard from "@/pages/portal/SuperAdminDashboard";
-import SuperAdminManagement from "@/pages/portal/SuperAdminManagement";
-import SuperAdminSettings from "@/pages/portal/SuperAdminSettings";
-import SuperAdminProfile from "@/pages/portal/SuperAdminProfile";
-import SuperAdminLogs from "@/pages/portal/SuperAdminLogs";
-import SuperAdminAllUsers from "@/pages/portal/SuperAdminAllUsers";
-import SuperAdminAuthenticationSettings from "@/pages/portal/SuperAdminAuthenticationSettings";
-import SuperAdminPlaceholder from "@/pages/portal/SuperAdminPlaceholder";
+// Super Admin pages - lazy loaded
+const SuperAdminDashboard = lazy(() => import("@/pages/portal/SuperAdminDashboard"));
+const SuperAdminManagement = lazy(() => import("@/pages/portal/SuperAdminManagement"));
+const SuperAdminSettings = lazy(() => import("@/pages/portal/SuperAdminSettings"));
+const SuperAdminProfile = lazy(() => import("@/pages/portal/SuperAdminProfile"));
+const SuperAdminLogs = lazy(() => import("@/pages/portal/SuperAdminLogs"));
+const SuperAdminAllUsers = lazy(() => import("@/pages/portal/SuperAdminAllUsers"));
+const SuperAdminAuthenticationSettings = lazy(() => import("@/pages/portal/SuperAdminAuthenticationSettings"));
+const SuperAdminPlaceholder = lazy(() => import("@/pages/portal/SuperAdminPlaceholder"));
 
-// Portal pages - eagerly loaded for instant navigation
-import StudentDashboard from "@/pages/portal/StudentDashboard";
-import StudentGrades from "@/pages/portal/StudentGrades";
-import StudentAnnouncements from "@/pages/portal/StudentAnnouncements";
-import StudentAttendance from "@/pages/portal/StudentAttendance";
-import StudentMessages from "@/pages/portal/StudentMessages";
-import StudentProfile from "@/pages/portal/StudentProfile";
-import StudentExams from "@/pages/portal/StudentExams";
-import StudentExamResults from "@/pages/portal/StudentExamResults";
-import StudentStudyResources from "@/pages/portal/StudentStudyResources";
-import StudentReportCard from "@/pages/portal/StudentReportCard";
-import PortalGallery from "@/pages/portal/Gallery";
-import TeacherDashboard from "@/pages/portal/TeacherDashboard";
-import TeacherProfile from "@/pages/portal/TeacherProfile";
-import TeacherProfileAssignmentDashboard from "@/pages/portal/TeacherProfileAssignmentDashboard";
-import AdminDashboard from "@/pages/portal/AdminDashboard";
-import ParentDashboard from "@/pages/portal/ParentDashboard";
-import StudentManagement from "@/pages/portal/StudentManagement";
-import TeachersManagement from "@/pages/portal/TeachersManagement";
-import ClassesManagement from "@/pages/portal/ClassesManagement";
-import SubjectsManagement from "@/pages/portal/SubjectsManagement";
-import AnnouncementsManagement from "@/pages/portal/AnnouncementsManagement";
-import ReportsManagement from "@/pages/portal/ReportsManagement";
-import SettingsManagement from "@/pages/portal/SettingsManagement";
-import TeacherGradingQueue from "@/pages/portal/TeacherGradingQueue";
-import TeacherClassResults from "@/pages/portal/TeacherClassResults";
-import TeacherExamResults from "@/pages/portal/TeacherExamResults";
-import ExamManagement from "@/pages/portal/ExamManagement";
-import AdminExamOverview from "@/pages/portal/AdminExamOverview";
-import HomepageManagement from "@/pages/portal/HomepageManagement";
-import PerformanceMonitoring from "@/pages/portal/PerformanceMonitoring";
-import ExamSessions from "@/pages/portal/ExamSessions";
-import ExamReports from "@/pages/portal/ExamReports";
-import ParentReportCards from "@/pages/portal/ParentReportCards";
-import VacancyManagement from "@/pages/portal/VacancyManagement";
-import UserManagement from "@/pages/portal/UserManagement";
-import AuditLogs from "@/pages/portal/AuditLogs";
-import ProfileOnboarding from "@/pages/ProfileOnboarding";
-import ProfileCompletionMonitoring from "@/pages/portal/ProfileCompletionMonitoring";
-import AdminRecoveryTools from "@/pages/portal/AdminRecoveryTools";
-import AcademicTermsManagement from "@/pages/portal/AcademicTermsManagement";
-import TeacherProfileVerification from "@/pages/portal/TeacherProfileVerification";
-import TeacherExamAnalytics from "@/pages/portal/TeacherExamAnalytics";
-import CreateExam from "@/pages/portal/CreateExam";
-import TeacherReportCards from "@/pages/portal/TeacherReportCards";
-import TeacherRecentExamResults from "@/pages/portal/TeacherRecentExamResults";
-import PortalComingSoon from "@/pages/portal/PortalComingSoon";
-import StudentSubjectAssignment from "@/pages/portal/StudentSubjectAssignment";
-import TeacherAssignmentManagement from "@/pages/portal/TeacherAssignmentManagement";
-import ClassSubjectMapping from "@/pages/portal/ClassSubjectMapping";
-import DepartmentSubjectMapping from "@/pages/portal/DepartmentSubjectMapping";
-import AssignSubjectTeachers from "@/pages/portal/AssignSubjectTeachers";
-import ReportCardSubjectRules from "@/pages/portal/ReportCardSubjectRules";
-import StudentSubjects from "@/pages/portal/StudentSubjects";
+// Portal pages - lazy loaded for code splitting
+const StudentDashboard = lazy(() => import("@/pages/portal/StudentDashboard"));
+const StudentGrades = lazy(() => import("@/pages/portal/StudentGrades"));
+const StudentAnnouncements = lazy(() => import("@/pages/portal/StudentAnnouncements"));
+const StudentAttendance = lazy(() => import("@/pages/portal/StudentAttendance"));
+const StudentMessages = lazy(() => import("@/pages/portal/StudentMessages"));
+const StudentProfile = lazy(() => import("@/pages/portal/StudentProfile"));
+const StudentExams = lazy(() => import("@/pages/portal/StudentExams"));
+const StudentExamResults = lazy(() => import("@/pages/portal/StudentExamResults"));
+const StudentStudyResources = lazy(() => import("@/pages/portal/StudentStudyResources"));
+const StudentReportCard = lazy(() => import("@/pages/portal/StudentReportCard"));
+const PortalGallery = lazy(() => import("@/pages/portal/Gallery"));
+const TeacherDashboard = lazy(() => import("@/pages/portal/TeacherDashboard"));
+const TeacherProfile = lazy(() => import("@/pages/portal/TeacherProfile"));
+const TeacherProfileAssignmentDashboard = lazy(() => import("@/pages/portal/TeacherProfileAssignmentDashboard"));
+const AdminDashboard = lazy(() => import("@/pages/portal/AdminDashboard"));
+const ParentDashboard = lazy(() => import("@/pages/portal/ParentDashboard"));
+const StudentManagement = lazy(() => import("@/pages/portal/StudentManagement"));
+const TeachersManagement = lazy(() => import("@/pages/portal/TeachersManagement"));
+const ClassesManagement = lazy(() => import("@/pages/portal/ClassesManagement"));
+const SubjectsManagement = lazy(() => import("@/pages/portal/SubjectsManagement"));
+const AnnouncementsManagement = lazy(() => import("@/pages/portal/AnnouncementsManagement"));
+const ReportsManagement = lazy(() => import("@/pages/portal/ReportsManagement"));
+const SettingsManagement = lazy(() => import("@/pages/portal/SettingsManagement"));
+const TeacherGradingQueue = lazy(() => import("@/pages/portal/TeacherGradingQueue"));
+const TeacherClassResults = lazy(() => import("@/pages/portal/TeacherClassResults"));
+const TeacherExamResults = lazy(() => import("@/pages/portal/TeacherExamResults"));
+const ExamManagement = lazy(() => import("@/pages/portal/ExamManagement"));
+const AdminExamOverview = lazy(() => import("@/pages/portal/AdminExamOverview"));
+const HomepageManagement = lazy(() => import("@/pages/portal/HomepageManagement"));
+const PerformanceMonitoring = lazy(() => import("@/pages/portal/PerformanceMonitoring"));
+const ExamSessions = lazy(() => import("@/pages/portal/ExamSessions"));
+const ExamReports = lazy(() => import("@/pages/portal/ExamReports"));
+const ParentReportCards = lazy(() => import("@/pages/portal/ParentReportCards"));
+const VacancyManagement = lazy(() => import("@/pages/portal/VacancyManagement"));
+const UserManagement = lazy(() => import("@/pages/portal/UserManagement"));
+const AuditLogs = lazy(() => import("@/pages/portal/AuditLogs"));
+const ProfileOnboarding = lazy(() => import("@/pages/ProfileOnboarding"));
+const ProfileCompletionMonitoring = lazy(() => import("@/pages/portal/ProfileCompletionMonitoring"));
+const AdminRecoveryTools = lazy(() => import("@/pages/portal/AdminRecoveryTools"));
+const AcademicTermsManagement = lazy(() => import("@/pages/portal/AcademicTermsManagement"));
+const TeacherProfileVerification = lazy(() => import("@/pages/portal/TeacherProfileVerification"));
+const TeacherExamAnalytics = lazy(() => import("@/pages/portal/TeacherExamAnalytics"));
+const CreateExam = lazy(() => import("@/pages/portal/CreateExam"));
+const TeacherReportCards = lazy(() => import("@/pages/portal/TeacherReportCards"));
+const TeacherRecentExamResults = lazy(() => import("@/pages/portal/TeacherRecentExamResults"));
+const PortalComingSoon = lazy(() => import("@/pages/portal/PortalComingSoon"));
+const StudentSubjectAssignment = lazy(() => import("@/pages/portal/StudentSubjectAssignment"));
+const TeacherAssignmentManagement = lazy(() => import("@/pages/portal/TeacherAssignmentManagement"));
+const ClassSubjectMapping = lazy(() => import("@/pages/portal/ClassSubjectMapping"));
+const DepartmentSubjectMapping = lazy(() => import("@/pages/portal/DepartmentSubjectMapping"));
+const AssignSubjectTeachers = lazy(() => import("@/pages/portal/AssignSubjectTeachers"));
+const ReportCardSubjectRules = lazy(() => import("@/pages/portal/ReportCardSubjectRules"));
+const StudentSubjects = lazy(() => import("@/pages/portal/StudentSubjects"));
 
 // Real-time updates are now handled by Socket.IO on the backend
 function RealtimeProvider({ children }: { children: React.ReactNode }) {
@@ -89,6 +92,7 @@ function RealtimeProvider({ children }: { children: React.ReactNode }) {
 }
 function Router() {
   return (
+    <Suspense fallback={<PageLoader message="Loading page..." />}>
     <Switch>
         {/* Public pages */}
         <Route path="/" component={Home} />
@@ -746,6 +750,7 @@ function Router() {
       {/* Fallback to 404 for non-portal pages */}
       <Route component={NotFound} />
     </Switch>
+    </Suspense>
   );
 }
 function App() {
