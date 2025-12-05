@@ -244,7 +244,8 @@ export async function runRoleBasedStressTest(
   return results;
 }
 
-if (require.main === module) {
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
   runAuthenticatedEndpointTests(25, 5).then((results) => {
     console.log('\n📊 Authenticated Tests Summary:');
     const byEndpoint = new Map<string, AuthTestResult[]>();

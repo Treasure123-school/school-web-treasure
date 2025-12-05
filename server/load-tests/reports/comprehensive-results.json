@@ -1,0 +1,190 @@
+{
+  "timestamp": "2025-12-05T14:20:00.000Z",
+  "testEnvironment": {
+    "nodeVersion": "v20.19.3",
+    "platform": "Linux",
+    "targetUrl": "http://localhost:5000"
+  },
+  "summary": {
+    "totalEndpointsTested": 18,
+    "totalRequests": 13344,
+    "overallAverageLatency": 89.13,
+    "overallErrorRate": 0,
+    "maxPublicRPS": 829,
+    "maxAuthenticatedRPS": 153,
+    "websocketConnectionsAttempted": 25,
+    "websocketConnectionsSuccessful": 25,
+    "websocketSuccessRate": 100
+  },
+  "publicEndpoints": [
+    {
+      "endpoint": "/api/health",
+      "method": "GET",
+      "rps": 754,
+      "latency": {
+        "average": 65.98,
+        "p50": 63,
+        "p95": 157,
+        "p99": 193
+      },
+      "errors": 0,
+      "totalRequests": 3770,
+      "status": "excellent"
+    },
+    {
+      "endpoint": "/api/public/homepage-content",
+      "method": "GET",
+      "rps": 794.4,
+      "latency": {
+        "average": 62.49,
+        "p50": 59,
+        "p95": 124,
+        "p99": 183
+      },
+      "errors": 0,
+      "totalRequests": 3972,
+      "status": "excellent"
+    },
+    {
+      "endpoint": "/api/announcements",
+      "method": "GET",
+      "rps": 828.8,
+      "latency": {
+        "average": 59.46,
+        "p50": 58,
+        "p95": 123,
+        "p99": 186
+      },
+      "errors": 0,
+      "totalRequests": 4144,
+      "status": "excellent"
+    },
+    {
+      "endpoint": "/api/vacancies",
+      "method": "GET",
+      "rps": 291.61,
+      "latency": {
+        "average": 168.6,
+        "p50": 154,
+        "p95": 277,
+        "p99": 392
+      },
+      "errors": 0,
+      "totalRequests": 1458,
+      "status": "moderate"
+    }
+  ],
+  "authenticatedEndpoints": [
+    {
+      "endpoint": "/api/auth/me",
+      "method": "GET",
+      "roleResults": [
+        { "role": "Super Admin", "rps": 147, "latency": 133, "errors": 0 },
+        { "role": "Admin", "rps": 152, "latency": 129, "errors": 0 },
+        { "role": "Teacher", "rps": 148, "latency": 132, "errors": 0 },
+        { "role": "Student", "rps": 145, "latency": 134, "errors": 0 },
+        { "role": "Parent", "rps": 150, "latency": 130, "errors": 0 }
+      ]
+    },
+    {
+      "endpoint": "/api/exams",
+      "method": "GET",
+      "roleResults": [
+        { "role": "Super Admin", "rps": 145, "latency": 135, "errors": 0 },
+        { "role": "Admin", "rps": 142, "latency": 138, "errors": 0 },
+        { "role": "Teacher", "rps": 153, "latency": 128, "errors": 0 },
+        { "role": "Student", "rps": 60, "latency": 308, "errors": 0 },
+        { "role": "Parent", "rps": 58, "latency": 315, "errors": 0 }
+      ]
+    },
+    {
+      "endpoint": "/api/users",
+      "method": "GET",
+      "roleResults": [
+        { "role": "Super Admin", "rps": 142, "latency": 138, "errors": 0 },
+        { "role": "Admin", "rps": 142, "latency": 138, "errors": 0 },
+        { "role": "Teacher", "rps": 153, "latency": 128, "errors": 0 }
+      ]
+    }
+  ],
+  "websocketTests": [
+    {
+      "role": "Super Admin",
+      "connections": { "attempted": 5, "successful": 5, "failed": 0 },
+      "latency": { "average": 18.2, "p95": 31, "p99": 31 },
+      "eventsSent": 35,
+      "eventsReceived": 0,
+      "errors": 0
+    },
+    {
+      "role": "Admin",
+      "connections": { "attempted": 5, "successful": 5, "failed": 0 },
+      "latency": { "average": 9.4, "p95": 16, "p99": 16 },
+      "eventsSent": 35,
+      "eventsReceived": 0,
+      "errors": 0
+    },
+    {
+      "role": "Teacher",
+      "connections": { "attempted": 5, "successful": 5, "failed": 0 },
+      "latency": { "average": 7.2, "p95": 8, "p99": 8 },
+      "eventsSent": 35,
+      "eventsReceived": 0,
+      "errors": 0
+    },
+    {
+      "role": "Student",
+      "connections": { "attempted": 5, "successful": 5, "failed": 0 },
+      "latency": { "average": 5.8, "p95": 8, "p99": 8 },
+      "eventsSent": 35,
+      "eventsReceived": 0,
+      "errors": 0
+    },
+    {
+      "role": "Parent",
+      "connections": { "attempted": 5, "successful": 5, "failed": 0 },
+      "latency": { "average": 6.0, "p95": 8, "p99": 8 },
+      "eventsSent": 35,
+      "eventsReceived": 0,
+      "errors": 0
+    }
+  ],
+  "bottlenecks": [
+    {
+      "severity": "warning",
+      "endpoint": "/api/vacancies",
+      "issue": "Higher latency (169ms avg) compared to other public endpoints",
+      "recommendation": "Add caching layer"
+    },
+    {
+      "severity": "warning",
+      "endpoint": "/api/exams (Student/Parent)",
+      "issue": "Complex visibility filtering causes 308ms latency",
+      "recommendation": "Pre-compute visibility or use caching"
+    }
+  ],
+  "recommendations": {
+    "immediate": [
+      "Enable gzip/brotli compression for API responses",
+      "Add Cache-Control headers for static content",
+      "Review database indexes for vacancy queries"
+    ],
+    "mediumTerm": [
+      "Implement Redis caching for frequently accessed data",
+      "Add pagination to large result sets",
+      "Optimize database connection pooling"
+    ],
+    "longTerm": [
+      "Consider microservices for exam processing",
+      "Deploy behind CDN for static assets",
+      "Set up APM monitoring for production"
+    ]
+  },
+  "capacityEstimation": {
+    "100users": { "status": "excellent", "expectedLatency": "65ms" },
+    "250users": { "status": "good", "expectedLatency": "130ms" },
+    "500users": { "status": "acceptable", "expectedLatency": "250ms" },
+    "750users": { "status": "degraded", "expectedLatency": "400ms" },
+    "1000users": { "status": "requires_scaling", "expectedLatency": "600ms+" }
+  }
+}

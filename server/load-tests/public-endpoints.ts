@@ -174,7 +174,8 @@ export async function runStressTest(
   return stressResults;
 }
 
-if (require.main === module) {
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
   runPublicEndpointTests(50, 5).then((results) => {
     console.log('\n📊 Test Summary:');
     results.forEach((r) => {

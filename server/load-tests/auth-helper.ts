@@ -29,7 +29,7 @@ export const TEST_USERS: TestCredentials[] = [
 
 export async function login(username: string, password: string): Promise<AuthToken | null> {
   return new Promise((resolve) => {
-    const postData = JSON.stringify({ username, password });
+    const postData = JSON.stringify({ identifier: username, password });
     
     const options = {
       hostname: 'localhost',
@@ -99,7 +99,8 @@ export function getTokenForRole(tokens: Map<string, AuthToken>, role: string): s
   return auth ? auth.token : null;
 }
 
-if (require.main === module) {
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
   getAllTokens().then((tokens) => {
     console.log('Tokens obtained:');
     tokens.forEach((auth, role) => {
