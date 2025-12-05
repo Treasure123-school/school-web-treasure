@@ -31,6 +31,7 @@ __export(schema_pg_exports, {
   examQuestions: () => examQuestions,
   examResults: () => examResults,
   examSessions: () => examSessions,
+  examSubmissionsArchive: () => examSubmissionsArchive,
   exams: () => exams,
   gallery: () => gallery,
   galleryCategories: () => galleryCategories,
@@ -69,7 +70,7 @@ __export(schema_pg_exports, {
   vacancies: () => vacancies
 });
 import { pgTable, text, integer, boolean, timestamp, index, uniqueIndex, serial, varchar } from "drizzle-orm/pg-core";
-var roles, users, passwordResetTokens, passwordResetAttempts, invites, notifications, academicTerms, classes, subjects, students, teacherProfiles, adminProfiles, parentProfiles, superAdminProfiles, systemSettings, attendance, exams, examQuestions, questionOptions, examSessions, studentAnswers, examResults, questionBanks, questionBankItems, questionBankOptions, announcements, messages, galleryCategories, gallery, homePageContent, contactMessages, reportCards, reportCardItems, studyResources, teacherClassAssignments, teacherAssignmentHistory, gradingBoundaries, continuousAssessment, unauthorizedAccessLogs, studentSubjectAssignments, classSubjectMappings, timetable, gradingTasks, auditLogs, performanceEvents, settings, counters, vacancies, teacherApplications, approvedTeachers;
+var roles, users, passwordResetTokens, passwordResetAttempts, invites, notifications, academicTerms, classes, subjects, students, teacherProfiles, adminProfiles, parentProfiles, superAdminProfiles, systemSettings, attendance, exams, examQuestions, questionOptions, examSessions, studentAnswers, examResults, examSubmissionsArchive, questionBanks, questionBankItems, questionBankOptions, announcements, messages, galleryCategories, gallery, homePageContent, contactMessages, reportCards, reportCardItems, studyResources, teacherClassAssignments, teacherAssignmentHistory, gradingBoundaries, continuousAssessment, unauthorizedAccessLogs, studentSubjectAssignments, classSubjectMappings, timetable, gradingTasks, auditLogs, performanceEvents, settings, counters, vacancies, teacherApplications, approvedTeachers;
 var init_schema_pg = __esm({
   "shared/schema.pg.ts"() {
     "use strict";
@@ -439,6 +440,25 @@ var init_schema_pg = __esm({
       examResultsStudentIdIdx: index("exam_results_student_id_idx").on(table.studentId),
       examResultsExamStudentIdx: index("exam_results_exam_student_idx").on(table.examId, table.studentId),
       examResultsAutoScoredIdx: index("exam_results_auto_scored_idx").on(table.autoScored, table.examId)
+    }));
+    examSubmissionsArchive = pgTable("exam_submissions_archive", {
+      id: serial("id").primaryKey(),
+      examId: integer("exam_id").notNull().references(() => exams.id),
+      studentId: varchar("student_id", { length: 36 }).notNull().references(() => students.id, { onDelete: "cascade" }),
+      originalResultId: integer("original_result_id"),
+      originalSessionId: integer("original_session_id"),
+      score: integer("score").notNull(),
+      maxScore: integer("max_score").notNull(),
+      grade: varchar("grade", { length: 10 }),
+      remarks: text("remarks"),
+      answersSnapshot: text("answers_snapshot"),
+      archivedBy: varchar("archived_by", { length: 36 }).notNull().references(() => users.id),
+      archiveReason: text("archive_reason"),
+      archivedAt: timestamp("archived_at").notNull().defaultNow()
+    }, (table) => ({
+      examSubmissionsArchiveExamIdx: index("exam_submissions_archive_exam_idx").on(table.examId),
+      examSubmissionsArchiveStudentIdx: index("exam_submissions_archive_student_idx").on(table.studentId),
+      examSubmissionsArchiveExamStudentIdx: index("exam_submissions_archive_exam_student_idx").on(table.examId, table.studentId)
     }));
     questionBanks = pgTable("question_banks", {
       id: serial("id").primaryKey(),
@@ -2508,7 +2528,7 @@ __export(storage_exports, {
   isSqlite: () => isSqlite,
   storage: () => storage
 });
-import { eq as eq2, and as and2, desc, asc, sql, sql as dsql2, inArray as inArray2, isNull, or as or2 } from "drizzle-orm";
+import { eq as eq2, and as and2, desc, asc, sql, sql as dsql2, inArray as inArray2, isNull, gte, or as or2 } from "drizzle-orm";
 import { randomUUID } from "crypto";
 function normalizeUuid(raw) {
   if (!raw) return void 0;
@@ -2570,6 +2590,7 @@ var init_storage = __esm({
           email: schema.users.email,
           recoveryEmail: schema.users.recoveryEmail,
           passwordHash: schema.users.passwordHash,
+          mustChangePassword: schema.users.mustChangePassword,
           roleId: schema.users.roleId,
           firstName: schema.users.firstName,
           lastName: schema.users.lastName,
@@ -2602,6 +2623,7 @@ var init_storage = __esm({
           email: schema.users.email,
           recoveryEmail: schema.users.recoveryEmail,
           passwordHash: schema.users.passwordHash,
+          mustChangePassword: schema.users.mustChangePassword,
           roleId: schema.users.roleId,
           firstName: schema.users.firstName,
           lastName: schema.users.lastName,
@@ -3015,6 +3037,7 @@ var init_storage = __esm({
           username: schema.users.username,
           email: schema.users.email,
           passwordHash: schema.users.passwordHash,
+          mustChangePassword: schema.users.mustChangePassword,
           roleId: schema.users.roleId,
           firstName: schema.users.firstName,
           lastName: schema.users.lastName,
@@ -3058,6 +3081,7 @@ var init_storage = __esm({
           username: schema.users.username,
           email: schema.users.email,
           passwordHash: schema.users.passwordHash,
+          mustChangePassword: schema.users.mustChangePassword,
           roleId: schema.users.roleId,
           firstName: schema.users.firstName,
           lastName: schema.users.lastName,
@@ -3754,51 +3778,67 @@ var init_storage = __esm({
         }
       }
       async getExamResultsByStudent(studentId) {
+        const SYSTEM_AUTO_SCORING_UUID = "00000000-0000-0000-0000-000000000001";
+        console.log(`[getExamResultsByStudent] Fetching results for student: ${studentId}`);
         try {
-          const SYSTEM_AUTO_SCORING_UUID = "00000000-0000-0000-0000-000000000001";
-          try {
-            const results = await this.db.select({
-              id: schema.examResults.id,
-              examId: schema.examResults.examId,
-              studentId: schema.examResults.studentId,
-              score: schema.examResults.marksObtained,
-              maxScore: schema.exams.totalMarks,
-              marksObtained: schema.examResults.marksObtained,
-              grade: schema.examResults.grade,
-              remarks: schema.examResults.remarks,
-              recordedBy: schema.examResults.recordedBy,
-              createdAt: schema.examResults.createdAt,
-              autoScored: sql`COALESCE(${schema.examResults.autoScored}, ${schema.examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as("autoScored")
-            }).from(schema.examResults).leftJoin(schema.exams, eq2(schema.examResults.examId, schema.exams.id)).where(eq2(schema.examResults.studentId, studentId)).orderBy(desc(schema.examResults.createdAt));
-            return results;
-          } catch (mainError) {
-            const fallbackResults = await this.db.select({
-              id: schema.examResults.id,
-              examId: schema.examResults.examId,
-              studentId: schema.examResults.studentId,
-              marksObtained: schema.examResults.marksObtained,
-              grade: schema.examResults.grade,
-              remarks: schema.examResults.remarks,
-              recordedBy: schema.examResults.recordedBy,
-              createdAt: schema.examResults.createdAt,
-              score: schema.examResults.marksObtained,
-              maxScore: sql`100`.as("maxScore"),
-              // Default to 100 if join fails
-              autoScored: sql`(${schema.examResults.recordedBy} = ${SYSTEM_AUTO_SCORING_UUID}::uuid)`.as("autoScored")
-            }).from(schema.examResults).where(eq2(schema.examResults.studentId, studentId)).orderBy(desc(schema.examResults.createdAt));
-            for (const result of fallbackResults) {
+          const results = await this.db.select({
+            id: schema.examResults.id,
+            examId: schema.examResults.examId,
+            studentId: schema.examResults.studentId,
+            score: schema.examResults.score,
+            maxScore: schema.examResults.maxScore,
+            marksObtained: schema.examResults.marksObtained,
+            grade: schema.examResults.grade,
+            remarks: schema.examResults.remarks,
+            autoScored: schema.examResults.autoScored,
+            recordedBy: schema.examResults.recordedBy,
+            createdAt: schema.examResults.createdAt
+          }).from(schema.examResults).where(eq2(schema.examResults.studentId, studentId)).orderBy(desc(schema.examResults.createdAt));
+          console.log(`[getExamResultsByStudent] Primary query returned ${results.length} results`);
+          const enrichedResults = await Promise.all(results.map(async (result) => {
+            const finalScore = result.score ?? result.marksObtained ?? 0;
+            let finalMaxScore = result.maxScore;
+            if (finalMaxScore === null || finalMaxScore === void 0) {
               try {
                 const exam = await this.db.select({ totalMarks: schema.exams.totalMarks }).from(schema.exams).where(eq2(schema.exams.id, result.examId)).limit(1);
-                if (exam[0]?.totalMarks) {
-                  result.maxScore = exam[0].totalMarks;
-                }
-              } catch (examError) {
+                finalMaxScore = exam[0]?.totalMarks ?? 100;
+              } catch (examLookupError) {
+                console.warn(`[getExamResultsByStudent] Could not fetch exam totalMarks for examId ${result.examId}`);
+                finalMaxScore = 100;
               }
             }
-            return fallbackResults;
+            const isAutoScored = result.autoScored ?? result.recordedBy === SYSTEM_AUTO_SCORING_UUID;
+            return {
+              ...result,
+              score: finalScore,
+              maxScore: finalMaxScore,
+              autoScored: isAutoScored
+            };
+          }));
+          return enrichedResults;
+        } catch (primaryError) {
+          console.error(`[getExamResultsByStudent] Primary query failed for student ${studentId}:`, primaryError?.message || primaryError);
+          try {
+            console.log(`[getExamResultsByStudent] Attempting fallback query...`);
+            const fallbackResults = await this.db.select().from(schema.examResults).where(eq2(schema.examResults.studentId, studentId)).orderBy(desc(schema.examResults.createdAt));
+            console.log(`[getExamResultsByStudent] Fallback query returned ${fallbackResults.length} results`);
+            return fallbackResults.map((result) => ({
+              id: result.id,
+              examId: result.examId,
+              studentId: result.studentId,
+              score: result.score ?? result.marksObtained ?? 0,
+              maxScore: result.maxScore ?? 100,
+              marksObtained: result.marksObtained,
+              grade: result.grade,
+              remarks: result.remarks,
+              autoScored: result.autoScored ?? result.recordedBy === SYSTEM_AUTO_SCORING_UUID,
+              recordedBy: result.recordedBy,
+              createdAt: result.createdAt
+            }));
+          } catch (fallbackError) {
+            console.error(`[getExamResultsByStudent] CRITICAL: Fallback query also failed for student ${studentId}:`, fallbackError?.message || fallbackError);
+            return [];
           }
-        } catch (error) {
-          return [];
         }
       }
       async getExamResultsByExam(examId) {
@@ -4460,6 +4500,67 @@ var init_storage = __esm({
         } catch (error) {
           throw error;
         }
+      }
+      // Exam retake management - allows teacher to reset student exam for retake
+      // Uses a transaction to ensure atomic operation - either all changes succeed or all roll back
+      async allowExamRetake(examId, studentId, archivedBy) {
+        try {
+          console.log(`[allowExamRetake] Starting retake process for exam ${examId}, student ${studentId}`);
+          const existingResult = await this.getExamResultByExamAndStudent(examId, studentId);
+          if (!existingResult) {
+            return { success: false, message: "No exam submission found for this student" };
+          }
+          const sessions = await db2.select().from(schema.examSessions).where(and2(
+            eq2(schema.examSessions.examId, examId),
+            eq2(schema.examSessions.studentId, studentId)
+          ));
+          let studentAnswers3 = [];
+          for (const session2 of sessions) {
+            const answers = await this.getStudentAnswers(session2.id);
+            studentAnswers3 = [...studentAnswers3, ...answers];
+          }
+          const result = await db2.transaction(async (tx) => {
+            const archivedSubmission = await tx.insert(schema.examSubmissionsArchive).values({
+              examId,
+              studentId,
+              originalResultId: existingResult.id,
+              originalSessionId: sessions[0]?.id || null,
+              score: existingResult.score || existingResult.marksObtained || 0,
+              maxScore: existingResult.maxScore || 100,
+              grade: existingResult.grade || null,
+              remarks: existingResult.remarks || null,
+              answersSnapshot: JSON.stringify(studentAnswers3),
+              archivedBy,
+              archiveReason: "Teacher allowed retake",
+              archivedAt: /* @__PURE__ */ new Date()
+            }).returning();
+            console.log(`[allowExamRetake] Archived submission ID: ${archivedSubmission[0]?.id}`);
+            for (const session2 of sessions) {
+              await tx.delete(schema.studentAnswers).where(eq2(schema.studentAnswers.sessionId, session2.id));
+              console.log(`[allowExamRetake] Deleted answers for session ${session2.id}`);
+            }
+            await tx.delete(schema.examSessions).where(and2(
+              eq2(schema.examSessions.examId, examId),
+              eq2(schema.examSessions.studentId, studentId)
+            ));
+            console.log(`[allowExamRetake] Deleted ${sessions.length} sessions`);
+            await tx.delete(schema.examResults).where(eq2(schema.examResults.id, existingResult.id));
+            console.log(`[allowExamRetake] Deleted exam result ${existingResult.id}`);
+            return { archivedSubmissionId: archivedSubmission[0]?.id };
+          });
+          return {
+            success: true,
+            message: "Student can now retake the exam. Previous submission has been archived.",
+            archivedSubmissionId: result.archivedSubmissionId
+          };
+        } catch (error) {
+          console.error("[allowExamRetake] Error (transaction rolled back):", error);
+          return { success: false, message: `Failed to allow retake: ${error.message}` };
+        }
+      }
+      async getExamResultById(id) {
+        const result = await db2.select().from(schema.examResults).where(eq2(schema.examResults.id, id)).limit(1);
+        return result[0];
       }
       // Enhanced session management for students
       async getStudentActiveSession(studentId) {
@@ -5303,9 +5404,13 @@ var init_storage = __esm({
             subjectId: schema.reportCardItems.subjectId,
             subjectName: schema.subjects.name,
             subjectCode: schema.subjects.code,
+            testExamId: schema.reportCardItems.testExamId,
+            testExamCreatedBy: schema.reportCardItems.testExamCreatedBy,
             testScore: schema.reportCardItems.testScore,
             testMaxScore: schema.reportCardItems.testMaxScore,
             testWeightedScore: schema.reportCardItems.testWeightedScore,
+            examExamId: schema.reportCardItems.examExamId,
+            examExamCreatedBy: schema.reportCardItems.examExamCreatedBy,
             examScore: schema.reportCardItems.examScore,
             examMaxScore: schema.reportCardItems.examMaxScore,
             examWeightedScore: schema.reportCardItems.examWeightedScore,
@@ -5316,7 +5421,8 @@ var init_storage = __esm({
             remarks: schema.reportCardItems.remarks,
             teacherRemarks: schema.reportCardItems.teacherRemarks,
             isOverridden: schema.reportCardItems.isOverridden,
-            overriddenAt: schema.reportCardItems.overriddenAt
+            overriddenAt: schema.reportCardItems.overriddenAt,
+            overriddenBy: schema.reportCardItems.overriddenBy
           }).from(schema.reportCardItems).innerJoin(schema.subjects, eq2(schema.reportCardItems.subjectId, schema.subjects.id)).where(eq2(schema.reportCardItems.reportCardId, reportCardId)).orderBy(schema.subjects.name);
           return { ...reportCard[0], items };
         } catch (error) {
@@ -6228,15 +6334,6 @@ var init_storage = __esm({
       async getContactMessages() {
         return await this.db.select().from(schema.contactMessages).orderBy(desc(schema.contactMessages.createdAt));
       }
-      // Report finalization methods
-      async getExamResultById(id) {
-        try {
-          const result = await this.db.select().from(schema.examResults).where(eq2(schema.examResults.id, id)).limit(1);
-          return result[0];
-        } catch (error) {
-          return void 0;
-        }
-      }
       async getFinalizedReportsByExams(examIds, filters) {
         try {
           const results = await this.db.select().from(schema.examResults).where(and2(
@@ -6351,6 +6448,27 @@ var init_storage = __esm({
       async deleteTeacherClassAssignment(id) {
         const result = await this.db.delete(schema.teacherClassAssignments).where(eq2(schema.teacherClassAssignments.id, id)).returning();
         return result.length > 0;
+      }
+      async getTeacherAssignmentsForClass(teacherId, classId) {
+        try {
+          const now = /* @__PURE__ */ new Date();
+          const assignments = await this.db.select({
+            subjectId: schema.teacherClassAssignments.subjectId,
+            subjectName: schema.subjects.name
+          }).from(schema.teacherClassAssignments).innerJoin(schema.subjects, eq2(schema.teacherClassAssignments.subjectId, schema.subjects.id)).where(and2(
+            eq2(schema.teacherClassAssignments.teacherId, teacherId),
+            eq2(schema.teacherClassAssignments.classId, classId),
+            eq2(schema.teacherClassAssignments.isActive, true),
+            or2(
+              isNull(schema.teacherClassAssignments.validUntil),
+              gte(schema.teacherClassAssignments.validUntil, now)
+            )
+          ));
+          return assignments;
+        } catch (error) {
+          console.error("Error getting teacher assignments for class:", error);
+          return [];
+        }
       }
       // Teacher timetable implementation
       async createTimetableEntry(entry) {
@@ -6971,7 +7089,7 @@ import { sql as sql2 } from "drizzle-orm";
 import { sqliteTable, text as text2, integer as integer2, index as index2, uniqueIndex as uniqueIndex2 } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-var roles2, users2, passwordResetTokens2, passwordResetAttempts2, invites2, notifications2, academicTerms2, classes2, subjects2, students2, teacherProfiles2, adminProfiles2, parentProfiles2, superAdminProfiles2, systemSettings2, attendance2, exams2, examQuestions2, questionOptions2, examSessions2, studentAnswers2, examResults2, questionBanks2, questionBankItems2, questionBankOptions2, announcements2, messages2, galleryCategories2, gallery2, homePageContent2, contactMessages2, reportCards2, reportCardItems2, studyResources2, performanceEvents2, teacherClassAssignments2, teacherAssignmentHistory2, gradingBoundaries2, continuousAssessment2, unauthorizedAccessLogs2, studentSubjectAssignments2, classSubjectMappings2, timetable2, gradingTasks2, auditLogs2, settings2, counters2, vacancies2, teacherApplications2, approvedTeachers2, insertRoleSchema, insertUserSchema, insertPasswordResetTokenSchema, insertPasswordResetAttemptSchema, insertInviteSchema, insertStudentSchema, insertClassSchema, insertSubjectSchema, insertAcademicTermSchema, insertAttendanceSchema, insertExamSchema, insertExamResultSchema, insertAnnouncementSchema, insertMessageSchema, insertGalleryCategorySchema, insertGallerySchema, insertHomePageContentSchema, insertContactMessageSchema, insertReportCardSchema, insertReportCardItemSchema, insertStudyResourceSchema, insertPerformanceEventSchema, insertTeacherClassAssignmentSchema, insertTeacherAssignmentHistorySchema, insertGradingBoundarySchema, insertContinuousAssessmentSchema, insertUnauthorizedAccessLogSchema, insertTimetableSchema, insertGradingTaskSchema, insertAuditLogSchema, insertSettingSchema, insertCounterSchema, createStudentWithAutoCredsSchema, createStudentSchema, quickCreateStudentSchema, csvStudentSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, insertNotificationSchema, insertTeacherProfileSchema, insertAdminProfileSchema, insertParentProfileSchema, insertStudentSubjectAssignmentSchema, insertClassSubjectMappingSchema, insertVacancySchema, insertTeacherApplicationSchema, insertApprovedTeacherSchema, insertSuperAdminProfileSchema, insertSystemSettingsSchema, insertQuestionBankSchema, insertQuestionBankItemSchema, insertQuestionBankOptionSchema;
+var roles2, users2, passwordResetTokens2, passwordResetAttempts2, invites2, notifications2, academicTerms2, classes2, subjects2, students2, teacherProfiles2, adminProfiles2, parentProfiles2, superAdminProfiles2, systemSettings2, attendance2, exams2, examQuestions2, questionOptions2, examSessions2, studentAnswers2, examResults2, examSubmissionsArchive2, questionBanks2, questionBankItems2, questionBankOptions2, announcements2, messages2, galleryCategories2, gallery2, homePageContent2, contactMessages2, reportCards2, reportCardItems2, studyResources2, performanceEvents2, teacherClassAssignments2, teacherAssignmentHistory2, gradingBoundaries2, continuousAssessment2, unauthorizedAccessLogs2, studentSubjectAssignments2, classSubjectMappings2, timetable2, gradingTasks2, auditLogs2, settings2, counters2, vacancies2, teacherApplications2, approvedTeachers2, insertRoleSchema, insertUserSchema, insertPasswordResetTokenSchema, insertPasswordResetAttemptSchema, insertInviteSchema, insertStudentSchema, insertClassSchema, insertSubjectSchema, insertAcademicTermSchema, insertAttendanceSchema, insertExamSchema, insertExamResultSchema, insertExamSubmissionsArchiveSchema, insertAnnouncementSchema, insertMessageSchema, insertGalleryCategorySchema, insertGallerySchema, insertHomePageContentSchema, insertContactMessageSchema, insertReportCardSchema, insertReportCardItemSchema, insertStudyResourceSchema, insertPerformanceEventSchema, insertTeacherClassAssignmentSchema, insertTeacherAssignmentHistorySchema, insertGradingBoundarySchema, insertContinuousAssessmentSchema, insertUnauthorizedAccessLogSchema, insertTimetableSchema, insertGradingTaskSchema, insertAuditLogSchema, insertSettingSchema, insertCounterSchema, createStudentWithAutoCredsSchema, createStudentSchema, quickCreateStudentSchema, csvStudentSchema, insertExamQuestionSchema, insertQuestionOptionSchema, createQuestionOptionSchema, insertExamSessionSchema, updateExamSessionSchema, insertStudentAnswerSchema, insertNotificationSchema, insertTeacherProfileSchema, insertAdminProfileSchema, insertParentProfileSchema, insertStudentSubjectAssignmentSchema, insertClassSubjectMappingSchema, insertVacancySchema, insertTeacherApplicationSchema, insertApprovedTeacherSchema, insertSuperAdminProfileSchema, insertSystemSettingsSchema, insertQuestionBankSchema, insertQuestionBankItemSchema, insertQuestionBankOptionSchema;
 var init_schema = __esm({
   "shared/schema.ts"() {
     "use strict";
@@ -7357,6 +7475,24 @@ var init_schema = __esm({
       examResultsStudentIdIdx: index2("exam_results_student_id_idx").on(table.studentId),
       examResultsExamStudentIdx: index2("exam_results_exam_student_idx").on(table.examId, table.studentId),
       examResultsAutoScoredIdx: index2("exam_results_auto_scored_idx").on(table.autoScored, table.examId)
+    }));
+    examSubmissionsArchive2 = sqliteTable("exam_submissions_archive", {
+      id: integer2("id").primaryKey({ autoIncrement: true }),
+      examId: integer2("exam_id").notNull().references(() => exams2.id),
+      studentId: text2("student_id").notNull().references(() => students2.id, { onDelete: "cascade" }),
+      originalSessionId: integer2("original_session_id"),
+      originalResultId: integer2("original_result_id"),
+      oldScore: integer2("old_score"),
+      oldMaxScore: integer2("old_max_score"),
+      oldAnswers: text2("old_answers"),
+      // JSON string of archived answers
+      archivedBy: text2("archived_by").notNull().references(() => users2.id),
+      archiveReason: text2("archive_reason").notNull().default("retake_allowed"),
+      archivedAt: integer2("archived_at", { mode: "timestamp" }).notNull().default(sql2`(unixepoch())`)
+    }, (table) => ({
+      examSubmissionsArchiveExamIdx: index2("exam_submissions_archive_exam_idx").on(table.examId),
+      examSubmissionsArchiveStudentIdx: index2("exam_submissions_archive_student_idx").on(table.studentId),
+      examSubmissionsArchiveExamStudentIdx: index2("exam_submissions_archive_exam_student_idx").on(table.examId, table.studentId)
     }));
     questionBanks2 = sqliteTable("question_banks", {
       id: integer2("id").primaryKey({ autoIncrement: true }),
@@ -7879,6 +8015,7 @@ var init_schema = __esm({
       showCorrectAnswers: z.boolean().default(false)
     });
     insertExamResultSchema = createInsertSchema(examResults2).omit({ id: true, createdAt: true });
+    insertExamSubmissionsArchiveSchema = createInsertSchema(examSubmissionsArchive2).omit({ id: true, archivedAt: true });
     insertAnnouncementSchema = createInsertSchema(announcements2).omit({ id: true, createdAt: true });
     insertMessageSchema = createInsertSchema(messages2).omit({ id: true, createdAt: true });
     insertGalleryCategorySchema = createInsertSchema(galleryCategories2).omit({ id: true, createdAt: true });
@@ -9804,6 +9941,115 @@ var init_csv_import_service = __esm({
     init_schema();
     init_schema();
     init_username_generator();
+  }
+});
+
+// shared/score-permissions.ts
+var score_permissions_exports = {};
+__export(score_permissions_exports, {
+  calculateScorePermissions: () => calculateScorePermissions,
+  getPermissionDeniedMessage: () => getPermissionDeniedMessage,
+  validateScoreData: () => validateScoreData
+});
+function calculateScorePermissions(context) {
+  const { loggedInUserId, loggedInRoleId, testExamCreatedBy, examExamCreatedBy, assignedTeacherId } = context;
+  const isAdmin = ADMIN_ROLE_IDS.includes(loggedInRoleId);
+  if (isAdmin) {
+    return {
+      canEditTest: true,
+      canEditExam: true,
+      canEditRemarks: true,
+      isAdmin: true,
+      reason: "Administrator access"
+    };
+  }
+  const isAssignedTeacher = assignedTeacherId === loggedInUserId;
+  const canEditTest = !testExamCreatedBy || testExamCreatedBy === loggedInUserId || isAssignedTeacher;
+  const canEditExam = !examExamCreatedBy || examExamCreatedBy === loggedInUserId || isAssignedTeacher;
+  const canEditRemarks = canEditTest || canEditExam;
+  let reason = "";
+  if (!canEditTest && !canEditExam) {
+    reason = "Not authorized: You did not create the exam and are not assigned to this subject";
+  } else if (!canEditTest) {
+    reason = "Cannot edit test scores: Created by another teacher and you are not assigned to this subject";
+  } else if (!canEditExam) {
+    reason = "Cannot edit exam scores: Created by another teacher and you are not assigned to this subject";
+  } else if (isAssignedTeacher) {
+    reason = "Authorized via subject assignment";
+  }
+  return {
+    canEditTest,
+    canEditExam,
+    canEditRemarks,
+    isAdmin: false,
+    reason: reason || void 0
+  };
+}
+function validateScoreData(data) {
+  const errors = [];
+  if (data.testScore !== void 0 && data.testScore !== null) {
+    if (typeof data.testScore !== "number" || isNaN(data.testScore)) {
+      errors.push("Test score must be a valid number");
+    } else if (data.testScore < 0) {
+      errors.push("Test score cannot be negative");
+    } else if (data.testMaxScore && data.testScore > data.testMaxScore) {
+      errors.push("Test score cannot exceed maximum score");
+    }
+  }
+  if (data.testMaxScore !== void 0 && data.testMaxScore !== null) {
+    if (typeof data.testMaxScore !== "number" || isNaN(data.testMaxScore)) {
+      errors.push("Test maximum score must be a valid number");
+    } else if (data.testMaxScore <= 0) {
+      errors.push("Test maximum score must be greater than 0");
+    }
+  }
+  if (data.examScore !== void 0 && data.examScore !== null) {
+    if (typeof data.examScore !== "number" || isNaN(data.examScore)) {
+      errors.push("Exam score must be a valid number");
+    } else if (data.examScore < 0) {
+      errors.push("Exam score cannot be negative");
+    } else if (data.examMaxScore && data.examScore > data.examMaxScore) {
+      errors.push("Exam score cannot exceed maximum score");
+    }
+  }
+  if (data.examMaxScore !== void 0 && data.examMaxScore !== null) {
+    if (typeof data.examMaxScore !== "number" || isNaN(data.examMaxScore)) {
+      errors.push("Exam maximum score must be a valid number");
+    } else if (data.examMaxScore <= 0) {
+      errors.push("Exam maximum score must be greater than 0");
+    }
+  }
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+}
+function getPermissionDeniedMessage(action, context) {
+  const permissions = calculateScorePermissions(context);
+  switch (action) {
+    case "test":
+      if (!permissions.canEditTest) {
+        return "You cannot edit this test score because you did not create the test and are not assigned to this subject. Only the teacher who created the test, the assigned teacher, or an administrator can modify these scores.";
+      }
+      break;
+    case "exam":
+      if (!permissions.canEditExam) {
+        return "You cannot edit this exam score because you did not create the exam and are not assigned to this subject. Only the teacher who created the exam, the assigned teacher, or an administrator can modify these scores.";
+      }
+      break;
+    case "remarks":
+      if (!permissions.canEditRemarks) {
+        return "You can only add remarks for subjects where you created an exam or are assigned to teach. Contact an administrator if you need to update remarks.";
+      }
+      break;
+  }
+  return "Permission denied";
+}
+var ADMIN_ROLE_IDS;
+var init_score_permissions = __esm({
+  "shared/score-permissions.ts"() {
+    "use strict";
+    ADMIN_ROLE_IDS = [1, 2];
   }
 });
 
@@ -12200,9 +12446,6 @@ async function registerRoutes(app2) {
         };
         try {
           const exam = await storage.getExamById(result.examId);
-          if (exam && exam.isPublished === false) {
-            return null;
-          }
           if (exam) {
             baseResult.examTitle = exam.name;
             baseResult.maxScore = result.maxScore || exam.totalMarks || 100;
@@ -12259,6 +12502,89 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Failed to fetch exam results" });
     }
   });
+  app2.get("/api/exam-results/student/:examId", authenticateUser, authorizeRoles(ROLE_IDS.STUDENT), async (req, res) => {
+    try {
+      const examId = parseInt(req.params.examId);
+      const studentId = req.user.id;
+      console.log(`[STRICT-EXAM-RESULT] Student ${studentId} requesting result for exam ${examId}`);
+      if (isNaN(examId) || examId <= 0) {
+        return res.status(400).json({ message: "Invalid exam ID" });
+      }
+      const exam = await storage.getExamById(examId);
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+      const result = await storage.getExamResultByExamAndStudent(examId, studentId);
+      if (!result) {
+        console.log(`[STRICT-EXAM-RESULT] No result found for student ${studentId}, exam ${examId}`);
+        return res.status(404).json({
+          message: "No result found for this exam",
+          examId,
+          subjectName: exam.subjectId ? (await storage.getSubject(exam.subjectId))?.name : "Unknown"
+        });
+      }
+      console.log(`[STRICT-EXAM-RESULT] Found result ID ${result.id} for student ${studentId}, exam ${examId}`);
+      let subjectName = "Unknown Subject";
+      let className = "Unknown Class";
+      if (exam.subjectId) {
+        const subject = await storage.getSubject(exam.subjectId);
+        subjectName = subject?.name || "Unknown Subject";
+      }
+      if (exam.classId) {
+        const classInfo = await storage.getClass(exam.classId);
+        className = classInfo?.name || "Unknown Class";
+      }
+      let timeTakenSeconds = 0;
+      let submissionReason = "manual";
+      let violationCount = 0;
+      try {
+        const sessions = await storage.getExamSessionsByStudent(studentId);
+        const matchingSession = sessions.find((s) => s.examId === examId && s.status === "completed");
+        if (matchingSession) {
+          const metadata = typeof matchingSession.metadata === "string" ? JSON.parse(matchingSession.metadata) : matchingSession.metadata;
+          timeTakenSeconds = metadata?.timeTakenSeconds || 0;
+          submissionReason = metadata?.submissionReason || "manual";
+          violationCount = metadata?.violationCount || 0;
+        }
+      } catch (sessionError) {
+      }
+      const score = result.score ?? result.marksObtained ?? 0;
+      const maxScore = result.maxScore ?? exam.totalMarks ?? 100;
+      const percentage = maxScore > 0 ? Math.round(score / maxScore * 100) : 0;
+      const enrichedResult = {
+        id: result.id,
+        examId: result.examId,
+        studentId: result.studentId,
+        score,
+        maxScore,
+        percentage,
+        grade: result.grade || null,
+        remarks: result.remarks || null,
+        submittedAt: result.createdAt?.toISOString() || null,
+        timeTakenSeconds,
+        submissionReason,
+        violationCount,
+        examTitle: exam.name,
+        subjectName,
+        className,
+        // Include exam details for verification
+        exam: {
+          id: exam.id,
+          title: exam.name,
+          totalMarks: exam.totalMarks,
+          timeLimit: exam.timeLimit,
+          date: exam.date,
+          subjectId: exam.subjectId,
+          classId: exam.classId
+        }
+      };
+      console.log(`[STRICT-EXAM-RESULT] Returning result: exam="${exam.name}", subject="${subjectName}", score=${score}/${maxScore}`);
+      res.json(enrichedResult);
+    } catch (error) {
+      console.error("[STRICT-EXAM-RESULT] Error:", error?.message);
+      res.status(500).json({ message: "Failed to fetch exam result" });
+    }
+  });
   app2.get("/api/exam-results/exam/:examId", authenticateUser, authorizeRoles(ROLE_IDS.TEACHER, ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
     try {
       const examId = parseInt(req.params.examId);
@@ -12293,12 +12619,14 @@ async function registerRoutes(app2) {
           return {
             ...result,
             studentName: user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.username || "Unknown Student",
+            studentUsername: user?.username || null,
             admissionNumber: student?.admissionNumber || null
           };
         } catch (e) {
           return {
             ...result,
             studentName: "Unknown Student",
+            studentUsername: null,
             admissionNumber: null
           };
         }
@@ -12307,6 +12635,188 @@ async function registerRoutes(app2) {
     } catch (error) {
       console.error("[EXAM-RESULTS] Error fetching exam results:", error?.message);
       res.status(500).json({ message: "Failed to fetch exam results" });
+    }
+  });
+  app2.patch("/api/teacher/exam-results/:resultId", authenticateUser, authorizeRoles(ROLE_IDS.TEACHER, ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      const resultId = parseInt(req.params.resultId);
+      const teacherId = req.user.id;
+      if (isNaN(resultId) || resultId <= 0) {
+        return res.status(400).json({ message: "Invalid result ID" });
+      }
+      const updateExamResultSchema = z3.object({
+        testScore: z3.number().min(0).nullable().optional(),
+        remarks: z3.string().max(500).optional()
+      });
+      const parseResult = updateExamResultSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({
+          message: "Invalid input",
+          errors: parseResult.error.flatten().fieldErrors
+        });
+      }
+      const { testScore, remarks } = parseResult.data;
+      const result = await storage.getExamResultById(resultId);
+      if (!result) {
+        return res.status(404).json({ message: "Exam result not found" });
+      }
+      const exam = await storage.getExamById(result.examId);
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+      if (testScore !== void 0 && testScore !== null) {
+        const maxScore = result.maxScore || exam.totalMarks || 100;
+        if (testScore > maxScore) {
+          return res.status(400).json({
+            message: `Test score cannot exceed maximum score of ${maxScore}`
+          });
+        }
+      }
+      if (req.user.roleId === ROLE_IDS.TEACHER) {
+        const isCreator = exam.createdBy === teacherId;
+        const isTeacherInCharge = exam.teacherInChargeId === teacherId;
+        let isClassSubjectTeacher = false;
+        if (exam.classId && exam.subjectId) {
+          try {
+            const teachers = await storage.getTeachersForClassSubject(exam.classId, exam.subjectId);
+            isClassSubjectTeacher = teachers?.some((t) => t.id === teacherId) || false;
+          } catch (e) {
+          }
+        }
+        if (!isCreator && !isTeacherInCharge && !isClassSubjectTeacher) {
+          return res.status(403).json({ message: "You can only update results for exams you created, are assigned to, or teach" });
+        }
+      }
+      const updateData = {};
+      if (testScore !== void 0) {
+        updateData.score = testScore;
+      }
+      if (remarks !== void 0) {
+        updateData.remarks = remarks;
+      }
+      const updatedResult = await storage.updateExamResult(resultId, updateData);
+      realtimeService.emitTableChange("exam_results", "UPDATE", updatedResult, result, teacherId);
+      res.json(updatedResult);
+    } catch (error) {
+      console.error("[EXAM-RESULTS] Error updating exam result:", error?.message);
+      res.status(500).json({ message: "Failed to update exam result" });
+    }
+  });
+  app2.post("/api/teacher/exam-results/:resultId/sync-reportcard", authenticateUser, authorizeRoles(ROLE_IDS.TEACHER, ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      const resultId = parseInt(req.params.resultId);
+      const teacherId = req.user.id;
+      if (isNaN(resultId) || resultId <= 0) {
+        return res.status(400).json({ message: "Invalid result ID" });
+      }
+      const result = await storage.getExamResultById(resultId);
+      if (!result) {
+        return res.status(404).json({ message: "Exam result not found" });
+      }
+      const exam = await storage.getExamById(result.examId);
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+      if (req.user.roleId === ROLE_IDS.TEACHER) {
+        const isCreator = exam.createdBy === teacherId;
+        const isTeacherInCharge = exam.teacherInChargeId === teacherId;
+        let isClassSubjectTeacher = false;
+        if (exam.classId && exam.subjectId) {
+          try {
+            const teachers = await storage.getTeachersForClassSubject(exam.classId, exam.subjectId);
+            isClassSubjectTeacher = teachers?.some((t) => t.id === teacherId) || false;
+          } catch (e) {
+          }
+        }
+        if (!isCreator && !isTeacherInCharge && !isClassSubjectTeacher) {
+          return res.status(403).json({ message: "You can only sync results for exams you created, are assigned to, or teach" });
+        }
+      }
+      const syncResult = await storage.syncExamScoreToReportCard(
+        result.studentId,
+        result.examId,
+        result.score || 0,
+        result.maxScore || exam.totalMarks || 100
+      );
+      if (!syncResult.success) {
+        return res.status(400).json({ message: syncResult.message });
+      }
+      if (syncResult.reportCardId) {
+        realtimeService.emitTableChange("report_cards", "UPDATE", { id: syncResult.reportCardId }, void 0, teacherId);
+      }
+      res.json({
+        message: syncResult.message,
+        reportCardId: syncResult.reportCardId,
+        isNewReportCard: syncResult.isNewReportCard
+      });
+    } catch (error) {
+      console.error("[EXAM-RESULTS] Error syncing to report card:", error?.message);
+      res.status(500).json({ message: "Failed to sync to report card" });
+    }
+  });
+  app2.post("/api/teacher/exams/:examId/allow-retake/:studentId", authenticateUser, authorizeRoles(ROLE_IDS.TEACHER, ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      const examId = parseInt(req.params.examId);
+      const studentId = req.params.studentId;
+      const teacherId = req.user.id;
+      if (isNaN(examId) || examId <= 0) {
+        return res.status(400).json({ message: "Invalid exam ID" });
+      }
+      if (!studentId) {
+        return res.status(400).json({ message: "Student ID is required" });
+      }
+      const exam = await storage.getExamById(examId);
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+      const student = await storage.getStudent(studentId);
+      if (!student) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+      if (req.user.roleId === ROLE_IDS.TEACHER) {
+        const isCreator = exam.createdBy === teacherId;
+        const isTeacherInCharge = exam.teacherInChargeId === teacherId;
+        let isClassSubjectTeacher = false;
+        if (exam.classId && exam.subjectId) {
+          try {
+            const teachers = await storage.getTeachersForClassSubject(exam.classId, exam.subjectId);
+            isClassSubjectTeacher = teachers?.some((t) => t.id === teacherId) || false;
+          } catch (e) {
+          }
+        }
+        if (!isCreator && !isTeacherInCharge && !isClassSubjectTeacher) {
+          return res.status(403).json({ message: "You can only allow retakes for exams you created, are assigned to, or teach" });
+        }
+      }
+      const result = await storage.allowExamRetake(examId, studentId, teacherId);
+      if (!result.success) {
+        return res.status(400).json({ message: result.message });
+      }
+      realtimeService.emitToUser(studentId, "exam.retake.allowed", {
+        examId,
+        examTitle: exam.name,
+        message: "You have been allowed to retake this exam"
+      });
+      await storage.createAuditLog({
+        userId: teacherId,
+        action: "ALLOW_EXAM_RETAKE",
+        entityType: "exam",
+        entityId: examId.toString(),
+        newValue: JSON.stringify({
+          examId,
+          studentId,
+          examTitle: exam.name,
+          archivedSubmissionId: result.archivedSubmissionId
+        })
+      });
+      res.json({
+        success: true,
+        message: result.message,
+        archivedSubmissionId: result.archivedSubmissionId
+      });
+    } catch (error) {
+      console.error("[EXAM-RETAKE] Error allowing exam retake:", error?.message);
+      res.status(500).json({ message: "Failed to allow exam retake" });
     }
   });
   app2.patch("/api/exams/:id", authenticateUser, authorizeRoles(ROLE_IDS.TEACHER, ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
@@ -18172,7 +18682,32 @@ Treasure-Home School Administration
       if (!reportCard) {
         return res.status(404).json({ message: "Report card not found" });
       }
-      res.json(reportCard);
+      const userId = req.user.id;
+      const userRoleId = req.user.roleId;
+      const { calculateScorePermissions: calculateScorePermissions2 } = await Promise.resolve().then(() => (init_score_permissions(), score_permissions_exports));
+      let teacherSubjectAssignments = /* @__PURE__ */ new Set();
+      const isAdmin = [1, 2].includes(userRoleId);
+      if (!isAdmin && reportCard.classId) {
+        const assignments = await storage.getTeacherAssignmentsForClass(userId, reportCard.classId);
+        teacherSubjectAssignments = new Set(assignments.map((a) => a.subjectId));
+      }
+      const enhancedItems = reportCard.items.map((item) => {
+        const isAssignedToSubject = teacherSubjectAssignments.has(item.subjectId);
+        const permissions = calculateScorePermissions2({
+          loggedInUserId: userId,
+          loggedInRoleId: userRoleId,
+          testExamCreatedBy: item.testExamCreatedBy,
+          examExamCreatedBy: item.examExamCreatedBy,
+          assignedTeacherId: isAssignedToSubject ? userId : null
+        });
+        return {
+          ...item,
+          canEditTest: permissions.canEditTest,
+          canEditExam: permissions.canEditExam,
+          canEditRemarks: permissions.canEditRemarks
+        };
+      });
+      res.json({ ...reportCard, items: enhancedItems });
     } catch (error) {
       console.error("Error getting report card:", error);
       res.status(500).json({ message: error.message || "Failed to get report card" });
@@ -18219,33 +18754,133 @@ Treasure-Home School Administration
       const { testScore, testMaxScore, examScore, examMaxScore, teacherRemarks } = req.body;
       const userId = req.user.id;
       const userRoleId = req.user.roleId;
-      const currentItem = await storage.getReportCardItemById(Number(itemId));
-      if (!currentItem) {
-        return res.status(404).json({ message: "Report card item not found" });
+      const parsedItemId = Number(itemId);
+      if (isNaN(parsedItemId) || parsedItemId <= 0) {
+        return res.status(400).json({
+          message: "Invalid item ID provided",
+          code: "INVALID_ITEM_ID"
+        });
       }
-      const isAdmin = userRoleId === 1 || userRoleId === 2;
-      const canEditTest = !currentItem.testExamCreatedBy || currentItem.testExamCreatedBy === userId;
-      const canEditExam = !currentItem.examExamCreatedBy || currentItem.examExamCreatedBy === userId;
+      const currentItem = await storage.getReportCardItemById(parsedItemId);
+      if (!currentItem) {
+        return res.status(404).json({
+          message: "Report card item not found. It may have been deleted.",
+          code: "ITEM_NOT_FOUND"
+        });
+      }
+      const reportCard = await storage.getReportCard(currentItem.reportCardId);
+      if (!reportCard) {
+        return res.status(404).json({
+          message: "Report card not found",
+          code: "REPORT_CARD_NOT_FOUND"
+        });
+      }
+      if (reportCard.status === "published") {
+        return res.status(403).json({
+          message: "This report card has been published and cannot be edited. Contact an administrator to unlock it.",
+          code: "REPORT_LOCKED"
+        });
+      }
+      const { calculateScorePermissions: calculateScorePermissions2, getPermissionDeniedMessage: getPermissionDeniedMessage2 } = await Promise.resolve().then(() => (init_score_permissions(), score_permissions_exports));
+      const isAdminCheck = [1, 2].includes(userRoleId);
+      let isAssignedToSubject = false;
+      if (!isAdminCheck && reportCard.classId) {
+        const assignments = await storage.getTeacherAssignmentsForClass(userId, reportCard.classId);
+        isAssignedToSubject = assignments.some((a) => a.subjectId === currentItem.subjectId);
+      }
+      const permissions = calculateScorePermissions2({
+        loggedInUserId: userId,
+        loggedInRoleId: userRoleId,
+        testExamCreatedBy: currentItem.testExamCreatedBy,
+        examExamCreatedBy: currentItem.examExamCreatedBy,
+        assignedTeacherId: isAssignedToSubject ? userId : null
+      });
+      const isAdmin = permissions.isAdmin;
+      const canEditTest = permissions.canEditTest;
+      const canEditExam = permissions.canEditExam;
       const canEditAny = canEditTest || canEditExam;
+      const isEditingTestScore = testScore !== void 0 || testMaxScore !== void 0;
+      const isEditingExamScore = examScore !== void 0 || examMaxScore !== void 0;
+      const isEditingRemarks = teacherRemarks !== void 0;
+      const permissionContext = {
+        loggedInUserId: userId,
+        loggedInRoleId: userRoleId,
+        testExamCreatedBy: currentItem.testExamCreatedBy,
+        examExamCreatedBy: currentItem.examExamCreatedBy,
+        assignedTeacherId: isAssignedToSubject ? userId : null
+      };
       if (!isAdmin) {
-        const isEditingTestScore = testScore !== void 0 || testMaxScore !== void 0;
-        const isEditingExamScore = examScore !== void 0 || examMaxScore !== void 0;
-        const isEditingRemarks = teacherRemarks !== void 0;
         if (isEditingRemarks && !canEditAny) {
           return res.status(403).json({
-            message: "You can only add remarks for subjects where you created at least one exam."
+            message: getPermissionDeniedMessage2("remarks", permissionContext),
+            code: "PERMISSION_DENIED_REMARKS",
+            details: { subjectId: currentItem.subjectId }
           });
         }
         if (isEditingTestScore && !canEditTest) {
           return res.status(403).json({
-            message: "You can only edit test scores for exams you created. This test was created by another teacher."
+            message: getPermissionDeniedMessage2("test", permissionContext),
+            code: "PERMISSION_DENIED_TEST",
+            details: {
+              subjectId: currentItem.subjectId,
+              testCreatedBy: currentItem.testExamCreatedBy
+            }
           });
         }
         if (isEditingExamScore && !canEditExam) {
           return res.status(403).json({
-            message: "You can only edit exam scores for exams you created. This exam was created by another teacher."
+            message: getPermissionDeniedMessage2("exam", permissionContext),
+            code: "PERMISSION_DENIED_EXAM",
+            details: {
+              subjectId: currentItem.subjectId,
+              examCreatedBy: currentItem.examExamCreatedBy
+            }
           });
         }
+      }
+      const validationErrors = [];
+      if (testScore !== void 0 && testScore !== "" && testScore !== null) {
+        const numTestScore = Number(testScore);
+        if (isNaN(numTestScore)) {
+          validationErrors.push("Test score must be a valid number");
+        } else if (numTestScore < 0) {
+          validationErrors.push("Test score cannot be negative");
+        } else if (testMaxScore !== void 0 && numTestScore > Number(testMaxScore)) {
+          validationErrors.push("Test score cannot exceed maximum score");
+        } else if (currentItem.testMaxScore && numTestScore > currentItem.testMaxScore) {
+          validationErrors.push(`Test score cannot exceed maximum of ${currentItem.testMaxScore}`);
+        }
+      }
+      if (examScore !== void 0 && examScore !== "" && examScore !== null) {
+        const numExamScore = Number(examScore);
+        if (isNaN(numExamScore)) {
+          validationErrors.push("Exam score must be a valid number");
+        } else if (numExamScore < 0) {
+          validationErrors.push("Exam score cannot be negative");
+        } else if (examMaxScore !== void 0 && numExamScore > Number(examMaxScore)) {
+          validationErrors.push("Exam score cannot exceed maximum score");
+        } else if (currentItem.examMaxScore && numExamScore > currentItem.examMaxScore) {
+          validationErrors.push(`Exam score cannot exceed maximum of ${currentItem.examMaxScore}`);
+        }
+      }
+      if (testMaxScore !== void 0 && testMaxScore !== "" && testMaxScore !== null) {
+        const numTestMax = Number(testMaxScore);
+        if (isNaN(numTestMax) || numTestMax <= 0) {
+          validationErrors.push("Test maximum score must be a positive number");
+        }
+      }
+      if (examMaxScore !== void 0 && examMaxScore !== "" && examMaxScore !== null) {
+        const numExamMax = Number(examMaxScore);
+        if (isNaN(numExamMax) || numExamMax <= 0) {
+          validationErrors.push("Exam maximum score must be a positive number");
+        }
+      }
+      if (validationErrors.length > 0) {
+        return res.status(400).json({
+          message: validationErrors.join(". "),
+          code: "VALIDATION_ERROR",
+          errors: validationErrors
+        });
       }
       const updatePayload = { overriddenBy: userId };
       if (testScore !== void 0 && testScore !== "") {
@@ -18260,12 +18895,21 @@ Treasure-Home School Administration
       if (examMaxScore !== void 0 && examMaxScore !== "") {
         updatePayload.examMaxScore = Number(examMaxScore);
       }
-      if (teacherRemarks !== void 0 && teacherRemarks !== "") {
-        updatePayload.teacherRemarks = teacherRemarks;
+      if (teacherRemarks !== void 0) {
+        updatePayload.teacherRemarks = teacherRemarks || null;
       }
-      const updatedItem = await storage.overrideReportCardItemScore(Number(itemId), updatePayload);
+      console.log(`Score override by ${userId} (roleId: ${userRoleId}) for item ${parsedItemId}:`, {
+        isAdmin,
+        canEditTest,
+        canEditExam,
+        payload: Object.keys(updatePayload)
+      });
+      const updatedItem = await storage.overrideReportCardItemScore(parsedItemId, updatePayload);
       if (!updatedItem) {
-        return res.status(404).json({ message: "Report card item not found" });
+        return res.status(500).json({
+          message: "Failed to save score changes. Please try again.",
+          code: "UPDATE_FAILED"
+        });
       }
       realtimeService.emitTableChange("report_card_items", "UPDATE", updatedItem, void 0, userId);
       if (updatedItem.reportCardId) {
@@ -18279,10 +18923,18 @@ Treasure-Home School Administration
           overriddenBy: userId
         }, userId);
       }
-      res.json(updatedItem);
+      res.json({
+        ...updatedItem,
+        message: "Score updated successfully",
+        canEditTest,
+        canEditExam
+      });
     } catch (error) {
       console.error("Error overriding score:", error);
-      res.status(500).json({ message: error.message || "Failed to override score" });
+      res.status(500).json({
+        message: error.message || "An unexpected error occurred while saving the score. Please try again.",
+        code: "INTERNAL_ERROR"
+      });
     }
   });
   app2.patch("/api/reports/:reportCardId/status", authenticateUser, authorizeRoles(ROLE_IDS.TEACHER, ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
@@ -18806,6 +19458,93 @@ Treasure-Home School Administration
     } catch (error) {
       console.error("[DEBUG-RESYNC] Error:", error);
       res.status(500).json({ message: error.message || "Sync failed" });
+    }
+  });
+  app2.get("/api/students/me", authenticateUser, authorizeRoles(ROLE_IDS.STUDENT), async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const student = await storage.getStudentByUserId(userId);
+      if (!student) {
+        return res.status(404).json({ message: "Student profile not found" });
+      }
+      const user = await storage.getUser(userId);
+      let className = null;
+      if (student.classId) {
+        const classInfo = await storage.getClass(student.classId);
+        className = classInfo?.name;
+      }
+      res.json({
+        id: student.id,
+        firstName: user?.firstName || "",
+        lastName: user?.lastName || "",
+        studentId: student.admissionNumber,
+        classId: student.classId,
+        className,
+        department: student.department,
+        dateOfBirth: user?.dateOfBirth || null,
+        enrollmentDate: student.admissionDate
+      });
+    } catch (error) {
+      console.error("Error fetching student info:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch student info" });
+    }
+  });
+  app2.get("/api/my-subjects", authenticateUser, authorizeRoles(ROLE_IDS.STUDENT), async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const student = await storage.getStudentByUserId(userId);
+      if (!student) {
+        return res.status(404).json({ message: "Student profile not found" });
+      }
+      const assignments = await storage.getStudentSubjectAssignments(student.id);
+      const enrichedAssignments = await Promise.all(assignments.map(async (assignment) => {
+        const subject = await storage.getSubject(assignment.subjectId);
+        return {
+          id: assignment.id,
+          subjectId: assignment.subjectId,
+          subjectName: subject?.name,
+          subjectCode: subject?.code,
+          category: subject?.category || "general"
+        };
+      }));
+      res.json(enrichedAssignments);
+    } catch (error) {
+      console.error("Error fetching my subjects:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch subjects" });
+    }
+  });
+  app2.get("/api/my-subject-teachers", authenticateUser, authorizeRoles(ROLE_IDS.STUDENT), async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const student = await storage.getStudentByUserId(userId);
+      if (!student) {
+        return res.status(404).json({ message: "Student profile not found" });
+      }
+      if (!student.classId) {
+        return res.json({});
+      }
+      const assignments = await storage.getStudentSubjectAssignments(student.id);
+      const teacherMap = {};
+      for (const assignment of assignments) {
+        try {
+          const teachers = await storage.getTeachersForClassSubject(student.classId, assignment.subjectId);
+          if (teachers && teachers.length > 0) {
+            const teacher = teachers[0];
+            teacherMap[assignment.subjectId] = {
+              id: teacher.id,
+              firstName: teacher.firstName,
+              lastName: teacher.lastName,
+              email: teacher.email,
+              profileImageUrl: teacher.profileImageUrl
+            };
+          }
+        } catch (e) {
+        }
+      }
+      res.json(teacherMap);
+    } catch (error) {
+      console.error("Error fetching subject teachers:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch teachers" });
     }
   });
   if (process.env.NODE_ENV === "production" && process.env.FRONTEND_URL) {
