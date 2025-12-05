@@ -70,22 +70,53 @@ function calculatePercentile(sortedTimes: number[], percentile: number): number 
   return sortedTimes[Math.max(0, index)];
 }
 
-async function loginUser(username: string, password: string): Promise<string | null> {
-  try {
-    const response = await fetch(`${BASE_URL}/api/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      return data.token;
+async function loginUser(username: string, password: string, retries = 3): Promise<string | null> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(`${BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: username, password })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.token) {
+          console.log(`    Login successful for ${username} (attempt ${attempt})`);
+          return data.token;
+        }
+      }
+      
+      const errorText = await response.text();
+      console.log(`    Login attempt ${attempt}/${retries} for ${username} failed: ${response.status} - ${errorText.substring(0, 100)}`);
+      
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 1000 * attempt));
+      }
+    } catch (err: any) {
+      console.log(`    Login attempt ${attempt}/${retries} for ${username} error: ${err.message}`);
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 1000 * attempt));
+      }
     }
-    return null;
-  } catch {
-    return null;
   }
+  return null;
+}
+
+async function waitForServer(maxWait = 10000): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < maxWait) {
+    try {
+      const response = await fetch(`${BASE_URL}/api/health`);
+      if (response.ok) {
+        console.log('  Server is ready.');
+        return true;
+      }
+    } catch {}
+    await new Promise(r => setTimeout(r, 500));
+  }
+  console.log('  Server not responding within timeout.');
+  return false;
 }
 
 async function runScenario(
@@ -149,6 +180,13 @@ async function runLoadTests() {
   console.log(`  Started at: ${new Date().toISOString()}`);
   
   const allResults: LoadTestResult[] = [];
+  
+  console.log('\n  Waiting for server to be ready...');
+  const serverReady = await waitForServer();
+  if (!serverReady) {
+    console.log('  ERROR: Server not available. Exiting.');
+    process.exit(1);
+  }
   
   console.log('\n  Obtaining authentication tokens...');
   const studentToken = await loginUser('student', 'Student@123');
