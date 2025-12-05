@@ -114,6 +114,50 @@ class DatabaseOptimizer {
       
       // Homepage content hot paths
       { name: 'homepage_active_order_idx', sql: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS homepage_active_order_idx ON home_page_content(is_active, display_order) WHERE is_active = true' },
+      
+      // ==================== EXAM VISIBILITY OPTIMIZATION INDEXES ====================
+      // Critical for student exam access performance (target: <100ms)
+      
+      // Students class-based lookup for visibility
+      { name: 'students_class_dept_idx', sql: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS students_class_dept_idx ON students(class_id, department)' },
+      { name: 'students_class_active_idx', sql: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS students_class_active_idx ON students(class_id)' },
+      
+      // Subject category for department filtering (SS1-SS3)
+      { name: 'subjects_category_idx', sql: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS subjects_category_idx ON subjects(category) WHERE is_active = true' },
+      { name: 'subjects_active_cat_idx', sql: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS subjects_active_cat_idx ON subjects(is_active, category)' },
+      
+      // Optimized exam visibility queries
+      { name: 'exams_visibility_idx', sql: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS exams_visibility_idx ON exams(is_published, class_id, subject_id)' },
+      { name: 'exams_class_published_idx', sql: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS exams_class_published_idx ON exams(class_id, is_published) WHERE is_published = true' },
+      
+      // Classes level lookup for SS detection
+      { name: 'classes_level_idx', sql: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS classes_level_idx ON classes(level)' },
+      
+      // ==================== VACANCY OPTIMIZATION INDEXES ====================
+      // Critical for public vacancy listing (target: <100ms)
+      
+      { name: 'vacancies_status_idx', sql: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS vacancies_status_idx ON vacancies(status)' },
+      { name: 'vacancies_active_idx', sql: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS vacancies_active_idx ON vacancies(status, created_at DESC) WHERE status = \'open\'' },
+      { name: 'vacancies_created_idx', sql: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS vacancies_created_idx ON vacancies(created_at DESC)' },
+      
+      // ==================== EXAM RESULTS & SUBMISSIONS OPTIMIZATION ====================
+      // Critical for real-time anti-cheat and grading
+      
+      { name: 'exam_results_exam_student_idx', sql: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_results_exam_student_idx ON exam_results(exam_id, student_id)' },
+      { name: 'exam_results_student_idx', sql: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_results_student_idx ON exam_results(student_id)' },
+      { name: 'student_answers_session_idx', sql: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS student_answers_session_idx ON student_answers(session_id)' },
+      { name: 'student_answers_question_idx', sql: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS student_answers_question_idx ON student_answers(question_id)' },
+      
+      // ==================== SCALABILITY INDEXES ====================
+      // For horizontal scaling support with 1000+ concurrent users
+      
+      // Session management
+      { name: 'exam_sessions_exam_student_idx', sql: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_sessions_exam_student_idx ON exam_sessions(exam_id, student_id)' },
+      { name: 'exam_sessions_active_idx', sql: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_sessions_active_idx ON exam_sessions(status, started_at) WHERE status = \'in_progress\'' },
+      
+      // User authentication hot paths
+      { name: 'users_login_idx', sql: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS users_login_idx ON users(username, is_active) WHERE is_active = true' },
+      { name: 'users_email_active_idx', sql: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS users_email_active_idx ON users(email, is_active) WHERE is_active = true' },
     ];
 
     const pool = getPgPool();

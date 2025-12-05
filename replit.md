@@ -51,9 +51,10 @@ System optimized to handle 500-1000 concurrent users with excellent performance:
 - **Total Test Volume**: 108,840 requests processed successfully with 0% error rate
 
 ### Database Optimization
-- **37 Performance Indexes**: Created covering users, exams, sessions, results, notifications, and all hot paths
-- **Connection Pooling**: Neon WebSocket pooler with optimized settings
+- **55 Performance Indexes**: Covering users, exams, sessions, results, notifications, vacancies, and all hot paths
+- **Connection Pooling**: Neon WebSocket pooler with optimized settings for 500-1000 concurrent users
 - **Query Optimizer**: Pagination, field selection, and query caching integrated
+- **Concurrent Index Creation**: Indexes created with CONCURRENTLY to avoid production locking
 
 ### Caching Architecture
 - **Multi-Tier Cache** (`server/enhanced-cache.ts`):
@@ -82,8 +83,11 @@ System optimized to handle 500-1000 concurrent users with excellent performance:
   - `GET /api/performance/report` - Full performance report
 
 ### Key Files
-- `server/database-optimization.ts` - Database indexes and query optimization
-- `server/enhanced-cache.ts` - Multi-tier caching system
+- `server/database-optimization.ts` - Database indexes and query optimization (55 indexes)
+- `server/enhanced-cache.ts` - Multi-tier caching system with request coalescing
+- `server/exam-visibility.ts` - Optimized exam visibility with role-scoped caching
+- `server/performance-cache.ts` - Public endpoint caching layer
+- `server/scalability-config.ts` - Horizontal scaling configuration (Redis-ready)
 - `server/socket-optimizer.ts` - WebSocket optimization
 - `server/performance-monitor.ts` - Metrics collection and reporting
 - `scripts/run-load-test.ts` - Load testing harness

@@ -27,8 +27,9 @@ import { getProfileImagePath, getHomepageImagePath } from "./storage-path-utils"
 import { uploadFileToStorage, replaceFile, deleteFileFromStorage } from "./upload-service";
 import teacherAssignmentRoutes from "./teacher-assignment-routes";
 import { validateTeacherCanCreateExam, validateTeacherCanEnterScores, validateTeacherCanViewResults, getTeacherAssignments, validateExamTimeWindow, logExamAccess } from "./teacher-auth-middleware";
-import { getVisibleExamsForStudent, getVisibleExamsForParent } from "./exam-visibility";
+import { getVisibleExamsForStudent, getVisibleExamsForParent, invalidateVisibilityCache, warmVisibilityCache } from "./exam-visibility";
 import { performanceCache, PerformanceCache } from "./performance-cache";
+import { enhancedCache, EnhancedCache } from "./enhanced-cache";
 
 // Helper function to extract file path from URL (local filesystem)
 function extractFilePathFromUrl(url: string): string {
@@ -1276,6 +1277,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const exam = await storage.createExam(examData);
       
+      // Invalidate exam visibility cache for students in this class
+      if (exam.isPublished) {
+        invalidateVisibilityCache({ examId: exam.id });
+      }
+      
       // Emit realtime event for exam creation
       realtimeService.emitTableChange('exams', 'INSERT', exam, undefined, teacherId);
       if (exam.classId) {
@@ -1992,6 +1998,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: 'Failed to update exam' });
       }
       
+      // Invalidate exam visibility cache when exam is updated
+      invalidateVisibilityCache({ examId: exam.id });
+      
       // Emit realtime event for exam update
       realtimeService.emitTableChange('exams', 'UPDATE', exam, existingExam, teacherId);
       if (exam.classId) {
@@ -2033,6 +2042,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!deletionResult.success) {
         return res.status(500).json({ message: 'Failed to delete exam' });
       }
+      
+      // Invalidate exam visibility cache
+      invalidateVisibilityCache({ examId: examId });
 
       const duration = Date.now() - startTime;
 
@@ -2122,6 +2134,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!exam) {
         return res.status(500).json({ message: 'Failed to update exam publish status' });
       }
+      
+      // Invalidate exam visibility cache when publish status changes
+      invalidateVisibilityCache({ examId: exam.id });
       
       // Use dedicated exam publish/unpublish emit method for comprehensive realtime updates
       realtimeService.emitExamPublishEvent(examId, isPublished, exam, teacherId);
@@ -8185,10 +8200,19 @@ Treasure-Home School Administration
     // ==================== JOB VACANCY SYSTEM ROUTES ====================
 
     // Public routes - Job Vacancies (no auth required)
+    // Vacancies endpoint with caching (5-minute TTL) for improved performance
     app.get('/api/vacancies', async (req: Request, res: Response) => {
       try {
         const status = req.query.status as string | undefined;
-        const vacancies = await storage.getAllVacancies(status);
+        const cacheKey = `vacancies:list:${status || 'all'}`;
+        
+        const vacancies = await enhancedCache.getOrSet(
+          cacheKey,
+          () => storage.getAllVacancies(status),
+          EnhancedCache.TTL.MEDIUM,  // 5 minutes TTL
+          'L1'  // Hot data - public endpoint
+        );
+        
         res.json(vacancies);
       } catch (error) {
         res.status(500).json({ message: 'Failed to fetch vacancies' });
@@ -8283,6 +8307,9 @@ Treasure-Home School Administration
           createdBy: req.user!.id,
         });
         
+        // Invalidate vacancies cache
+        enhancedCache.invalidate(/^vacancies:/);
+        
         // Emit realtime event for vacancy creation
         realtimeService.emitTableChange('vacancies', 'INSERT', vacancy, undefined, req.user!.id);
         realtimeService.emitEvent('vacancy.created', vacancy); // Broadcast publicly
@@ -8300,6 +8327,9 @@ Treasure-Home School Administration
         if (!vacancy) {
           return res.status(404).json({ message: 'Vacancy not found' });
         }
+        
+        // Invalidate vacancies cache
+        enhancedCache.invalidate(/^vacancies:/);
         
         // Emit realtime event for vacancy closure
         realtimeService.emitTableChange('vacancies', 'UPDATE', vacancy, existingVacancy, req.user!.id);
