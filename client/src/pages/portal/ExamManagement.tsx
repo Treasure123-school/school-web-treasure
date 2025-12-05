@@ -20,7 +20,8 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { insertExamSchema, insertExamQuestionSchema, insertQuestionOptionSchema, type Exam, type ExamQuestion, type QuestionOption, type Class, type Subject } from '@shared/schema';
 import { z } from 'zod';
-import { Plus, Edit, Search, BookOpen, Trash2, Clock, Users, FileText, Eye, Play, Upload, Save, Shield } from 'lucide-react';
+import { Plus, Edit, Search, BookOpen, Trash2, Clock, Users, FileText, Eye, Play, Upload, Save, Shield, MoreVertical } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 
 // Form schemas - Use the shared insertExamSchema which has proper preprocessing
@@ -2181,7 +2182,7 @@ export default function ExamManagement() {
                           return null;
                         })()}
 
-                        <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
                           <Button
                             variant="outline"
                             size="sm"
@@ -2192,61 +2193,73 @@ export default function ExamManagement() {
                             <Edit className="w-4 h-4 mr-1" />
                             Questions
                           </Button>
-                          <Button
-                            variant={exam.isPublished ? "default" : "secondary"}
-                            size="sm"
-                            onClick={() => togglePublishMutation.mutate({ 
-                              examId: exam.id, 
-                              isPublished: !exam.isPublished 
-                            })}
-                            disabled={togglingExamId === exam.id}
-                            data-testid={`button-toggle-publish-${exam.id}`}
-                            className="flex-1"
-                          >
-                            <Play className="w-4 h-4 mr-1" />
-                            {togglingExamId === exam.id 
-                              ? (exam.isPublished ? 'Unpublishing...' : 'Publishing...') 
-                              : (exam.isPublished ? 'Unpublish' : 'Publish')
-                            }
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            data-testid={`button-preview-exam-${exam.id}`}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
+                          
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
                               <Button
-                                variant="destructive"
-                                size="sm"
-                                disabled={deleteExamMutation.isPending}
-                                data-testid={`button-delete-exam-${exam.id}`}
-                                aria-label={`Delete exam ${exam.name}`}
+                                variant="outline"
+                                size="icon"
+                                data-testid={`button-exam-actions-${exam.id}`}
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <MoreVertical className="w-4 h-4" />
                               </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Exam</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete the exam "{exam.name}"? This action cannot be undone and will permanently remove all exam questions and student results.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel disabled={deleteExamMutation.isPending}>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => deleteExamMutation.mutate(exam.id)}
-                                  disabled={deleteExamMutation.isPending}
-                                  className="bg-destructive hover:bg-destructive/90"
-                                >
-                                  {deleteExamMutation.isPending ? 'Deleting...' : 'Delete Exam'}
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem
+                                onClick={() => togglePublishMutation.mutate({ 
+                                  examId: exam.id, 
+                                  isPublished: !exam.isPublished 
+                                })}
+                                disabled={togglingExamId === exam.id}
+                                data-testid={`dropdown-toggle-publish-${exam.id}`}
+                              >
+                                <Play className="w-4 h-4 mr-2" />
+                                {togglingExamId === exam.id 
+                                  ? (exam.isPublished ? 'Unpublishing...' : 'Publishing...') 
+                                  : (exam.isPublished ? 'Unpublish' : 'Publish')
+                                }
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setPreviewExam(exam)}
+                                data-testid={`dropdown-preview-exam-${exam.id}`}
+                              >
+                                <Eye className="w-4 h-4 mr-2" />
+                                Preview
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem
+                                    onSelect={(e) => e.preventDefault()}
+                                    className="text-destructive focus:text-destructive"
+                                    disabled={deleteExamMutation.isPending}
+                                    data-testid={`dropdown-delete-exam-${exam.id}`}
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    {deleteExamMutation.isPending ? 'Deleting...' : 'Delete Exam'}
+                                  </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Exam</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete the exam "{exam.name}"? This action cannot be undone and will permanently remove all exam questions and student results.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel disabled={deleteExamMutation.isPending}>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => deleteExamMutation.mutate(exam.id)}
+                                      disabled={deleteExamMutation.isPending}
+                                      className="bg-destructive hover:bg-destructive/90"
+                                    >
+                                      {deleteExamMutation.isPending ? 'Deleting...' : 'Delete Exam'}
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                     </div>
