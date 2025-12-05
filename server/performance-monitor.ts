@@ -195,9 +195,9 @@ class PerformanceMonitor extends EventEmitter {
       this.emit('slowRequest', { method, path, durationMs, statusCode });
     }
 
-    // Emit event for errors
+    // Emit event for errors (use 'requestError' instead of 'error' to avoid unhandled crash)
     if (isError) {
-      this.emit('error', { method, path, statusCode, durationMs });
+      this.emit('requestError', { method, path, statusCode, durationMs });
     }
   }
 
