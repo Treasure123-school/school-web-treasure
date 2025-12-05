@@ -183,7 +183,7 @@ export default function DepartmentSubjectMapping() {
           <thead>
             <tr className="border-b">
               <th className="text-left p-2 font-medium">Subject</th>
-              {ssClasses.map(ssClass => {
+              {ssClasses.map((ssClass: string) => {
                 const classObj = classes.find((c: any) => c.name.startsWith(ssClass));
                 return (
                   <th key={ssClass} className="text-center p-2 font-medium min-w-[80px]">
@@ -200,7 +200,7 @@ export default function DepartmentSubjectMapping() {
                   <div className="font-medium" data-testid={`text-subject-name-${subject.id}`}>{subject.name}</div>
                   <div className="text-xs text-muted-foreground">{subject.code}</div>
                 </td>
-                {ssClasses.map(ssClass => {
+                {ssClasses.map((ssClass: string) => {
                   const classObj = classes.find((c: any) => c.name.startsWith(ssClass));
                   if (!classObj) return <td key={ssClass} className="text-center p-2">-</td>;
                   

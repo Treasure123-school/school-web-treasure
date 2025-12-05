@@ -10455,6 +10455,9 @@ Treasure-Home School Administration
           return res.status(404).json({ message: 'Student profile not found' });
         }
         
+        // Get user info for firstName, lastName, dateOfBirth
+        const user = await storage.getUser(userId);
+        
         // Get class info if assigned
         let className = null;
         if (student.classId) {
@@ -10464,14 +10467,14 @@ Treasure-Home School Administration
         
         res.json({
           id: student.id,
-          firstName: student.firstName,
-          lastName: student.lastName,
-          studentId: student.studentId,
+          firstName: user?.firstName || '',
+          lastName: user?.lastName || '',
+          studentId: student.admissionNumber,
           classId: student.classId,
           className,
           department: student.department,
-          dateOfBirth: student.dateOfBirth,
-          enrollmentDate: student.enrollmentDate,
+          dateOfBirth: user?.dateOfBirth || null,
+          enrollmentDate: student.admissionDate,
         });
       } catch (error: any) {
         console.error('Error fetching student info:', error);
@@ -10543,7 +10546,7 @@ Treasure-Home School Administration
                 firstName: teacher.firstName,
                 lastName: teacher.lastName,
                 email: teacher.email,
-                profileImage: teacher.profileImage,
+                profileImageUrl: teacher.profileImageUrl,
               };
             }
           } catch (e) {
