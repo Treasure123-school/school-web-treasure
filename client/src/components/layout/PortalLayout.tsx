@@ -11,7 +11,7 @@ import { useAuth } from '@/lib/auth';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { NotificationBell } from '@/components/NotificationBell';
@@ -232,6 +232,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
   // Reusable Sidebar Content Component with Modern Design
   const SidebarContent = ({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) => {
   const [, navigate] = useLocation();
+  const [isPending, startTransition] = useTransition();
 
   return (
     <div className="flex flex-col h-full">
@@ -291,7 +292,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
                           type="button"
                           onClick={() => {
                             onNavigate?.();
-                            navigate(subItem.href);
+                            startTransition(() => navigate(subItem.href));
                           }}
                           className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 w-full text-left ${
                             subItemActive 
@@ -323,7 +324,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
                 if (isLogout) {
                   handleLogout();
                 } else {
-                  navigate(navItem.href);
+                  startTransition(() => navigate(navItem.href));
                 }
               }}
               className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ease-in-out w-full ${

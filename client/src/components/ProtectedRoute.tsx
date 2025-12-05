@@ -1,6 +1,6 @@
 import { useAuth } from '@/lib/auth';
 import { useLocation } from 'wouter';
-import { useEffect } from 'react';
+import { useEffect, useTransition, Suspense } from 'react';
 import { getPortalByRoleId } from '@/lib/roles';
 
 interface ProtectedRouteProps {
@@ -15,20 +15,21 @@ export default function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [, navigate] = useLocation();
+  const [, startTransition] = useTransition();
 
   useEffect(() => {
     if (isLoading) return;
     
     if (!isAuthenticated) {
-      navigate(fallbackPath);
+      startTransition(() => navigate(fallbackPath));
       return;
     }
     if (user && !isRoleAllowed(user.roleId, allowedRoleIds)) {
       const correctPortal = getPortalByRoleId(user.roleId);
-      navigate(correctPortal);
+      startTransition(() => navigate(correctPortal));
       return;
     }
-  }, [isAuthenticated, isLoading, user, allowedRoleIds, navigate, fallbackPath]);
+  }, [isAuthenticated, isLoading, user, allowedRoleIds, navigate, fallbackPath, startTransition]);
 
   const isRoleAllowed = (userRoleId: number, allowedRoleIds: number[]): boolean => {
     return allowedRoleIds.includes(userRoleId);
@@ -46,5 +47,9 @@ export default function ProtectedRoute({
     return null;
   }
   
-  return <>{children}</>;
+  return (
+    <Suspense fallback={null}>
+      {children}
+    </Suspense>
+  );
 }

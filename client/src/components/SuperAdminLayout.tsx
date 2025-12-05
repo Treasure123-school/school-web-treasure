@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect, useTransition } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
@@ -247,6 +247,7 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
 
   const SidebarContent = ({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) => {
   const [, navigate] = useLocation();
+  const [isPending, startTransition] = useTransition();
   
   const isChildActive = (children?: { label: string; path: string }[]) => {
     return children?.some(child => isActive(child.path)) ?? false;
@@ -289,7 +290,7 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
                     if (collapsed) {
                       if (item.children?.[0]) {
                         onNavigate?.();
-                        navigate(item.children[0].path);
+                        startTransition(() => navigate(item.children[0].path));
                       }
                     } else {
                       toggleSection(item.label);
@@ -319,7 +320,7 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
                         type="button"
                         onClick={() => {
                           onNavigate?.();
-                          navigate(child.path);
+                          startTransition(() => navigate(child.path));
                         }}
                         className={`flex items-center px-3 py-1.5 rounded-lg text-sm transition-all duration-200 w-full ${
                           isActive(child.path)
@@ -343,7 +344,7 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
               type="button"
               onClick={() => {
                 onNavigate?.();
-                if (item.path) navigate(item.path);
+                if (item.path) startTransition(() => navigate(item.path));
               }}
               className={`flex items-center ${collapsed ? 'justify-center px-2' : 'gap-3 px-3'} py-2 rounded-lg text-sm font-medium transition-all duration-200 w-full ${
                 navItemActive 
