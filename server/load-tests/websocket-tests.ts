@@ -128,21 +128,25 @@ export async function testWebSocketConnection(
   console.log(`   ${metrics.connections.successful}/${numConnections} connections established`);
 
   if (sockets.length > 0) {
+    sockets.forEach((socket) => {
+      socket.on('pong', (data: { timestamp: number }) => {
+        const latency = Date.now() - (socket as any)._lastPingTime;
+        if (latency > 0 && latency < 5000) {
+          metrics.latency.messageLatency.push(latency);
+          metrics.events.received++;
+        }
+      });
+    });
+
     const messageInterval = setInterval(() => {
       sockets.forEach((socket) => {
         if (socket.connected) {
-          const pingTime = Date.now();
-          
-          socket.emit('subscribe', { tables: ['classes', 'subjects'] });
+          (socket as any)._lastPingTime = Date.now();
+          socket.emit('ping');
           metrics.events.sent++;
-
-          socket.once('subscribed', () => {
-            const latency = Date.now() - pingTime;
-            metrics.latency.messageLatency.push(latency);
-          });
         }
       });
-    }, 1000);
+    }, 500);
 
     await new Promise((resolve) => setTimeout(resolve, testDuration));
 
