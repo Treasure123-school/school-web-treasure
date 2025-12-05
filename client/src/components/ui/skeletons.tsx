@@ -235,6 +235,56 @@ export function AppShellSkeleton() {
   );
 }
 
+export function ContentOnlySkeleton({ variant = 'dashboard' }: { variant?: 'dashboard' | 'table' | 'form' | 'profile' }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.1 }}
+      className="w-full"
+      data-testid="skeleton-content-only"
+    >
+      {variant === 'dashboard' && <DashboardSkeleton />}
+      {variant === 'table' && <TableSkeleton rows={8} columns={5} className="p-6" />}
+      {variant === 'form' && <FormSkeleton fields={5} className="max-w-2xl" />}
+      {variant === 'profile' && <ProfileSkeleton />}
+    </motion.div>
+  );
+}
+
+export function PageContentSkeleton() {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.1 }}
+      className="p-6 space-y-6 animate-in fade-in duration-150"
+      data-testid="skeleton-page-content"
+    >
+      <div className="flex items-center justify-between gap-4">
+        <SkeletonShimmer className="h-8 w-48" />
+        <div className="flex gap-2">
+          <SkeletonShimmer className="h-9 w-24" />
+          <SkeletonShimmer className="h-9 w-32" />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <StatsCardSkeleton key={i} />
+        ))}
+      </div>
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <SkeletonShimmer className="h-6 w-32" />
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <SkeletonShimmer key={i} className="h-12 w-full" />
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export function LoginSkeleton() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4" data-testid="skeleton-login">

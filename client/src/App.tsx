@@ -1,5 +1,5 @@
 import { Switch, Route } from "wouter";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, ReactNode } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -7,8 +7,16 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ROLE_IDS } from "@/lib/roles";
-import { AppShellSkeleton } from "@/components/ui/skeletons";
+import { PageContentSkeleton } from "@/components/ui/skeletons";
 import { SyncIndicator } from "@/components/SyncIndicator";
+
+function PageSuspense({ children }: { children: ReactNode }) {
+  return (
+    <Suspense fallback={null}>
+      {children}
+    </Suspense>
+  );
+}
 
 // Public pages - eagerly loaded for instant navigation
 import Home from "@/pages/Home";
@@ -93,7 +101,6 @@ function RealtimeProvider({ children }: { children: React.ReactNode }) {
 }
 function Router() {
   return (
-    <Suspense fallback={<AppShellSkeleton />}>
     <Switch>
         {/* Public pages */}
         <Route path="/" component={Home} />
@@ -109,17 +116,17 @@ function Router() {
       {/* Super Admin Portal Routes */}
       <Route path="/portal/superadmin">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
-          <SuperAdminDashboard />
+          <PageSuspense><SuperAdminDashboard /></PageSuspense>
         </ProtectedRoute>
       </Route>
       <Route path="/portal/superadmin/admins">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
-          <SuperAdminManagement />
+          <PageSuspense><SuperAdminManagement /></PageSuspense>
         </ProtectedRoute>
       </Route>
       <Route path="/portal/superadmin/logs">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
-          <SuperAdminLogs />
+          <PageSuspense><SuperAdminLogs /></PageSuspense>
         </ProtectedRoute>
       </Route>
       <Route path="/portal/superadmin/settings">
@@ -751,7 +758,6 @@ function Router() {
       {/* Fallback to 404 for non-portal pages */}
       <Route component={NotFound} />
     </Switch>
-    </Suspense>
   );
 }
 function App() {
