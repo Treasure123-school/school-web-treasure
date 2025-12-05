@@ -7,6 +7,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ROLE_IDS } from "@/lib/roles";
+import { AppShellSkeleton } from "@/components/ui/skeletons";
+import { SyncIndicator } from "@/components/SyncIndicator";
 
 // Public pages - eagerly loaded for instant navigation
 import Home from "@/pages/Home";
@@ -91,7 +93,7 @@ function RealtimeProvider({ children }: { children: React.ReactNode }) {
 }
 function Router() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<AppShellSkeleton />}>
     <Switch>
         {/* Public pages */}
         <Route path="/" component={Home} />
@@ -758,6 +760,7 @@ function App() {
       <TooltipProvider>
         <AuthProvider>
           <RealtimeProvider>
+            <SyncIndicator />
             <Toaster />
             <Router />
           </RealtimeProvider>

@@ -331,14 +331,14 @@ export const queryClient = new QueryClient({
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
-      refetchOnWindowFocus: true, // Refetch on window focus for fresh data
-      refetchOnMount: true, // Always refetch on mount for real-time updates
-      staleTime: 0, // Always consider data stale for instant UI updates after mutations
-      gcTime: 5 * 60 * 1000, // 5 minutes - keep data in cache for navigation
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
+      staleTime: 30 * 1000, // 30 seconds - balance between freshness and performance
+      gcTime: 10 * 60 * 1000, // 10 minutes - keep data in cache longer for navigation
       retry: intelligentRetryFn,
       retryDelay,
       networkMode: 'online',
-      refetchOnReconnect: true, // Refetch on reconnect for fresh data
+      refetchOnReconnect: true,
     },
     mutations: {
       retry: intelligentRetryFn,
@@ -347,3 +347,7 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+export function invalidateQueries(queryKey: string[]) {
+  return queryClient.invalidateQueries({ queryKey });
+}

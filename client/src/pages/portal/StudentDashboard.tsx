@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CircularProgress } from '@/components/ui/circular-progress';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { MiniLineChart } from '@/components/ui/mini-line-chart';
+import { StatsCardSkeleton, AnnouncementCardSkeleton, SkeletonTransition, ContentFadeIn, SkeletonShimmer } from '@/components/ui/skeletons';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Exam } from '@shared/schema';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
