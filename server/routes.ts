@@ -901,6 +901,77 @@ async function createGradingTasksForSession(sessionId: number, examId: number, s
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Import performance modules
+  const { performanceMonitor } = await import('./performance-monitor');
+  const { databaseOptimizer } = await import('./database-optimization');
+  const { enhancedCache } = await import('./enhanced-cache');
+  const { socketOptimizer } = await import('./socket-optimizer');
+  const { getPoolStats } = await import('./query-optimizer');
+
+  // ==================== HEALTH & PERFORMANCE ENDPOINTS ====================
+  
+  // Basic health check (public)
+  app.get('/api/health', async (_req, res) => {
+    try {
+      const poolStats = await getPoolStats();
+      const memoryUsage = process.memoryUsage();
+      const heapUsedMB = Math.round(memoryUsage.heapUsed / 1024 / 1024);
+      const heapTotalMB = Math.round(memoryUsage.heapTotal / 1024 / 1024);
+      
+      const status = poolStats.waitingClients === 0 && (heapUsedMB / heapTotalMB) < 0.9 
+        ? 'healthy' 
+        : 'degraded';
+      
+      res.json({
+        status,
+        timestamp: new Date().toISOString(),
+        uptime: Math.round(process.uptime()),
+        database: { 
+          connections: poolStats.totalConnections,
+          idle: poolStats.idleConnections,
+          waiting: poolStats.waitingClients
+        },
+        memory: { heapUsedMB, heapTotalMB }
+      });
+    } catch (error: any) {
+      res.status(503).json({ status: 'unhealthy', error: error.message });
+    }
+  });
+
+  // Detailed performance report (admin/super admin only)
+  app.get('/api/performance/report', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (_req, res) => {
+    try {
+      const report = await performanceMonitor.generateReport();
+      res.json(report);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Cache statistics (admin/super admin only)
+  app.get('/api/performance/cache-stats', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), (_req, res) => {
+    const enhanced = enhancedCache.getStats();
+    const basic = performanceCache.getStats();
+    res.json({ enhanced, basic });
+  });
+
+  // Database statistics (admin/super admin only)
+  app.get('/api/performance/database-stats', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (_req, res) => {
+    try {
+      const metrics = await databaseOptimizer.getPerformanceMetrics();
+      const slowQueries = databaseOptimizer.getTopSlowQueries(10);
+      res.json({ metrics, slowQueries });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // WebSocket statistics (admin/super admin only)
+  app.get('/api/performance/socket-stats', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), (_req, res) => {
+    const stats = socketOptimizer.getStats();
+    const roomCounts = Object.fromEntries(stats.roomCounts);
+    res.json({ ...stats, roomCounts });
+  });
 
   // ==================== TEACHER ASSIGNMENT ROUTES ====================
   // Register teacher class/subject assignment management routes

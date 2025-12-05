@@ -8,6 +8,8 @@ import { isPostgres, dbInfo } from "./db";
 import { seedAcademicTerms } from "./seed-terms";
 import { validateEnvironment } from "./env-validation";
 import fs from "fs/promises";
+import { performanceMonitor } from "./performance-monitor";
+import { databaseOptimizer } from "./database-optimization";
 
 // Validate environment variables at startup - fail fast in production if critical vars missing
 const isProduction = process.env.NODE_ENV === 'production';
@@ -134,6 +136,11 @@ app.use((req, res, next) => {
   }
   res.on("finish", () => {
     const duration = Date.now() - start;
+    
+    // Record request in performance monitor (for API endpoints)
+    if (path.startsWith("/api")) {
+      performanceMonitor.recordRequest(req.method, req.route?.path || path, duration, res.statusCode);
+    }
     
     // ENHANCED: Log ALL 4xx errors to help debug (not just API)
     if (res.statusCode >= 400 && res.statusCode < 500) {
@@ -292,6 +299,26 @@ function sanitizeLogData(data: any): any {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error(`❌ Socket.IO initialization error: ${errorMessage}`);
+  }
+
+  // Initialize performance monitoring and create database indexes
+  try {
+    console.log("Initializing Performance Monitoring...");
+    performanceMonitor.start();
+    console.log("✅ Performance monitoring started");
+    
+    // Create performance indexes in background (non-blocking)
+    databaseOptimizer.createPerformanceIndexes().then(result => {
+      console.log(`✅ Database indexes: ${result.created.length} created/verified, ${result.errors.length} errors`);
+      if (result.errors.length > 0) {
+        console.log(`   Index errors: ${result.errors.slice(0, 3).join(', ')}${result.errors.length > 3 ? '...' : ''}`);
+      }
+    }).catch(err => {
+      console.log(`⚠️ Database index creation skipped: ${err.message}`);
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.log(`⚠️ Performance monitoring initialization warning: ${errorMessage}`);
   }
 
   // Multer error handling middleware - must come before general error handler
