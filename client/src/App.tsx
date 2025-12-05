@@ -7,7 +7,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ROLE_IDS } from "@/lib/roles";
-import PageLoader from "@/components/PageLoader";
 
 // Public pages - eagerly loaded for instant navigation
 import Home from "@/pages/Home";
@@ -92,7 +91,7 @@ function RealtimeProvider({ children }: { children: React.ReactNode }) {
 }
 function Router() {
   return (
-    <Suspense fallback={<PageLoader message="Loading page..." />}>
+    <Suspense fallback={null}>
     <Switch>
         {/* Public pages */}
         <Route path="/" component={Home} />
