@@ -10561,6 +10561,80 @@ Treasure-Home School Administration
       }
     });
 
+    // Get active exams for current student's subjects (for student portal highlighting)
+    app.get('/api/my-active-exams', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req: Request, res: Response) => {
+      try {
+        const userId = req.user!.id;
+        
+        // Find student by user ID
+        const student = await storage.getStudentByUserId(userId);
+        if (!student) {
+          return res.status(404).json({ message: 'Student profile not found' });
+        }
+        
+        if (!student.classId) {
+          return res.json({ activeExams: {}, examCounts: {} });
+        }
+        
+        // Get assigned subjects - early return if no subjects
+        const assignments = await storage.getStudentSubjectAssignments(student.id);
+        if (assignments.length === 0) {
+          return res.json({ activeExams: {}, examCounts: {} });
+        }
+        
+        const subjectIds = new Set(assignments.map(a => a.subjectId));
+        
+        // Get exams scoped to student's class only (efficient database query)
+        const classExams = await storage.getExamsByClass(student.classId);
+        const now = new Date();
+        
+        // Filter active exams for the student's assigned subjects only
+        const activeExamsBySubject: Record<number, any[]> = {};
+        const examCountsBySubject: Record<number, number> = {};
+        
+        for (const exam of classExams) {
+          // Skip if exam is not for student's assigned subjects
+          if (!subjectIds.has(exam.subjectId)) continue;
+          
+          // Check if exam is published and active
+          const isPublished = exam.isPublished;
+          const startTime = exam.startTime ? new Date(exam.startTime) : null;
+          const endTime = exam.endTime ? new Date(exam.endTime) : null;
+          
+          const isActiveNow = isPublished && 
+            (!startTime || startTime <= now) && 
+            (!endTime || endTime >= now);
+          
+          // Count all available exams per subject (published and not ended)
+          if (isPublished && (!endTime || endTime >= now)) {
+            examCountsBySubject[exam.subjectId] = (examCountsBySubject[exam.subjectId] || 0) + 1;
+          }
+          
+          if (isActiveNow) {
+            if (!activeExamsBySubject[exam.subjectId]) {
+              activeExamsBySubject[exam.subjectId] = [];
+            }
+            activeExamsBySubject[exam.subjectId].push({
+              id: exam.id,
+              title: exam.name,
+              examType: exam.examType,
+              duration: exam.timeLimit,
+              startDate: exam.startTime,
+              endDate: exam.endTime,
+            });
+          }
+        }
+        
+        res.json({
+          activeExams: activeExamsBySubject,
+          examCounts: examCountsBySubject,
+        });
+      } catch (error: any) {
+        console.error('Error fetching active exams:', error);
+        res.status(500).json({ message: error.message || 'Failed to fetch active exams' });
+      }
+    });
+
     // ==================== END STUDENT SUBJECT ASSIGNMENT ROUTES ====================
 
     // ==================== END MODULE 1 ROUTES ====================
