@@ -115,6 +115,17 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
       ],
     },
     {
+      label: "Subject Manager",
+      icon: BookOpen,
+      children: [
+        { label: "Subject List", path: "/portal/superadmin/subject-manager/subjects" },
+        { label: "Class Subject Mapping", path: "/portal/superadmin/subject-manager/class-mapping" },
+        { label: "Department Mapping", path: "/portal/superadmin/subject-manager/department-mapping" },
+        { label: "Assign Teachers", path: "/portal/superadmin/subject-manager/assign-teachers" },
+        { label: "Report Card Rules", path: "/portal/superadmin/subject-manager/report-rules" },
+      ],
+    },
+    {
       label: "Results",
       icon: ClipboardList,
       children: [

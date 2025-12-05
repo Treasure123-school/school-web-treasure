@@ -77,6 +77,11 @@ import TeacherRecentExamResults from "@/pages/portal/TeacherRecentExamResults";
 import PortalComingSoon from "@/pages/portal/PortalComingSoon";
 import StudentSubjectAssignment from "@/pages/portal/StudentSubjectAssignment";
 import TeacherAssignmentManagement from "@/pages/portal/TeacherAssignmentManagement";
+import ClassSubjectMapping from "@/pages/portal/ClassSubjectMapping";
+import DepartmentSubjectMapping from "@/pages/portal/DepartmentSubjectMapping";
+import AssignSubjectTeachers from "@/pages/portal/AssignSubjectTeachers";
+import ReportCardSubjectRules from "@/pages/portal/ReportCardSubjectRules";
+import StudentSubjects from "@/pages/portal/StudentSubjects";
 
 // Real-time updates are now handled by Socket.IO on the backend
 function RealtimeProvider({ children }: { children: React.ReactNode }) {
@@ -184,6 +189,33 @@ function Router() {
       <Route path="/portal/superadmin/academics/curriculum">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
           <SuperAdminPlaceholder title="Curriculum" category="Academics" description="Manage curriculum and scheme of work" />
+        </ProtectedRoute>
+      </Route>
+
+      {/* Super Admin Subject Manager Routes */}
+      <Route path="/portal/superadmin/subject-manager/subjects">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
+          <SubjectsManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/superadmin/subject-manager/class-mapping">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
+          <ClassSubjectMapping />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/superadmin/subject-manager/department-mapping">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
+          <DepartmentSubjectMapping />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/superadmin/subject-manager/assign-teachers">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
+          <AssignSubjectTeachers />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/superadmin/subject-manager/report-rules">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
+          <ReportCardSubjectRules />
         </ProtectedRoute>
       </Route>
 
@@ -478,6 +510,11 @@ function Router() {
       <Route path="/portal/student/study-resources">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
           <StudentStudyResources />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/student/subjects">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
+          <StudentSubjects />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/teacher">

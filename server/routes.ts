@@ -10442,6 +10442,122 @@ Treasure-Home School Administration
       }
     });
 
+    // ==================== STUDENT PORTAL SUBJECT ROUTES ====================
+
+    // Get current student's info (for student portal)
+    app.get('/api/students/me', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req: Request, res: Response) => {
+      try {
+        const userId = req.user!.id;
+        
+        // Find student by user ID
+        const student = await storage.getStudentByUserId(userId);
+        if (!student) {
+          return res.status(404).json({ message: 'Student profile not found' });
+        }
+        
+        // Get class info if assigned
+        let className = null;
+        if (student.classId) {
+          const classInfo = await storage.getClass(student.classId);
+          className = classInfo?.name;
+        }
+        
+        res.json({
+          id: student.id,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          studentId: student.studentId,
+          classId: student.classId,
+          className,
+          department: student.department,
+          dateOfBirth: student.dateOfBirth,
+          enrollmentDate: student.enrollmentDate,
+        });
+      } catch (error: any) {
+        console.error('Error fetching student info:', error);
+        res.status(500).json({ message: error.message || 'Failed to fetch student info' });
+      }
+    });
+
+    // Get current student's assigned subjects (for student portal)
+    app.get('/api/my-subjects', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req: Request, res: Response) => {
+      try {
+        const userId = req.user!.id;
+        
+        // Find student by user ID
+        const student = await storage.getStudentByUserId(userId);
+        if (!student) {
+          return res.status(404).json({ message: 'Student profile not found' });
+        }
+        
+        // Get assigned subjects
+        const assignments = await storage.getStudentSubjectAssignments(student.id);
+        
+        // Enrich with subject details
+        const enrichedAssignments = await Promise.all(assignments.map(async (assignment) => {
+          const subject = await storage.getSubject(assignment.subjectId);
+          return {
+            id: assignment.id,
+            subjectId: assignment.subjectId,
+            subjectName: subject?.name,
+            subjectCode: subject?.code,
+            category: subject?.category || 'general'
+          };
+        }));
+        
+        res.json(enrichedAssignments);
+      } catch (error: any) {
+        console.error('Error fetching my subjects:', error);
+        res.status(500).json({ message: error.message || 'Failed to fetch subjects' });
+      }
+    });
+
+    // Get teachers for current student's subjects (for student portal)
+    app.get('/api/my-subject-teachers', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req: Request, res: Response) => {
+      try {
+        const userId = req.user!.id;
+        
+        // Find student by user ID
+        const student = await storage.getStudentByUserId(userId);
+        if (!student) {
+          return res.status(404).json({ message: 'Student profile not found' });
+        }
+        
+        if (!student.classId) {
+          return res.json({});
+        }
+        
+        // Get assigned subjects
+        const assignments = await storage.getStudentSubjectAssignments(student.id);
+        
+        // Get teachers for each subject in the student's class
+        const teacherMap: Record<number, any> = {};
+        
+        for (const assignment of assignments) {
+          try {
+            const teachers = await storage.getTeachersForClassSubject(student.classId, assignment.subjectId);
+            if (teachers && teachers.length > 0) {
+              const teacher = teachers[0];
+              teacherMap[assignment.subjectId] = {
+                id: teacher.id,
+                firstName: teacher.firstName,
+                lastName: teacher.lastName,
+                email: teacher.email,
+                profileImage: teacher.profileImage,
+              };
+            }
+          } catch (e) {
+            // Subject may not have a teacher assigned
+          }
+        }
+        
+        res.json(teacherMap);
+      } catch (error: any) {
+        console.error('Error fetching subject teachers:', error);
+        res.status(500).json({ message: error.message || 'Failed to fetch teachers' });
+      }
+    });
+
     // ==================== END STUDENT SUBJECT ASSIGNMENT ROUTES ====================
 
     // ==================== END MODULE 1 ROUTES ====================
