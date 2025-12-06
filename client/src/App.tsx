@@ -9,6 +9,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import { ROLE_IDS } from "@/lib/roles";
 import { MinimalRouteFallback } from "@/components/ui/skeletons";
 import { SyncIndicator } from "@/components/SyncIndicator";
+import { StudentPortalShell, TeacherPortalShell, AdminPortalShell, ParentPortalShell } from "@/components/layout/PortalShells";
 
 // Public pages - eagerly loaded for instant navigation
 import Home from "@/pages/Home";
@@ -32,60 +33,15 @@ const SuperAdminAllUsers = lazy(() => import("@/pages/portal/SuperAdminAllUsers"
 const SuperAdminAuthenticationSettings = lazy(() => import("@/pages/portal/SuperAdminAuthenticationSettings"));
 const SuperAdminPlaceholder = lazy(() => import("@/pages/portal/SuperAdminPlaceholder"));
 
-// Portal pages - lazy loaded for code splitting
-const StudentDashboard = lazy(() => import("@/pages/portal/StudentDashboard"));
-const StudentGrades = lazy(() => import("@/pages/portal/StudentGrades"));
-const StudentAnnouncements = lazy(() => import("@/pages/portal/StudentAnnouncements"));
-const StudentAttendance = lazy(() => import("@/pages/portal/StudentAttendance"));
-const StudentMessages = lazy(() => import("@/pages/portal/StudentMessages"));
-const StudentProfile = lazy(() => import("@/pages/portal/StudentProfile"));
-const StudentExams = lazy(() => import("@/pages/portal/StudentExams"));
-const StudentExamResults = lazy(() => import("@/pages/portal/StudentExamResults"));
-const StudentStudyResources = lazy(() => import("@/pages/portal/StudentStudyResources"));
-const StudentReportCard = lazy(() => import("@/pages/portal/StudentReportCard"));
-const PortalGallery = lazy(() => import("@/pages/portal/Gallery"));
-const TeacherDashboard = lazy(() => import("@/pages/portal/TeacherDashboard"));
-const TeacherProfile = lazy(() => import("@/pages/portal/TeacherProfile"));
-const TeacherProfileAssignmentDashboard = lazy(() => import("@/pages/portal/TeacherProfileAssignmentDashboard"));
-const AdminDashboard = lazy(() => import("@/pages/portal/AdminDashboard"));
-const ParentDashboard = lazy(() => import("@/pages/portal/ParentDashboard"));
-const StudentManagement = lazy(() => import("@/pages/portal/StudentManagement"));
-const TeachersManagement = lazy(() => import("@/pages/portal/TeachersManagement"));
-const ClassesManagement = lazy(() => import("@/pages/portal/ClassesManagement"));
+// Super Admin Subject Manager pages (used in Super Admin routes)
 const SubjectsManagement = lazy(() => import("@/pages/portal/SubjectsManagement"));
-const AnnouncementsManagement = lazy(() => import("@/pages/portal/AnnouncementsManagement"));
-const ReportsManagement = lazy(() => import("@/pages/portal/ReportsManagement"));
-const SettingsManagement = lazy(() => import("@/pages/portal/SettingsManagement"));
-const TeacherGradingQueue = lazy(() => import("@/pages/portal/TeacherGradingQueue"));
-const TeacherClassResults = lazy(() => import("@/pages/portal/TeacherClassResults"));
-const TeacherExamResults = lazy(() => import("@/pages/portal/TeacherExamResults"));
-const ExamManagement = lazy(() => import("@/pages/portal/ExamManagement"));
-const AdminExamOverview = lazy(() => import("@/pages/portal/AdminExamOverview"));
-const HomepageManagement = lazy(() => import("@/pages/portal/HomepageManagement"));
-const PerformanceMonitoring = lazy(() => import("@/pages/portal/PerformanceMonitoring"));
-const ExamSessions = lazy(() => import("@/pages/portal/ExamSessions"));
-const ExamReports = lazy(() => import("@/pages/portal/ExamReports"));
-const ParentReportCards = lazy(() => import("@/pages/portal/ParentReportCards"));
-const VacancyManagement = lazy(() => import("@/pages/portal/VacancyManagement"));
-const UserManagement = lazy(() => import("@/pages/portal/UserManagement"));
-const AuditLogs = lazy(() => import("@/pages/portal/AuditLogs"));
-const ProfileOnboarding = lazy(() => import("@/pages/ProfileOnboarding"));
-const ProfileCompletionMonitoring = lazy(() => import("@/pages/portal/ProfileCompletionMonitoring"));
-const AdminRecoveryTools = lazy(() => import("@/pages/portal/AdminRecoveryTools"));
-const AcademicTermsManagement = lazy(() => import("@/pages/portal/AcademicTermsManagement"));
-const TeacherProfileVerification = lazy(() => import("@/pages/portal/TeacherProfileVerification"));
-const TeacherExamAnalytics = lazy(() => import("@/pages/portal/TeacherExamAnalytics"));
-const CreateExam = lazy(() => import("@/pages/portal/CreateExam"));
-const TeacherReportCards = lazy(() => import("@/pages/portal/TeacherReportCards"));
-const TeacherRecentExamResults = lazy(() => import("@/pages/portal/TeacherRecentExamResults"));
-const PortalComingSoon = lazy(() => import("@/pages/portal/PortalComingSoon"));
-const StudentSubjectAssignment = lazy(() => import("@/pages/portal/StudentSubjectAssignment"));
-const TeacherAssignmentManagement = lazy(() => import("@/pages/portal/TeacherAssignmentManagement"));
 const ClassSubjectMapping = lazy(() => import("@/pages/portal/ClassSubjectMapping"));
 const DepartmentSubjectMapping = lazy(() => import("@/pages/portal/DepartmentSubjectMapping"));
 const AssignSubjectTeachers = lazy(() => import("@/pages/portal/AssignSubjectTeachers"));
 const ReportCardSubjectRules = lazy(() => import("@/pages/portal/ReportCardSubjectRules"));
-const StudentSubjects = lazy(() => import("@/pages/portal/StudentSubjects"));
+
+// Profile Onboarding (used for all authenticated users)
+const ProfileOnboarding = lazy(() => import("@/pages/ProfileOnboarding"));
 
 // Real-time updates are now handled by Socket.IO on the backend
 function RealtimeProvider({ children }: { children: React.ReactNode }) {
@@ -461,290 +417,51 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      {/* Protected Portal pages */}
+      {/* Student Portal - Persistent Layout Shell */}
+      <Route path="/portal/student/:rest*">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
+          <StudentPortalShell />
+        </ProtectedRoute>
+      </Route>
       <Route path="/portal/student">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
-          <StudentDashboard />
+          <StudentPortalShell />
         </ProtectedRoute>
       </Route>
-      <Route path="/portal/student/exams">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
-          <StudentExams />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/student/exam-results">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
-          <StudentExamResults />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/student/grades">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
-          <StudentGrades />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/student/announcements">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
-          <StudentAnnouncements />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/student/attendance">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
-          <StudentAttendance />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/student/messages">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
-          <StudentMessages />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/student/report-card">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
-          <StudentReportCard />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/student/profile">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
-          <StudentProfile />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/student/gallery">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
-          <PortalGallery />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/student/study-resources">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
-          <StudentStudyResources />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/student/subjects">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
-          <StudentSubjects />
+
+      {/* Teacher Portal - Persistent Layout Shell */}
+      <Route path="/portal/teacher/:rest*">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
+          <TeacherPortalShell />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/teacher">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
-          <TeacherDashboard />
+          <TeacherPortalShell />
         </ProtectedRoute>
       </Route>
-      <Route path="/portal/teacher/profile">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
-          <TeacherProfile />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/teacher/profile-assignments">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
-          <TeacherProfileAssignmentDashboard />
+
+      {/* Admin Portal - Persistent Layout Shell */}
+      <Route path="/portal/admin/:rest*">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
+          <AdminPortalShell />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/admin">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <AdminDashboard />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/job-vacancies">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <VacancyManagement />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/users">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <UserManagement />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/audit-logs">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <AuditLogs />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/profile-completion">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <ProfileCompletionMonitoring />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/students">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <StudentManagement />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/teachers">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <TeachersManagement />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/teacher-verification">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <TeacherProfileVerification />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/classes">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <ClassesManagement />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/subjects">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <SubjectsManagement />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/student-subjects">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN]}>
-          <StudentSubjectAssignment />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/teacher-assignments">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN]}>
-          <TeacherAssignmentManagement />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/announcements">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <AnnouncementsManagement />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/reports">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <ReportsManagement />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/performance">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <PerformanceMonitoring />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/homepage-management">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <HomepageManagement />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/gallery">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <PortalGallery />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/academic-terms">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <AcademicTermsManagement />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/settings">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <SettingsManagement />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/recovery-tools">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <AdminRecoveryTools />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/teacher/coming-soon">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
-          <PortalComingSoon />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/teacher/grading-queue">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
-          <TeacherGradingQueue />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/teacher/results/class/:classId">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
-          <TeacherClassResults />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/teacher/results/exam/:examId">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
-          <TeacherExamResults />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/teacher/exams/create">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
-          <CreateExam />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/teacher/exams/manage">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
-          <ExamManagement />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/teacher/exams">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
-          <ExamManagement />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/teacher/exam-analytics">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
-          <TeacherExamAnalytics />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/teacher/report-cards">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
-          <TeacherReportCards />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/teacher/recent-exam-results">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
-          <TeacherRecentExamResults />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/exams">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <AdminExamOverview />
-        </ProtectedRoute>
-      </Route>
-      {/* Admin does NOT have grading queue - that's teacher-only */}
-      <Route path="/portal/parent">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.PARENT]}>
-          <ParentDashboard />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/parent/reports">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.PARENT]}>
-          <ParentReportCards />
+          <AdminPortalShell />
         </ProtectedRoute>
       </Route>
 
-      {/* Admin Exam System Routes - NO GRADING QUEUE (Teacher-only) */}
-      <Route path="/portal/exam-sessions">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <ExamSessions />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/exam-reports">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <ExamReports />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/teacher/exam-analytics">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
-          <ExamReports />
-        </ProtectedRoute>
-      </Route>
-
-      {/* Portal catch-all routes - show Coming Soon for undefined portal pages */}
-      <Route path="/portal/superadmin/:rest*">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
-          <PortalComingSoon />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/admin/:rest*">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
-          <PortalComingSoon />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/teacher/:rest*">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
-          <PortalComingSoon />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/student/:rest*">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
-          <PortalComingSoon />
-        </ProtectedRoute>
-      </Route>
+      {/* Parent Portal - Persistent Layout Shell */}
       <Route path="/portal/parent/:rest*">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.PARENT]}>
-          <PortalComingSoon />
+          <ParentPortalShell />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/parent">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.PARENT]}>
+          <ParentPortalShell />
         </ProtectedRoute>
       </Route>
 
