@@ -290,7 +290,7 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
                     if (collapsed) {
                       if (item.children?.[0]) {
                         onNavigate?.();
-                        startTransition(() => navigate(item.children[0].path));
+                        startTransition(() => navigate(item.children![0].path));
                       }
                     } else {
                       toggleSection(item.label);
@@ -344,7 +344,7 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
               type="button"
               onClick={() => {
                 onNavigate?.();
-                if (item.path) startTransition(() => navigate(item.path));
+                if (item.path) startTransition(() => navigate(item.path!));
               }}
               className={`flex items-center ${collapsed ? 'justify-center px-2' : 'gap-3 px-3'} py-2 rounded-lg text-sm font-medium transition-all duration-200 w-full ${
                 navItemActive 

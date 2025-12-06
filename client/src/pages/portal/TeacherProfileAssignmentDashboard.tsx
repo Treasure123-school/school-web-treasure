@@ -67,45 +67,27 @@ export default function TeacherProfileAssignmentDashboard() {
 
   if (!user) {
     return (
-      <PortalLayout
-        userRole="teacher"
-        userName=""
-        userInitials=""
-      >
-        <div className="flex items-center justify-center h-64">
-          <p>Please log in to access the teacher dashboard.</p>
-        </div>
-      </PortalLayout>
+      <div className="flex items-center justify-center h-64">
+        <p>Please log in to access the teacher dashboard.</p>
+      </div>
     );
   }
   if (isLoading) {
     return (
-      <PortalLayout
-        userRole="teacher"
-        userName={`${user.firstName} ${user.lastName}`}
-        userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-      >
-        <div className="space-y-6">
-          <Skeleton className="h-48 w-full" />
-          <Skeleton className="h-96 w-full" />
-          <Skeleton className="h-64 w-full" />
-        </div>
-      </PortalLayout>
+      <div className="space-y-6">
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-96 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
     );
   }
   if (error) {
     return (
-      <PortalLayout
-        userRole="teacher"
-        userName={`${user.firstName} ${user.lastName}`}
-        userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-      >
-        <Card>
-          <CardContent className="p-6">
-            <p className="text-destructive">Failed to load dashboard data. Please try again.</p>
-          </CardContent>
-        </Card>
-      </PortalLayout>
+      <Card>
+        <CardContent className="p-6">
+          <p className="text-destructive">Failed to load dashboard data. Please try again.</p>
+        </CardContent>
+      </Card>
     );
   }
   const { profile, user: userData, assignments = [], timetable = [] } = dashboardData || {};
@@ -116,12 +98,7 @@ export default function TeacherProfileAssignmentDashboard() {
   });
 
   return (
-    <PortalLayout
-      userRole="teacher"
-      userName={`${user.firstName} ${user.lastName}`}
-      userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-    >
-      <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in">
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -377,6 +354,5 @@ export default function TeacherProfileAssignmentDashboard() {
           </CardContent>
         </Card>
       </div>
-    </PortalLayout>
   );
 }

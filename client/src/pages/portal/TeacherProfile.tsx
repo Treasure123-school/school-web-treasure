@@ -308,53 +308,37 @@ export default function TeacherProfile() {
 
   if (isLoading) {
     return (
-      <PortalLayout
-        userRole="teacher"
-        userName={`${user.firstName} ${user.lastName}`}
-        userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-      >
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">Loading profile...</div>
-          </CardContent>
-        </Card>
-      </PortalLayout>
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center">Loading profile...</div>
+        </CardContent>
+      </Card>
     );
   }
   if (teacherProfileError) {
     return (
-      <PortalLayout
-        userRole="teacher"
-        userName={`${user.firstName} ${user.lastName}`}
-        userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-      >
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center text-destructive">
-              <p className="font-semibold">Error loading profile</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                {teacherProfileError instanceof Error ? teacherProfileError.message : 'Failed to load profile data. Please try again later.'}
-              </p>
-              <Button 
-                variant="outline" 
-                className="mt-4"
-                onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] })}
-              >
-                Retry
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </PortalLayout>
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center text-destructive">
+            <p className="font-semibold">Error loading profile</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              {teacherProfileError instanceof Error ? teacherProfileError.message : 'Failed to load profile data. Please try again later.'}
+            </p>
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] })}
+            >
+              Retry
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <PortalLayout
-      userRole="teacher"
-      userName={`${user.firstName} ${user.lastName}`}
-      userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-    >
+    <>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -984,6 +968,6 @@ export default function TeacherProfile() {
           </CardContent>
         </Card>
       </div>
-    </PortalLayout>
+    </>
   );
 }

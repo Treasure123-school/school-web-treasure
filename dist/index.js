@@ -9288,6 +9288,374 @@ var init_realtime_service = __esm({
   }
 });
 
+// server/enhanced-cache.ts
+var enhanced_cache_exports = {};
+__export(enhanced_cache_exports, {
+  EnhancedCache: () => EnhancedCache,
+  enhancedCache: () => enhancedCache
+});
+var EnhancedCache, enhancedCache;
+var init_enhanced_cache = __esm({
+  "server/enhanced-cache.ts"() {
+    "use strict";
+    EnhancedCache = class {
+      constructor(config) {
+        this.l1Cache = /* @__PURE__ */ new Map();
+        this.l2Cache = /* @__PURE__ */ new Map();
+        this.pendingRequests = /* @__PURE__ */ new Map();
+        this.l1Hits = 0;
+        this.l2Hits = 0;
+        this.misses = 0;
+        this.evictions = 0;
+        this.responseTimes = [];
+        this.config = {
+          maxL1Size: 100,
+          maxL2Size: 500,
+          defaultTTL: 5 * 60 * 1e3,
+          // 5 minutes
+          enableStats: true
+        };
+        this.cleanupInterval = null;
+        this.eventListeners = /* @__PURE__ */ new Map();
+        if (config) {
+          this.config = { ...this.config, ...config };
+        }
+        this.startCleanup();
+      }
+      static {
+        // TTL Presets (in milliseconds)
+        this.TTL = {
+          INSTANT: 10 * 1e3,
+          // 10 seconds - for rapidly changing data
+          SHORT: 30 * 1e3,
+          // 30 seconds - for dynamic data
+          MEDIUM: 5 * 60 * 1e3,
+          // 5 minutes - for semi-static data
+          LONG: 30 * 60 * 1e3,
+          // 30 minutes - for static data
+          HOUR: 60 * 60 * 1e3,
+          // 1 hour
+          DAY: 24 * 60 * 60 * 1e3
+          // 24 hours
+        };
+      }
+      /**
+       * Get or set with request coalescing (prevents thundering herd)
+       */
+      async getOrSet(key, fetchFn, ttlMs = this.config.defaultTTL, tier = "L2") {
+        const startTime = Date.now();
+        const l1Entry = this.l1Cache.get(key);
+        if (l1Entry && l1Entry.expiresAt > Date.now()) {
+          this.l1Hits++;
+          l1Entry.hits++;
+          this.recordResponseTime(startTime);
+          this.emit("hit", { key, tier: "L1" });
+          return l1Entry.data;
+        }
+        const l2Entry = this.l2Cache.get(key);
+        if (l2Entry && l2Entry.expiresAt > Date.now()) {
+          this.l2Hits++;
+          l2Entry.hits++;
+          if (l2Entry.hits >= 3) {
+            this.promoteToL1(key, l2Entry);
+          }
+          this.recordResponseTime(startTime);
+          this.emit("hit", { key, tier: "L2" });
+          return l2Entry.data;
+        }
+        const pending = this.pendingRequests.get(key);
+        if (pending) {
+          this.l1Hits++;
+          return pending;
+        }
+        this.misses++;
+        this.emit("miss", { key });
+        const fetchPromise = fetchFn().then((data) => {
+          this.set(key, data, ttlMs, tier);
+          this.pendingRequests.delete(key);
+          this.recordResponseTime(startTime);
+          return data;
+        }).catch((error) => {
+          this.pendingRequests.delete(key);
+          throw error;
+        });
+        this.pendingRequests.set(key, fetchPromise);
+        return fetchPromise;
+      }
+      /**
+       * Direct set with tier specification
+       */
+      set(key, data, ttlMs = this.config.defaultTTL, tier = "L2") {
+        const entry = {
+          data,
+          expiresAt: Date.now() + ttlMs,
+          hits: 0,
+          size: this.estimateSize(data),
+          tier,
+          createdAt: Date.now()
+        };
+        if (tier === "L1") {
+          this.ensureL1Capacity();
+          this.l1Cache.set(key, entry);
+        } else {
+          this.ensureL2Capacity();
+          this.l2Cache.set(key, entry);
+        }
+        this.emit("set", { key, tier });
+      }
+      /**
+       * Get without fetching
+       */
+      get(key) {
+        const l1Entry = this.l1Cache.get(key);
+        if (l1Entry && l1Entry.expiresAt > Date.now()) {
+          this.l1Hits++;
+          l1Entry.hits++;
+          return l1Entry.data;
+        }
+        const l2Entry = this.l2Cache.get(key);
+        if (l2Entry && l2Entry.expiresAt > Date.now()) {
+          this.l2Hits++;
+          l2Entry.hits++;
+          return l2Entry.data;
+        }
+        this.misses++;
+        return null;
+      }
+      /**
+       * Invalidate by key or pattern
+       */
+      invalidate(keyOrPattern) {
+        let count = 0;
+        const invalidateFromMap = (cache) => {
+          if (typeof keyOrPattern === "string") {
+            if (cache.delete(keyOrPattern)) count++;
+          } else {
+            for (const key of cache.keys()) {
+              if (keyOrPattern.test(key)) {
+                cache.delete(key);
+                count++;
+              }
+            }
+          }
+        };
+        invalidateFromMap(this.l1Cache);
+        invalidateFromMap(this.l2Cache);
+        if (count > 0) {
+          this.emit("invalidate", { pattern: keyOrPattern.toString(), count });
+        }
+        return count;
+      }
+      /**
+       * Invalidate all cache entries for a table
+       */
+      invalidateTable(tableName) {
+        return this.invalidate(new RegExp(`^${tableName}:`));
+      }
+      /**
+       * Pre-warm cache with critical data
+       */
+      async warmCache(warmers) {
+        const promises = warmers.map(async ({ key, fetchFn, ttl, tier }) => {
+          try {
+            const data = await fetchFn();
+            this.set(key, data, ttl || this.config.defaultTTL, tier || "L2");
+            return { key, success: true };
+          } catch (error) {
+            console.warn(`Cache warm failed for ${key}:`, error);
+            return { key, success: false };
+          }
+        });
+        const results = await Promise.all(promises);
+        const successful = results.filter((r) => r.success).length;
+        console.log(`\u2705 Cache warmed: ${successful}/${warmers.length} entries`);
+      }
+      /**
+       * Get cache statistics
+       */
+      getStats() {
+        const totalRequests = this.l1Hits + this.l2Hits + this.misses;
+        const avgResponseTime = this.responseTimes.length > 0 ? this.responseTimes.reduce((a, b) => a + b, 0) / this.responseTimes.length : 0;
+        return {
+          l1Hits: this.l1Hits,
+          l2Hits: this.l2Hits,
+          misses: this.misses,
+          totalRequests,
+          hitRate: totalRequests > 0 ? (this.l1Hits + this.l2Hits) / totalRequests * 100 : 0,
+          l1Size: this.l1Cache.size,
+          l2Size: this.l2Cache.size,
+          avgResponseTime: Math.round(avgResponseTime * 100) / 100,
+          evictions: this.evictions
+        };
+      }
+      /**
+       * Clear all caches
+       */
+      clear() {
+        this.l1Cache.clear();
+        this.l2Cache.clear();
+        this.pendingRequests.clear();
+      }
+      /**
+       * Shutdown gracefully
+       */
+      shutdown() {
+        if (this.cleanupInterval) {
+          clearInterval(this.cleanupInterval);
+        }
+        this.clear();
+      }
+      static {
+        // ==================== CACHE KEY GENERATORS ====================
+        this.keys = {
+          // System data (long TTL)
+          systemSettings: () => "system:settings",
+          roles: () => "system:roles",
+          gradingConfig: () => "system:grading",
+          // Reference data (medium TTL)
+          classes: () => "ref:classes",
+          subjects: () => "ref:subjects",
+          academicTerms: () => "ref:terms",
+          currentTerm: () => "ref:currentTerm",
+          // Homepage & public content (medium TTL)
+          homepageContent: () => "homepage:content",
+          announcements: () => "announcements:all",
+          announcementsByRole: (role) => `announcements:role:${role}`,
+          // User data (short TTL)
+          user: (id) => `user:${id}`,
+          userProfile: (id) => `user:profile:${id}`,
+          student: (id) => `student:${id}`,
+          // Teacher data (short TTL)
+          teacherAssignments: (teacherId) => `teacher:assignments:${teacherId}`,
+          teacherDashboard: (teacherId) => `teacher:dashboard:${teacherId}`,
+          teacherClasses: (teacherId) => `teacher:classes:${teacherId}`,
+          // Exam data (short TTL due to real-time nature)
+          exam: (id) => `exam:${id}`,
+          examQuestions: (examId) => `exam:questions:${examId}`,
+          examsByClass: (classId) => `exams:class:${classId}`,
+          examsByTeacher: (teacherId) => `exams:teacher:${teacherId}`,
+          visibleExams: (userId, roleId) => `exams:visible:${userId}:${roleId}`,
+          // Report cards (medium TTL)
+          reportCard: (id) => `reportcard:${id}`,
+          reportCardsByStudent: (studentId) => `reportcards:student:${studentId}`,
+          reportCardsByClass: (classId, termId) => `reportcards:class:${classId}:term:${termId}`,
+          // Notifications (instant TTL due to real-time)
+          userNotifications: (userId) => `notifications:user:${userId}`,
+          unreadCount: (userId) => `notifications:unread:${userId}`
+        };
+      }
+      // ==================== PRIVATE METHODS ====================
+      promoteToL1(key, entry) {
+        this.ensureL1Capacity();
+        entry.tier = "L1";
+        this.l1Cache.set(key, entry);
+        this.l2Cache.delete(key);
+      }
+      ensureL1Capacity() {
+        while (this.l1Cache.size >= this.config.maxL1Size) {
+          const oldestKey = this.findLRUKey(this.l1Cache);
+          if (oldestKey) {
+            const entry = this.l1Cache.get(oldestKey);
+            this.l1Cache.delete(oldestKey);
+            if (entry && entry.expiresAt > Date.now()) {
+              entry.tier = "L2";
+              this.l2Cache.set(oldestKey, entry);
+            }
+            this.evictions++;
+            this.emit("evict", { key: oldestKey, tier: "L1" });
+          }
+        }
+      }
+      ensureL2Capacity() {
+        while (this.l2Cache.size >= this.config.maxL2Size) {
+          const oldestKey = this.findLRUKey(this.l2Cache);
+          if (oldestKey) {
+            this.l2Cache.delete(oldestKey);
+            this.evictions++;
+            this.emit("evict", { key: oldestKey, tier: "L2" });
+          }
+        }
+      }
+      findLRUKey(cache) {
+        let oldestKey = null;
+        let oldestTime = Infinity;
+        for (const [key, entry] of cache.entries()) {
+          if (entry.createdAt < oldestTime) {
+            oldestTime = entry.createdAt;
+            oldestKey = key;
+          }
+        }
+        return oldestKey;
+      }
+      estimateSize(data) {
+        try {
+          return JSON.stringify(data).length;
+        } catch {
+          return 0;
+        }
+      }
+      recordResponseTime(startTime) {
+        if (!this.config.enableStats) return;
+        const duration = Date.now() - startTime;
+        this.responseTimes.push(duration);
+        if (this.responseTimes.length > 1e3) {
+          this.responseTimes.shift();
+        }
+      }
+      startCleanup() {
+        this.cleanupInterval = setInterval(() => {
+          const now = Date.now();
+          for (const [key, entry] of this.l1Cache.entries()) {
+            if (entry.expiresAt < now) {
+              this.l1Cache.delete(key);
+            }
+          }
+          for (const [key, entry] of this.l2Cache.entries()) {
+            if (entry.expiresAt < now) {
+              this.l2Cache.delete(key);
+            }
+          }
+        }, 60 * 1e3);
+      }
+      emit(event, data) {
+        const listeners = this.eventListeners.get(event);
+        if (listeners) {
+          for (const listener of listeners) {
+            try {
+              listener(data);
+            } catch (e) {
+            }
+          }
+        }
+      }
+      /**
+       * Subscribe to cache events
+       */
+      on(event, listener) {
+        if (!this.eventListeners.has(event)) {
+          this.eventListeners.set(event, /* @__PURE__ */ new Set());
+        }
+        this.eventListeners.get(event).add(listener);
+      }
+      /**
+       * Unsubscribe from cache events
+       */
+      off(event, listener) {
+        const listeners = this.eventListeners.get(event);
+        if (listeners) {
+          listeners.delete(listener);
+        }
+      }
+    };
+    enhancedCache = new EnhancedCache({
+      maxL1Size: 150,
+      maxL2Size: 800,
+      defaultTTL: 5 * 60 * 1e3,
+      enableStats: true
+    });
+  }
+});
+
 // server/performance-cache.ts
 var performance_cache_exports = {};
 __export(performance_cache_exports, {
@@ -9467,6 +9835,1128 @@ var init_performance_cache = __esm({
       }
     };
     performanceCache = new PerformanceCache();
+  }
+});
+
+// server/database-optimization.ts
+var database_optimization_exports = {};
+__export(database_optimization_exports, {
+  DatabaseOptimizer: () => DatabaseOptimizer,
+  databaseOptimizer: () => databaseOptimizer
+});
+var DatabaseOptimizer, databaseOptimizer;
+var init_database_optimization = __esm({
+  "server/database-optimization.ts"() {
+    "use strict";
+    init_storage();
+    DatabaseOptimizer = class {
+      constructor() {
+        this.queryStats = /* @__PURE__ */ new Map();
+        this.slowQueryThreshold = 500;
+        // 500ms
+        this.slowQueryLog = [];
+        this.maxSlowQueryLogSize = 100;
+        this.startPeriodicCleanup();
+      }
+      /**
+       * Performance indexes creation script
+       * Run this once to ensure all critical indexes exist
+       */
+      async createPerformanceIndexes() {
+        const created = [];
+        const errors = [];
+        const indexStatements = [
+          // User hot paths
+          { name: "users_active_role_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS users_active_role_idx ON users(role_id, is_active)" },
+          { name: "users_last_login_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS users_last_login_idx ON users(last_login_at DESC NULLS LAST)" },
+          { name: "users_status_active_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS users_status_active_idx ON users(status, is_active) WHERE is_active = true" },
+          // Exam sessions hot paths (critical for exam taking)
+          { name: "exam_sessions_status_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_sessions_status_idx ON exam_sessions(status)" },
+          { name: "exam_sessions_student_status_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_sessions_student_status_idx ON exam_sessions(student_id, status)" },
+          { name: "exam_sessions_started_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_sessions_started_idx ON exam_sessions(started_at DESC)" },
+          { name: "exam_sessions_submitted_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_sessions_submitted_idx ON exam_sessions(submitted_at DESC NULLS LAST)" },
+          { name: "exam_sessions_timeout_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_sessions_timeout_idx ON exam_sessions(is_completed, started_at) WHERE is_completed = false" },
+          // Exam hot paths (for listing and filtering)
+          { name: "exams_published_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exams_published_idx ON exams(is_published) WHERE is_published = true" },
+          { name: "exams_created_by_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exams_created_by_idx ON exams(created_by)" },
+          { name: "exams_teacher_charge_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exams_teacher_charge_idx ON exams(teacher_in_charge_id)" },
+          { name: "exams_class_term_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exams_class_term_idx ON exams(class_id, term_id)" },
+          { name: "exams_subject_class_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exams_subject_class_idx ON exams(subject_id, class_id)" },
+          { name: "exams_date_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exams_date_idx ON exams(date DESC)" },
+          { name: "exams_time_window_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exams_time_window_idx ON exams(start_time, end_time)" },
+          // Report cards hot paths
+          { name: "report_cards_status_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS report_cards_status_idx ON report_cards(status)" },
+          { name: "report_cards_student_status_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS report_cards_student_status_idx ON report_cards(student_id, status)" },
+          { name: "report_cards_published_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS report_cards_published_idx ON report_cards(status, published_at DESC) WHERE status = 'published'" },
+          // Notifications hot paths
+          { name: "notifications_user_unread_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS notifications_user_unread_idx ON notifications(user_id, is_read) WHERE is_read = false" },
+          { name: "notifications_created_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS notifications_created_idx ON notifications(created_at DESC)" },
+          { name: "notifications_user_created_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS notifications_user_created_idx ON notifications(user_id, created_at DESC)" },
+          // Teacher assignments hot paths
+          { name: "teacher_assign_active_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS teacher_assign_active_idx ON teacher_class_assignments(teacher_id, is_active) WHERE is_active = true" },
+          { name: "teacher_assign_term_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS teacher_assign_term_idx ON teacher_class_assignments(term_id)" },
+          { name: "teacher_assign_valid_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS teacher_assign_valid_idx ON teacher_class_assignments(valid_until) WHERE valid_until IS NOT NULL" },
+          // Attendance hot paths
+          { name: "attendance_student_date_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS attendance_student_date_idx ON attendance(student_id, date DESC)" },
+          { name: "attendance_class_date_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS attendance_class_date_idx ON attendance(class_id, date DESC)" },
+          { name: "attendance_date_status_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS attendance_date_status_idx ON attendance(date, status)" },
+          // Messages hot paths
+          { name: "messages_recipient_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS messages_recipient_idx ON messages(recipient_id, created_at DESC)" },
+          { name: "messages_sender_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS messages_sender_idx ON messages(sender_id, created_at DESC)" },
+          { name: "messages_unread_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS messages_unread_idx ON messages(recipient_id, is_read) WHERE is_read = false" },
+          // Audit logs hot paths (for admin dashboards)
+          { name: "audit_logs_user_date_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS audit_logs_user_date_idx ON audit_logs(user_id, created_at DESC)" },
+          // Students hot paths
+          { name: "students_parent_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS students_parent_idx ON students(parent_id)" },
+          // Grading tasks hot paths
+          { name: "grading_tasks_pending_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS grading_tasks_pending_idx ON grading_tasks(teacher_id, status) WHERE status = 'pending'" },
+          { name: "grading_tasks_priority_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS grading_tasks_priority_idx ON grading_tasks(priority DESC, created_at ASC)" },
+          // Continuous assessment hot paths
+          { name: "ca_student_term_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS ca_student_term_idx ON continuous_assessment(student_id, term_id)" },
+          // Announcements hot paths
+          { name: "announcements_published_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS announcements_published_idx ON announcements(is_published, published_at DESC) WHERE is_published = true" },
+          // Homepage content hot paths
+          { name: "homepage_active_order_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS homepage_active_order_idx ON home_page_content(is_active, display_order) WHERE is_active = true" },
+          // ==================== EXAM VISIBILITY OPTIMIZATION INDEXES ====================
+          // Critical for student exam access performance (target: <100ms)
+          // Students class-based lookup for visibility
+          { name: "students_class_dept_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS students_class_dept_idx ON students(class_id, department)" },
+          { name: "students_class_active_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS students_class_active_idx ON students(class_id)" },
+          // Subject category for department filtering (SS1-SS3)
+          { name: "subjects_category_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS subjects_category_idx ON subjects(category) WHERE is_active = true" },
+          { name: "subjects_active_cat_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS subjects_active_cat_idx ON subjects(is_active, category)" },
+          // Optimized exam visibility queries
+          { name: "exams_visibility_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exams_visibility_idx ON exams(is_published, class_id, subject_id)" },
+          { name: "exams_class_published_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exams_class_published_idx ON exams(class_id, is_published) WHERE is_published = true" },
+          // Classes level lookup for SS detection
+          { name: "classes_level_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS classes_level_idx ON classes(level)" },
+          // ==================== VACANCY OPTIMIZATION INDEXES ====================
+          // Critical for public vacancy listing (target: <100ms)
+          { name: "vacancies_status_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS vacancies_status_idx ON vacancies(status)" },
+          { name: "vacancies_active_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS vacancies_active_idx ON vacancies(status, created_at DESC) WHERE status = 'open'" },
+          { name: "vacancies_created_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS vacancies_created_idx ON vacancies(created_at DESC)" },
+          // ==================== EXAM RESULTS & SUBMISSIONS OPTIMIZATION ====================
+          // Critical for real-time anti-cheat and grading
+          { name: "exam_results_exam_student_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_results_exam_student_idx ON exam_results(exam_id, student_id)" },
+          { name: "exam_results_student_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_results_student_idx ON exam_results(student_id)" },
+          { name: "student_answers_session_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS student_answers_session_idx ON student_answers(session_id)" },
+          { name: "student_answers_question_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS student_answers_question_idx ON student_answers(question_id)" },
+          // ==================== SCALABILITY INDEXES ====================
+          // For horizontal scaling support with 1000+ concurrent users
+          // Session management
+          { name: "exam_sessions_exam_student_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_sessions_exam_student_idx ON exam_sessions(exam_id, student_id)" },
+          { name: "exam_sessions_active_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_sessions_active_idx ON exam_sessions(status, started_at) WHERE status = 'in_progress'" },
+          // User authentication hot paths
+          { name: "users_login_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS users_login_idx ON users(username, is_active) WHERE is_active = true" },
+          { name: "users_email_active_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS users_email_active_idx ON users(email, is_active) WHERE is_active = true" }
+        ];
+        const pool2 = getPgPool();
+        if (!pool2) {
+          errors.push("Database pool not available");
+          return { created, errors };
+        }
+        for (const idx of indexStatements) {
+          try {
+            await pool2.query(idx.sql);
+            created.push(idx.name);
+          } catch (error) {
+            if (error.message?.includes("already exists")) {
+              created.push(`${idx.name} (exists)`);
+            } else {
+              errors.push(`${idx.name}: ${error.message}`);
+            }
+          }
+        }
+        return { created, errors };
+      }
+      /**
+       * Analyze table statistics and suggest optimizations
+       */
+      async analyzeTableStats() {
+        const pool2 = getPgPool();
+        if (!pool2) return /* @__PURE__ */ new Map();
+        const stats = /* @__PURE__ */ new Map();
+        const criticalTables = [
+          "users",
+          "students",
+          "exams",
+          "exam_sessions",
+          "exam_results",
+          "student_answers",
+          "report_cards",
+          "notifications",
+          "teacher_class_assignments"
+        ];
+        for (const table of criticalTables) {
+          try {
+            const result = await pool2.query(`
+          SELECT 
+            relname as table_name,
+            n_live_tup as row_count,
+            n_dead_tup as dead_rows,
+            n_tup_ins as inserts,
+            n_tup_upd as updates,
+            n_tup_del as deletes,
+            last_vacuum,
+            last_autovacuum,
+            last_analyze,
+            last_autoanalyze
+          FROM pg_stat_user_tables 
+          WHERE relname = $1
+        `, [table]);
+            if (result.rows.length > 0) {
+              stats.set(table, result.rows[0]);
+            }
+          } catch (error) {
+          }
+        }
+        return stats;
+      }
+      /**
+       * Get slow query log
+       */
+      getSlowQueryLog() {
+        return [...this.slowQueryLog];
+      }
+      /**
+       * Log a slow query
+       */
+      logSlowQuery(query, durationMs) {
+        if (durationMs >= this.slowQueryThreshold) {
+          this.slowQueryLog.push({
+            query: query.substring(0, 500),
+            // Truncate long queries
+            duration: durationMs,
+            timestamp: /* @__PURE__ */ new Date()
+          });
+          if (this.slowQueryLog.length > this.maxSlowQueryLogSize) {
+            this.slowQueryLog.shift();
+          }
+          console.warn(`[SLOW QUERY ${durationMs}ms] ${query.substring(0, 100)}...`);
+        }
+      }
+      /**
+       * Record query execution stats
+       */
+      recordQueryStats(queryId, durationMs) {
+        const existing = this.queryStats.get(queryId);
+        if (existing) {
+          existing.totalCalls++;
+          existing.avgDurationMs = (existing.avgDurationMs * (existing.totalCalls - 1) + durationMs) / existing.totalCalls;
+          existing.slowestDurationMs = Math.max(existing.slowestDurationMs, durationMs);
+          existing.lastCalled = /* @__PURE__ */ new Date();
+        } else {
+          this.queryStats.set(queryId, {
+            query: queryId,
+            avgDurationMs: durationMs,
+            totalCalls: 1,
+            slowestDurationMs: durationMs,
+            lastCalled: /* @__PURE__ */ new Date()
+          });
+        }
+        this.logSlowQuery(queryId, durationMs);
+      }
+      /**
+       * Get top N slowest queries
+       */
+      getTopSlowQueries(n = 10) {
+        return Array.from(this.queryStats.values()).sort((a, b) => b.avgDurationMs - a.avgDurationMs).slice(0, n);
+      }
+      /**
+       * Get performance metrics
+       */
+      async getPerformanceMetrics() {
+        const pool2 = getPgPool();
+        const totalQueries = Array.from(this.queryStats.values()).reduce((sum, s) => sum + s.totalCalls, 0);
+        const avgQueryTime = totalQueries > 0 ? Array.from(this.queryStats.values()).reduce((sum, s) => sum + s.avgDurationMs * s.totalCalls, 0) / totalQueries : 0;
+        return {
+          totalQueries,
+          avgQueryTime: Math.round(avgQueryTime * 100) / 100,
+          slowQueries: this.slowQueryLog.length,
+          cacheHitRate: 0,
+          // Will be populated from performanceCache
+          connectionPoolStats: {
+            total: pool2?.totalCount || 0,
+            idle: pool2?.idleCount || 0,
+            waiting: pool2?.waitingCount || 0
+          }
+        };
+      }
+      /**
+       * Run VACUUM ANALYZE on critical tables
+       */
+      async vacuumAnalyzeCriticalTables() {
+        const pool2 = getPgPool();
+        if (!pool2) return { success: [], errors: ["Database pool not available"] };
+        const success = [];
+        const errors = [];
+        const criticalTables = [
+          "exam_sessions",
+          "student_answers",
+          "exam_results",
+          "notifications",
+          "report_cards",
+          "audit_logs"
+        ];
+        for (const table of criticalTables) {
+          try {
+            await pool2.query(`ANALYZE ${table}`);
+            success.push(table);
+          } catch (error) {
+            errors.push(`${table}: ${error.message}`);
+          }
+        }
+        return { success, errors };
+      }
+      /**
+       * Periodic cleanup of stale stats
+       */
+      startPeriodicCleanup() {
+        setInterval(() => {
+          const oneHourAgo = new Date(Date.now() - 60 * 60 * 1e3);
+          for (const [key, stats] of this.queryStats.entries()) {
+            if (stats.lastCalled < oneHourAgo) {
+              this.queryStats.delete(key);
+            }
+          }
+        }, 15 * 60 * 1e3);
+      }
+      /**
+       * Reset all statistics
+       */
+      resetStats() {
+        this.queryStats.clear();
+        this.slowQueryLog = [];
+      }
+    };
+    databaseOptimizer = new DatabaseOptimizer();
+  }
+});
+
+// server/socket-optimizer.ts
+var socket_optimizer_exports = {};
+__export(socket_optimizer_exports, {
+  SocketOptimizer: () => SocketOptimizer,
+  socketOptimizer: () => socketOptimizer
+});
+var SocketOptimizer, socketOptimizer;
+var init_socket_optimizer = __esm({
+  "server/socket-optimizer.ts"() {
+    "use strict";
+    SocketOptimizer = class {
+      constructor(config) {
+        this.io = null;
+        this.batchTimer = null;
+        this.latencyMeasurements = [];
+        this.connectionsByUser = /* @__PURE__ */ new Map();
+        this.config = {
+          batchingEnabled: true,
+          batchIntervalMs: 50,
+          // Batch messages every 50ms
+          maxBatchSize: 100,
+          compressionThreshold: 1024,
+          // Compress messages > 1KB
+          heartbeatInterval: 25e3,
+          deadConnectionTimeout: 6e4,
+          maxConnectionsPerUser: 5,
+          // Max 5 tabs per user
+          enableMetrics: true,
+          ...config
+        };
+        this.stats = this.initializeStats();
+        this.messageBatch = { events: [], createdAt: Date.now() };
+      }
+      /**
+       * Initialize Socket.IO with optimizations
+       */
+      initialize(io) {
+        this.io = io;
+        this.setupOptimizedHandlers();
+        this.startMetricsCollection();
+        console.log("\u2705 Socket Optimizer initialized");
+      }
+      /**
+       * Add optimized event emission with batching
+       */
+      emit(eventType, data, rooms) {
+        if (!this.io) return;
+        const roomList = rooms ? Array.isArray(rooms) ? rooms : [rooms] : [];
+        if (this.config.batchingEnabled) {
+          this.addToBatch(eventType, data, roomList);
+        } else {
+          this.emitImmediate(eventType, data, roomList);
+        }
+      }
+      /**
+       * Emit immediately (bypass batching)
+       */
+      emitImmediate(eventType, data, rooms) {
+        if (!this.io) return;
+        const payload = this.optimizePayload(data);
+        if (rooms.length > 0) {
+          for (const room of rooms) {
+            this.io.to(room).emit(eventType, payload);
+          }
+        } else {
+          this.io.emit(eventType, payload);
+        }
+        this.stats.messagesSent++;
+        this.stats.bytesTransferred += JSON.stringify(payload).length;
+      }
+      /**
+       * Add message to batch
+       */
+      addToBatch(eventType, data, rooms) {
+        this.messageBatch.events.push({ eventType, data, rooms });
+        if (this.messageBatch.events.length >= this.config.maxBatchSize) {
+          this.flushBatch();
+        }
+        if (!this.batchTimer) {
+          this.batchTimer = setTimeout(() => {
+            this.flushBatch();
+          }, this.config.batchIntervalMs);
+        }
+      }
+      /**
+       * Flush message batch
+       */
+      flushBatch() {
+        if (this.batchTimer) {
+          clearTimeout(this.batchTimer);
+          this.batchTimer = null;
+        }
+        const events = this.messageBatch.events;
+        this.messageBatch = { events: [], createdAt: Date.now() };
+        if (events.length === 0) return;
+        const eventsByRoom = /* @__PURE__ */ new Map();
+        const broadcastEvents = [];
+        for (const event of events) {
+          if (event.rooms && event.rooms.length > 0) {
+            for (const room of event.rooms) {
+              if (!eventsByRoom.has(room)) {
+                eventsByRoom.set(room, []);
+              }
+              eventsByRoom.get(room).push({ eventType: event.eventType, data: event.data });
+            }
+          } else {
+            broadcastEvents.push({ eventType: event.eventType, data: event.data });
+          }
+        }
+        if (this.io) {
+          for (const [room, roomEvents] of eventsByRoom) {
+            if (roomEvents.length === 1) {
+              this.io.to(room).emit(roomEvents[0].eventType, this.optimizePayload(roomEvents[0].data));
+            } else {
+              this.io.to(room).emit("batch", { events: roomEvents.map((e) => ({ type: e.eventType, data: this.optimizePayload(e.data) })) });
+            }
+          }
+          for (const event of broadcastEvents) {
+            this.io.emit(event.eventType, this.optimizePayload(event.data));
+          }
+        }
+        this.stats.messagesSent += events.length;
+      }
+      /**
+       * Optimize payload (remove unnecessary data, potentially compress)
+       */
+      optimizePayload(data) {
+        if (data === null || data === void 0) return data;
+        if (typeof data === "object" && !Array.isArray(data)) {
+          const cleaned = {};
+          for (const [key, value] of Object.entries(data)) {
+            if (value !== void 0) {
+              cleaned[key] = value;
+            }
+          }
+          return cleaned;
+        }
+        return data;
+      }
+      /**
+       * Track connection for a user
+       */
+      trackConnection(userId, socketId) {
+        if (!this.connectionsByUser.has(userId)) {
+          this.connectionsByUser.set(userId, /* @__PURE__ */ new Set());
+        }
+        const userConnections = this.connectionsByUser.get(userId);
+        if (userConnections.size >= this.config.maxConnectionsPerUser) {
+          console.warn(`\u26A0\uFE0F  User ${userId} exceeded max connections (${this.config.maxConnectionsPerUser})`);
+          return false;
+        }
+        userConnections.add(socketId);
+        this.stats.totalConnections++;
+        this.stats.authenticatedConnections++;
+        if (this.stats.totalConnections > this.stats.peakConnections) {
+          this.stats.peakConnections = this.stats.totalConnections;
+        }
+        return true;
+      }
+      /**
+       * Untrack connection for a user
+       */
+      untrackConnection(userId, socketId) {
+        const userConnections = this.connectionsByUser.get(userId);
+        if (userConnections) {
+          userConnections.delete(socketId);
+          if (userConnections.size === 0) {
+            this.connectionsByUser.delete(userId);
+          }
+        }
+        if (this.stats.totalConnections > 0) {
+          this.stats.totalConnections--;
+        }
+        if (this.stats.authenticatedConnections > 0) {
+          this.stats.authenticatedConnections--;
+        }
+      }
+      /**
+       * Record latency measurement
+       */
+      recordLatency(latencyMs) {
+        this.latencyMeasurements.push(latencyMs);
+        if (this.latencyMeasurements.length > 1e3) {
+          this.latencyMeasurements.shift();
+        }
+        this.stats.averageLatency = this.latencyMeasurements.reduce((a, b) => a + b, 0) / this.latencyMeasurements.length;
+      }
+      /**
+       * Get connection statistics
+       */
+      getStats() {
+        if (this.io) {
+          const rooms = this.io.sockets.adapter.rooms;
+          this.stats.roomCounts = /* @__PURE__ */ new Map();
+          for (const [roomName, sockets] of rooms) {
+            if (!roomName.startsWith("/")) {
+              this.stats.roomCounts.set(roomName, sockets.size);
+            }
+          }
+        }
+        return { ...this.stats };
+      }
+      /**
+       * Get room size
+       */
+      getRoomSize(room) {
+        if (!this.io) return 0;
+        return this.io.sockets.adapter.rooms.get(room)?.size || 0;
+      }
+      /**
+       * Broadcast to specific room efficiently
+       */
+      broadcastToRoom(room, eventType, data) {
+        if (!this.io) return;
+        this.io.to(room).emit(eventType, this.optimizePayload(data));
+        this.stats.messagesSent++;
+      }
+      /**
+       * Get connections per user stats
+       */
+      getConnectionsPerUser() {
+        const result = /* @__PURE__ */ new Map();
+        for (const [userId, sockets] of this.connectionsByUser) {
+          result.set(userId, sockets.size);
+        }
+        return result;
+      }
+      /**
+       * Setup optimized event handlers
+       */
+      setupOptimizedHandlers() {
+        if (!this.io) return;
+        this.io.on("connection", (socket) => {
+          socket.on("ping_measure", () => {
+            socket.emit("pong_measure", { timestamp: Date.now() });
+          });
+          socket.on("subscribe_batch", (rooms) => {
+            if (Array.isArray(rooms)) {
+              for (const room of rooms.slice(0, 20)) {
+                if (typeof room === "string" && room.length < 100) {
+                  socket.join(room);
+                }
+              }
+            }
+          });
+          socket.on("unsubscribe_batch", (rooms) => {
+            if (Array.isArray(rooms)) {
+              for (const room of rooms) {
+                if (typeof room === "string") {
+                  socket.leave(room);
+                }
+              }
+            }
+          });
+        });
+      }
+      /**
+       * Start metrics collection
+       */
+      startMetricsCollection() {
+        if (!this.config.enableMetrics) return;
+        setInterval(() => {
+          const stats = this.getStats();
+          console.log(`\u{1F4E1} Socket Stats: ${stats.totalConnections} connections, ${stats.messagesSent} msgs sent, ${Math.round(stats.averageLatency)}ms avg latency`);
+        }, 5 * 60 * 1e3);
+      }
+      /**
+       * Initialize stats object
+       */
+      initializeStats() {
+        return {
+          totalConnections: 0,
+          authenticatedConnections: 0,
+          roomCounts: /* @__PURE__ */ new Map(),
+          messagesSent: 0,
+          messagesReceived: 0,
+          bytesTransferred: 0,
+          peakConnections: 0,
+          averageLatency: 0,
+          droppedConnections: 0
+        };
+      }
+      /**
+       * Reset statistics
+       */
+      resetStats() {
+        this.stats = this.initializeStats();
+        this.latencyMeasurements = [];
+      }
+      /**
+       * Shutdown optimizer
+       */
+      shutdown() {
+        if (this.batchTimer) {
+          clearTimeout(this.batchTimer);
+        }
+        this.flushBatch();
+      }
+    };
+    socketOptimizer = new SocketOptimizer();
+  }
+});
+
+// server/performance-monitor.ts
+var performance_monitor_exports = {};
+__export(performance_monitor_exports, {
+  PerformanceMonitor: () => PerformanceMonitor,
+  performanceMiddleware: () => performanceMiddleware,
+  performanceMonitor: () => performanceMonitor
+});
+import { EventEmitter } from "events";
+function performanceMiddleware() {
+  return (req, res, next) => {
+    const startTime = Date.now();
+    res.on("finish", () => {
+      const duration = Date.now() - startTime;
+      performanceMonitor.recordRequest(
+        req.method,
+        req.route?.path || req.path,
+        duration,
+        res.statusCode
+      );
+    });
+    next();
+  };
+}
+var PerformanceMonitor, performanceMonitor;
+var init_performance_monitor = __esm({
+  "server/performance-monitor.ts"() {
+    "use strict";
+    init_enhanced_cache();
+    init_database_optimization();
+    init_socket_optimizer();
+    init_storage();
+    PerformanceMonitor = class extends EventEmitter {
+      constructor() {
+        super();
+        this.endpointMetrics = /* @__PURE__ */ new Map();
+        this.systemMetrics = [];
+        this.totalRequests = 0;
+        this.totalErrors = 0;
+        this.allResponseTimes = [];
+        this.requestTimestamps = [];
+        this.isRunning = false;
+        this.metricsInterval = null;
+        this.startTime = /* @__PURE__ */ new Date();
+      }
+      /**
+       * Start performance monitoring
+       */
+      start() {
+        if (this.isRunning) return;
+        this.isRunning = true;
+        this.metricsInterval = setInterval(() => {
+          this.collectSystemMetrics();
+        }, 3e4);
+        console.log("\u2705 Performance Monitor started");
+      }
+      /**
+       * Stop monitoring
+       */
+      stop() {
+        if (this.metricsInterval) {
+          clearInterval(this.metricsInterval);
+        }
+        this.isRunning = false;
+      }
+      /**
+       * Record an API request
+       */
+      recordRequest(method, path5, durationMs, statusCode) {
+        const key = `${method}:${path5}`;
+        const isError = statusCode >= 400;
+        this.totalRequests++;
+        if (isError) this.totalErrors++;
+        this.allResponseTimes.push(durationMs);
+        this.requestTimestamps.push(Date.now());
+        if (this.allResponseTimes.length > 1e4) {
+          this.allResponseTimes.shift();
+        }
+        const oneMinuteAgo = Date.now() - 6e4;
+        while (this.requestTimestamps.length > 0 && this.requestTimestamps[0] < oneMinuteAgo) {
+          this.requestTimestamps.shift();
+        }
+        let metrics = this.endpointMetrics.get(key);
+        if (!metrics) {
+          metrics = {
+            path: path5,
+            method,
+            totalCalls: 0,
+            totalDurationMs: 0,
+            avgDurationMs: 0,
+            minDurationMs: Infinity,
+            maxDurationMs: 0,
+            p95DurationMs: 0,
+            errorCount: 0,
+            lastCalled: /* @__PURE__ */ new Date(),
+            responseTimes: []
+          };
+          this.endpointMetrics.set(key, metrics);
+        }
+        metrics.totalCalls++;
+        metrics.totalDurationMs += durationMs;
+        metrics.avgDurationMs = metrics.totalDurationMs / metrics.totalCalls;
+        metrics.minDurationMs = Math.min(metrics.minDurationMs, durationMs);
+        metrics.maxDurationMs = Math.max(metrics.maxDurationMs, durationMs);
+        metrics.lastCalled = /* @__PURE__ */ new Date();
+        if (isError) {
+          metrics.errorCount++;
+        }
+        metrics.responseTimes.push(durationMs);
+        if (metrics.responseTimes.length > 1e3) {
+          metrics.responseTimes.shift();
+        }
+        const sorted = [...metrics.responseTimes].sort((a, b) => a - b);
+        metrics.p95DurationMs = this.percentile(sorted, 95);
+        if (durationMs > 500) {
+          this.emit("slowRequest", { method, path: path5, durationMs, statusCode });
+        }
+        if (isError) {
+          this.emit("requestError", { method, path: path5, statusCode, durationMs });
+        }
+      }
+      /**
+       * Collect system metrics
+       */
+      collectSystemMetrics() {
+        const memoryUsage = process.memoryUsage();
+        const cpuUsage = process.cpuUsage();
+        const cpuPercent = (cpuUsage.user + cpuUsage.system) / 1e6;
+        const metrics = {
+          timestamp: /* @__PURE__ */ new Date(),
+          memoryUsage,
+          cpuUsage: cpuPercent,
+          uptime: process.uptime(),
+          activeConnections: socketOptimizer.getStats().totalConnections,
+          requestsPerSecond: this.requestTimestamps.length / 60
+        };
+        this.systemMetrics.push(metrics);
+        if (this.systemMetrics.length > 100) {
+          this.systemMetrics.shift();
+        }
+      }
+      /**
+       * Generate comprehensive performance report
+       */
+      async generateReport() {
+        const uptime = (Date.now() - this.startTime.getTime()) / 1e3;
+        const sortedResponseTimes = [...this.allResponseTimes].sort((a, b) => a - b);
+        const p50 = this.percentile(sortedResponseTimes, 50);
+        const p95 = this.percentile(sortedResponseTimes, 95);
+        const p99 = this.percentile(sortedResponseTimes, 99);
+        const avgResponseTime = this.allResponseTimes.length > 0 ? this.allResponseTimes.reduce((a, b) => a + b, 0) / this.allResponseTimes.length : 0;
+        const dbMetrics = await databaseOptimizer.getPerformanceMetrics();
+        const slowQueries = databaseOptimizer.getTopSlowQueries(10);
+        const cacheStats = enhancedCache.getStats();
+        const socketStats = socketOptimizer.getStats();
+        const memoryUsage = process.memoryUsage();
+        const pool2 = getPgPool();
+        const poolStats = {
+          total: pool2?.totalCount || 0,
+          idle: pool2?.idleCount || 0,
+          waiting: pool2?.waitingCount || 0
+        };
+        const allEndpoints = Array.from(this.endpointMetrics.values());
+        const topEndpoints = [...allEndpoints].sort((a, b) => b.totalCalls - a.totalCalls).slice(0, 10);
+        const slowestEndpoints = [...allEndpoints].sort((a, b) => b.p95DurationMs - a.p95DurationMs).slice(0, 10);
+        const errorsByEndpoint = allEndpoints.filter((e) => e.errorCount > 0).map((e) => ({
+          path: `${e.method} ${e.path}`,
+          errorCount: e.errorCount,
+          errorRate: e.errorCount / e.totalCalls * 100
+        })).sort((a, b) => b.errorRate - a.errorRate);
+        const recommendations = this.generateRecommendations({
+          avgResponseTime,
+          p95,
+          errorRate: this.totalRequests > 0 ? this.totalErrors / this.totalRequests * 100 : 0,
+          cacheHitRate: cacheStats.hitRate,
+          slowestEndpoints,
+          poolStats,
+          memoryUsage
+        });
+        return {
+          generatedAt: /* @__PURE__ */ new Date(),
+          uptime,
+          summary: {
+            totalRequests: this.totalRequests,
+            avgResponseTime: Math.round(avgResponseTime),
+            p50ResponseTime: p50,
+            p95ResponseTime: p95,
+            p99ResponseTime: p99,
+            errorRate: this.totalRequests > 0 ? this.totalErrors / this.totalRequests * 100 : 0,
+            requestsPerSecond: this.requestTimestamps.length / 60
+          },
+          database: {
+            avgQueryTime: dbMetrics.avgQueryTime,
+            slowQueryCount: dbMetrics.slowQueries,
+            connectionPoolStats: poolStats,
+            topSlowQueries: slowQueries.map((q) => ({
+              query: q.query.substring(0, 100),
+              avgMs: Math.round(q.avgDurationMs),
+              calls: q.totalCalls
+            }))
+          },
+          cache: {
+            l1HitRate: cacheStats.l1Size > 0 ? cacheStats.l1Hits / (cacheStats.l1Hits + cacheStats.l2Hits + cacheStats.misses) * 100 : 0,
+            l2HitRate: cacheStats.l2Size > 0 ? cacheStats.l2Hits / (cacheStats.l1Hits + cacheStats.l2Hits + cacheStats.misses) * 100 : 0,
+            totalHitRate: cacheStats.hitRate,
+            size: cacheStats.l1Size + cacheStats.l2Size,
+            evictions: cacheStats.evictions
+          },
+          websocket: {
+            activeConnections: socketStats.totalConnections,
+            peakConnections: socketStats.peakConnections,
+            messagesSent: socketStats.messagesSent,
+            avgLatency: Math.round(socketStats.averageLatency)
+          },
+          memory: {
+            heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024),
+            heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024),
+            external: Math.round(memoryUsage.external / 1024 / 1024),
+            rss: Math.round(memoryUsage.rss / 1024 / 1024)
+          },
+          topEndpoints,
+          slowestEndpoints,
+          errorsByEndpoint,
+          recommendations
+        };
+      }
+      /**
+       * Generate performance recommendations
+       */
+      generateRecommendations(data) {
+        const recommendations = [];
+        if (data.p95 > 500) {
+          recommendations.push(`P95 response time (${data.p95}ms) exceeds 500ms target. Consider optimizing slow endpoints or adding caching.`);
+        }
+        if (data.avgResponseTime > 200) {
+          recommendations.push(`Average response time (${Math.round(data.avgResponseTime)}ms) is high. Review database queries and caching strategy.`);
+        }
+        if (data.errorRate > 1) {
+          recommendations.push(`Error rate (${data.errorRate.toFixed(2)}%) exceeds 1% target. Review error logs and fix root causes.`);
+        }
+        if (data.cacheHitRate < 50) {
+          recommendations.push(`Cache hit rate (${data.cacheHitRate.toFixed(1)}%) is below 50%. Consider caching more frequently accessed data.`);
+        }
+        if (data.poolStats.waiting > 0) {
+          recommendations.push(`Database connections are waiting (${data.poolStats.waiting}). Consider increasing pool size.`);
+        }
+        if (data.poolStats.idle === 0 && data.poolStats.total > 0) {
+          recommendations.push("No idle database connections. Pool may be under-provisioned for current load.");
+        }
+        const heapUsedMB = data.memoryUsage.heapUsed / 1024 / 1024;
+        const heapTotalMB = data.memoryUsage.heapTotal / 1024 / 1024;
+        const heapUsagePercent = heapUsedMB / heapTotalMB * 100;
+        if (heapUsagePercent > 85) {
+          recommendations.push(`Memory usage (${heapUsagePercent.toFixed(1)}%) is high. Consider memory optimization or increasing heap size.`);
+        }
+        const criticallySlowEndpoints = data.slowestEndpoints.filter((e) => e.p95DurationMs > 1e3);
+        if (criticallySlowEndpoints.length > 0) {
+          recommendations.push(`${criticallySlowEndpoints.length} endpoints have P95 > 1000ms. Priority optimization needed.`);
+        }
+        if (recommendations.length === 0) {
+          recommendations.push("System performance is within acceptable parameters. Continue monitoring.");
+        }
+        return recommendations;
+      }
+      /**
+       * Calculate percentile
+       */
+      percentile(sortedArray, p) {
+        if (sortedArray.length === 0) return 0;
+        const index3 = Math.ceil(p / 100 * sortedArray.length) - 1;
+        return sortedArray[Math.max(0, index3)];
+      }
+      /**
+       * Print formatted report to console
+       */
+      async printReport() {
+        const report = await this.generateReport();
+        console.log("\n" + "=".repeat(60));
+        console.log("              PERFORMANCE MONITORING REPORT");
+        console.log("=".repeat(60));
+        console.log(`Generated: ${report.generatedAt.toISOString()}`);
+        console.log(`Uptime: ${Math.round(report.uptime)}s`);
+        console.log("\n\u{1F4C8} REQUEST SUMMARY");
+        console.log("\u2500".repeat(40));
+        console.log(`  Total Requests:    ${report.summary.totalRequests}`);
+        console.log(`  Requests/sec:      ${report.summary.requestsPerSecond.toFixed(2)}`);
+        console.log(`  Error Rate:        ${report.summary.errorRate.toFixed(2)}%`);
+        console.log(`  Avg Response:      ${report.summary.avgResponseTime}ms`);
+        console.log(`  P50:               ${report.summary.p50ResponseTime}ms`);
+        console.log(`  P95:               ${report.summary.p95ResponseTime}ms`);
+        console.log(`  P99:               ${report.summary.p99ResponseTime}ms`);
+        console.log("\n\u{1F4BE} DATABASE");
+        console.log("\u2500".repeat(40));
+        console.log(`  Avg Query Time:    ${report.database.avgQueryTime}ms`);
+        console.log(`  Slow Queries:      ${report.database.slowQueryCount}`);
+        console.log(`  Pool - Total:      ${report.database.connectionPoolStats.total}`);
+        console.log(`  Pool - Idle:       ${report.database.connectionPoolStats.idle}`);
+        console.log(`  Pool - Waiting:    ${report.database.connectionPoolStats.waiting}`);
+        console.log("\n\u{1F5C3}\uFE0F  CACHE");
+        console.log("\u2500".repeat(40));
+        console.log(`  Hit Rate:          ${report.cache.totalHitRate.toFixed(1)}%`);
+        console.log(`  Cache Size:        ${report.cache.size} entries`);
+        console.log(`  Evictions:         ${report.cache.evictions}`);
+        console.log("\n\u{1F50C} WEBSOCKET");
+        console.log("\u2500".repeat(40));
+        console.log(`  Active:            ${report.websocket.activeConnections}`);
+        console.log(`  Peak:              ${report.websocket.peakConnections}`);
+        console.log(`  Messages Sent:     ${report.websocket.messagesSent}`);
+        console.log(`  Avg Latency:       ${report.websocket.avgLatency}ms`);
+        console.log("\n\u{1F4BB} MEMORY (MB)");
+        console.log("\u2500".repeat(40));
+        console.log(`  Heap Used:         ${report.memory.heapUsed}MB`);
+        console.log(`  Heap Total:        ${report.memory.heapTotal}MB`);
+        console.log(`  RSS:               ${report.memory.rss}MB`);
+        if (report.slowestEndpoints.length > 0) {
+          console.log("\n\u{1F422} TOP 5 SLOWEST ENDPOINTS");
+          console.log("\u2500".repeat(40));
+          for (const endpoint of report.slowestEndpoints.slice(0, 5)) {
+            console.log(`  ${endpoint.method} ${endpoint.path}`);
+            console.log(`    Calls: ${endpoint.totalCalls} | Avg: ${Math.round(endpoint.avgDurationMs)}ms | P95: ${endpoint.p95DurationMs}ms`);
+          }
+        }
+        console.log("\n\u{1F4A1} RECOMMENDATIONS");
+        console.log("\u2500".repeat(40));
+        for (const rec of report.recommendations) {
+          console.log(`  \u2022 ${rec}`);
+        }
+        console.log("\n" + "=".repeat(60) + "\n");
+      }
+      /**
+       * Reset all metrics
+       */
+      reset() {
+        this.endpointMetrics.clear();
+        this.systemMetrics = [];
+        this.totalRequests = 0;
+        this.totalErrors = 0;
+        this.allResponseTimes = [];
+        this.requestTimestamps = [];
+      }
+    };
+    performanceMonitor = new PerformanceMonitor();
+  }
+});
+
+// server/query-optimizer.ts
+var query_optimizer_exports = {};
+__export(query_optimizer_exports, {
+  BatchLoader: () => BatchLoader,
+  RateLimiter: () => RateLimiter,
+  apiRateLimiter: () => apiRateLimiter,
+  bulkInsertWithConflict: () => bulkInsertWithConflict,
+  createPaginatedResult: () => createPaginatedResult,
+  getPaginationParams: () => getPaginationParams,
+  getPoolStats: () => getPoolStats,
+  heavyOperationLimiter: () => heavyOperationLimiter,
+  loginRateLimiter: () => loginRateLimiter,
+  selectFields: () => selectFields,
+  timedQuery: () => timedQuery
+});
+function getPaginationParams(options) {
+  const page = Math.max(1, options.page || 1);
+  const limit = Math.min(100, Math.max(1, options.limit || 20));
+  const offset = (page - 1) * limit;
+  return { offset, limit };
+}
+function createPaginatedResult(data, total, options) {
+  const page = Math.max(1, options.page || 1);
+  const limit = Math.min(100, Math.max(1, options.limit || 20));
+  const totalPages = Math.ceil(total / limit);
+  return {
+    data,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1
+    }
+  };
+}
+async function getPoolStats() {
+  const pool2 = getPgPool();
+  if (!pool2) {
+    return { totalConnections: 0, idleConnections: 0, waitingClients: 0 };
+  }
+  return {
+    totalConnections: pool2.totalCount,
+    idleConnections: pool2.idleCount,
+    waitingClients: pool2.waitingCount
+  };
+}
+async function timedQuery(queryName, queryFn, slowThresholdMs = 500) {
+  const start = Date.now();
+  const result = await queryFn();
+  const durationMs = Date.now() - start;
+  if (durationMs > slowThresholdMs) {
+    console.warn(`[SLOW QUERY] ${queryName}: ${durationMs}ms`);
+  }
+  return { result, durationMs };
+}
+async function bulkInsertWithConflict(table, data, conflictColumns, updateColumns) {
+  if (data.length === 0) return 0;
+  const BATCH_SIZE = 100;
+  let inserted = 0;
+  for (let i = 0; i < data.length; i += BATCH_SIZE) {
+    const batch = data.slice(i, i + BATCH_SIZE);
+    const result = await db2.insert(table).values(batch).onConflictDoNothing();
+    inserted += batch.length;
+  }
+  return inserted;
+}
+function selectFields(data, fields) {
+  return data.map((item) => {
+    const result = {};
+    for (const field of fields) {
+      if (field in item) {
+        result[field] = item[field];
+      }
+    }
+    return result;
+  });
+}
+var BatchLoader, RateLimiter, apiRateLimiter, loginRateLimiter, heavyOperationLimiter;
+var init_query_optimizer = __esm({
+  "server/query-optimizer.ts"() {
+    "use strict";
+    init_storage();
+    BatchLoader = class {
+      constructor(batchFn, keyFn = (k) => String(k)) {
+        this.batchFn = batchFn;
+        this.keyFn = keyFn;
+        this.batch = [];
+        this.cache = /* @__PURE__ */ new Map();
+        this.batchScheduled = false;
+        this.pendingPromises = /* @__PURE__ */ new Map();
+      }
+      async load(key) {
+        const keyStr = this.keyFn(key);
+        if (this.cache.has(keyStr)) {
+          return this.cache.get(keyStr);
+        }
+        this.batch.push(key);
+        return new Promise((resolve, reject) => {
+          const existing = this.pendingPromises.get(keyStr) || [];
+          existing.push({ resolve, reject });
+          this.pendingPromises.set(keyStr, existing);
+          if (!this.batchScheduled) {
+            this.batchScheduled = true;
+            setImmediate(() => this.executeBatch());
+          }
+        });
+      }
+      async executeBatch() {
+        const batch = [...this.batch];
+        this.batch = [];
+        this.batchScheduled = false;
+        if (batch.length === 0) return;
+        try {
+          const results = await this.batchFn(batch);
+          for (const key of batch) {
+            const keyStr = this.keyFn(key);
+            const value = results.get(key);
+            this.cache.set(keyStr, value);
+            const pending = this.pendingPromises.get(keyStr) || [];
+            for (const { resolve } of pending) {
+              resolve(value);
+            }
+            this.pendingPromises.delete(keyStr);
+          }
+        } catch (error) {
+          for (const key of batch) {
+            const keyStr = this.keyFn(key);
+            const pending = this.pendingPromises.get(keyStr) || [];
+            for (const { reject } of pending) {
+              reject(error);
+            }
+            this.pendingPromises.delete(keyStr);
+          }
+        }
+      }
+      clear() {
+        this.cache.clear();
+        this.batch = [];
+      }
+    };
+    RateLimiter = class {
+      constructor(maxRequests = 100, windowMs = 6e4) {
+        this.maxRequests = maxRequests;
+        this.windowMs = windowMs;
+        this.requests = /* @__PURE__ */ new Map();
+      }
+      isAllowed(key) {
+        const now = Date.now();
+        const windowStart = now - this.windowMs;
+        let timestamps = this.requests.get(key) || [];
+        timestamps = timestamps.filter((t) => t > windowStart);
+        if (timestamps.length >= this.maxRequests) {
+          return false;
+        }
+        timestamps.push(now);
+        this.requests.set(key, timestamps);
+        return true;
+      }
+      getRemainingRequests(key) {
+        const now = Date.now();
+        const windowStart = now - this.windowMs;
+        let timestamps = this.requests.get(key) || [];
+        timestamps = timestamps.filter((t) => t > windowStart);
+        return Math.max(0, this.maxRequests - timestamps.length);
+      }
+      reset(key) {
+        this.requests.delete(key);
+      }
+      clear() {
+        this.requests.clear();
+      }
+    };
+    apiRateLimiter = new RateLimiter(100, 6e4);
+    loginRateLimiter = new RateLimiter(5, 9e5);
+    heavyOperationLimiter = new RateLimiter(10, 6e4);
   }
 });
 
@@ -11430,7 +12920,12 @@ var teacher_assignment_routes_default = router;
 
 // server/exam-visibility.ts
 init_storage();
+init_enhanced_cache();
+var VISIBILITY_CACHE_TTL = 5 * 60 * 1e3;
+var CONTEXT_CACHE_TTL = 10 * 60 * 1e3;
+var SUBJECTS_CACHE_TTL = 30 * 60 * 1e3;
 function isSeniorSecondaryLevel(level) {
+  if (!level) return false;
   const normalizedLevel = level.trim().toLowerCase();
   return normalizedLevel.includes("senior secondary") || normalizedLevel.includes("senior_secondary") || /^ss\s*[123]$/i.test(normalizedLevel) || /^sss\s*[123]$/i.test(normalizedLevel);
 }
@@ -11442,101 +12937,165 @@ function normalizeDepartment(department) {
   return normalized.length > 0 ? normalized : void 0;
 }
 async function getStudentExamVisibilityContext(studentId) {
-  const student = await storage.getStudent(studentId);
-  if (!student || !student.classId) {
-    return null;
-  }
-  const studentClass = await storage.getClass(student.classId);
-  if (!studentClass) {
-    return null;
-  }
-  return {
-    studentId,
-    classId: student.classId,
-    classLevel: studentClass.level || "",
-    department: normalizeDepartment(student.department)
-  };
+  const cacheKey = `visibility:context:${studentId}`;
+  return enhancedCache.getOrSet(
+    cacheKey,
+    async () => {
+      const student = await storage.getStudent(studentId);
+      if (!student || !student.classId) {
+        return null;
+      }
+      const studentClass = await storage.getClass(student.classId);
+      if (!studentClass) {
+        return null;
+      }
+      return {
+        studentId,
+        classId: student.classId,
+        classLevel: studentClass.level || "",
+        department: normalizeDepartment(student.department)
+      };
+    },
+    CONTEXT_CACHE_TTL,
+    "L2"
+  );
+}
+async function getCachedSubjects() {
+  return enhancedCache.getOrSet(
+    "visibility:subjects",
+    async () => {
+      const subjects3 = await storage.getSubjects();
+      return subjects3.map((s) => ({
+        id: s.id,
+        category: normalizeCategory(s.category)
+      }));
+    },
+    SUBJECTS_CACHE_TTL,
+    "L1"
+    // Hot data - promoted to L1
+  );
+}
+async function getCachedPublishedExams() {
+  return enhancedCache.getOrSet(
+    "visibility:published_exams",
+    async () => {
+      const allExams = await storage.getAllExams();
+      return allExams.filter((exam) => exam.isPublished);
+    },
+    EnhancedCache.TTL.SHORT,
+    // 30 seconds - exams can change frequently
+    "L2"
+  );
 }
 function filterExamsForStudentContext(exams3, context, subjects3) {
+  if (!exams3.length || !subjects3.length) return [];
   const isSS = isSeniorSecondaryLevel(context.classLevel);
-  let filteredExams = exams3.filter((exam) => {
-    return exam.isPublished && exam.classId === context.classId;
-  });
-  if (isSS) {
-    const studentDept = context.department;
-    if (studentDept) {
-      const validSubjectIds = subjects3.filter((s) => {
-        const category = normalizeCategory(s.category);
-        return category === "general" || category === studentDept;
-      }).map((s) => s.id);
-      filteredExams = filteredExams.filter(
-        (exam) => validSubjectIds.includes(exam.subjectId)
-      );
-    } else {
-      const generalSubjectIds = subjects3.filter((s) => normalizeCategory(s.category) === "general").map((s) => s.id);
-      filteredExams = filteredExams.filter(
-        (exam) => generalSubjectIds.includes(exam.subjectId)
-      );
-    }
+  const classExams = exams3.filter(
+    (exam) => exam.isPublished && exam.classId === context.classId
+  );
+  if (classExams.length === 0) return [];
+  let validSubjectIds;
+  if (isSS && context.department) {
+    validSubjectIds = new Set(
+      subjects3.filter((s) => s.category === "general" || s.category === context.department).map((s) => s.id)
+    );
   } else {
-    const generalSubjectIds = subjects3.filter((s) => normalizeCategory(s.category) === "general").map((s) => s.id);
-    filteredExams = filteredExams.filter(
-      (exam) => generalSubjectIds.includes(exam.subjectId)
+    validSubjectIds = new Set(
+      subjects3.filter((s) => s.category === "general").map((s) => s.id)
     );
   }
-  return filteredExams;
+  return classExams.filter((exam) => validSubjectIds.has(exam.subjectId));
 }
 async function getVisibleExamsForStudent(studentId) {
-  const context = await getStudentExamVisibilityContext(studentId);
-  if (!context) {
-    console.log(`[EXAM-VISIBILITY] No student context found for studentId: ${studentId}`);
-    console.log(`[EXAM-VISIBILITY] Make sure student has a record in students table with valid classId`);
-    return [];
-  }
-  const [allExams, subjects3] = await Promise.all([
-    storage.getAllExams(),
-    storage.getSubjects()
-  ]);
-  const visibleExams = filterExamsForStudentContext(allExams, context, subjects3);
-  console.log(`[EXAM-VISIBILITY] Student ${studentId} context:`, {
-    classId: context.classId,
-    classLevel: context.classLevel,
-    department: context.department,
-    isSS: isSeniorSecondaryLevel(context.classLevel)
-  });
-  console.log(`[EXAM-VISIBILITY] Found ${allExams.length} total exams, ${visibleExams.length} visible to student`);
-  return visibleExams;
+  const cacheKey = `visibility:student_exams:${studentId}`;
+  return enhancedCache.getOrSet(
+    cacheKey,
+    async () => {
+      const startTime = Date.now();
+      const [context, subjects3, publishedExams] = await Promise.all([
+        getStudentExamVisibilityContext(studentId),
+        getCachedSubjects(),
+        getCachedPublishedExams()
+      ]);
+      if (!context) {
+        console.log(`[EXAM-VISIBILITY] No student context found for studentId: ${studentId}`);
+        return [];
+      }
+      const visibleExams = filterExamsForStudentContext(publishedExams, context, subjects3);
+      const duration = Date.now() - startTime;
+      if (duration > 50) {
+        console.log(`[EXAM-VISIBILITY] Student ${studentId}: ${visibleExams.length}/${publishedExams.length} exams, ${duration}ms`);
+      }
+      return visibleExams;
+    },
+    VISIBILITY_CACHE_TTL,
+    "L1"
+    // Hot data for frequently accessed student exams
+  );
 }
 async function getVisibleExamsForParent(parentId) {
-  const children = await storage.getStudentsByParentId(parentId);
-  if (!children || children.length === 0) {
-    return [];
-  }
-  const childContexts = await Promise.all(
-    children.map((child) => getStudentExamVisibilityContext(child.id))
-  );
-  const validContexts = childContexts.filter((ctx) => ctx !== null);
-  if (validContexts.length === 0) {
-    return [];
-  }
-  const [allExams, subjects3] = await Promise.all([
-    storage.getAllExams(),
-    storage.getSubjects()
-  ]);
-  const childExamsMap = /* @__PURE__ */ new Map();
-  for (const context of validContexts) {
-    const childExams = filterExamsForStudentContext(allExams, context, subjects3);
-    for (const exam of childExams) {
-      if (!childExamsMap.has(exam.id)) {
-        childExamsMap.set(exam.id, exam);
+  const cacheKey = `visibility:parent_exams:${parentId}`;
+  return enhancedCache.getOrSet(
+    cacheKey,
+    async () => {
+      const children = await storage.getStudentsByParentId(parentId);
+      if (!children || children.length === 0) {
+        return [];
       }
-    }
+      const childContexts = await Promise.all(
+        children.map((child) => getStudentExamVisibilityContext(child.id))
+      );
+      const validContexts = childContexts.filter((ctx) => ctx !== null);
+      if (validContexts.length === 0) {
+        return [];
+      }
+      const [subjects3, publishedExams] = await Promise.all([
+        getCachedSubjects(),
+        getCachedPublishedExams()
+      ]);
+      const examMap = /* @__PURE__ */ new Map();
+      for (const context of validContexts) {
+        const childExams = filterExamsForStudentContext(publishedExams, context, subjects3);
+        for (const exam of childExams) {
+          if (!examMap.has(exam.id)) {
+            examMap.set(exam.id, exam);
+          }
+        }
+      }
+      return Array.from(examMap.values());
+    },
+    VISIBILITY_CACHE_TTL,
+    "L2"
+  );
+}
+function invalidateVisibilityCache(options) {
+  let invalidated = 0;
+  if (options?.all) {
+    invalidated += enhancedCache.invalidate(/^visibility:/);
+    console.log(`[EXAM-VISIBILITY] Invalidated all visibility caches: ${invalidated} entries`);
+    return invalidated;
   }
-  return Array.from(childExamsMap.values());
+  if (options?.studentId) {
+    invalidated += enhancedCache.invalidate(`visibility:context:${options.studentId}`);
+    invalidated += enhancedCache.invalidate(`visibility:student_exams:${options.studentId}`);
+  }
+  if (options?.classId) {
+    invalidated += enhancedCache.invalidate(/^visibility:exam_students:/);
+  }
+  if (options?.examId) {
+    invalidated += enhancedCache.invalidate("visibility:published_exams");
+    invalidated += enhancedCache.invalidate(/^visibility:student_exams:/);
+    invalidated += enhancedCache.invalidate(/^visibility:parent_exams:/);
+  }
+  if (invalidated > 0) {
+    console.log(`[EXAM-VISIBILITY] Invalidated ${invalidated} cache entries`);
+  }
+  return invalidated;
 }
 
 // server/routes.ts
 init_performance_cache();
+init_enhanced_cache();
 var loginSchema = z3.object({
   identifier: z3.string().min(1),
   // Can be username or email
@@ -12134,6 +13693,60 @@ async function mergeExamScores(answerId, storage2) {
   }
 }
 async function registerRoutes(app2) {
+  const { performanceMonitor: performanceMonitor2 } = await Promise.resolve().then(() => (init_performance_monitor(), performance_monitor_exports));
+  const { databaseOptimizer: databaseOptimizer2 } = await Promise.resolve().then(() => (init_database_optimization(), database_optimization_exports));
+  const { enhancedCache: enhancedCache3 } = await Promise.resolve().then(() => (init_enhanced_cache(), enhanced_cache_exports));
+  const { socketOptimizer: socketOptimizer2 } = await Promise.resolve().then(() => (init_socket_optimizer(), socket_optimizer_exports));
+  const { getPoolStats: getPoolStats2 } = await Promise.resolve().then(() => (init_query_optimizer(), query_optimizer_exports));
+  app2.get("/api/health", async (_req, res) => {
+    try {
+      const poolStats = await getPoolStats2();
+      const memoryUsage = process.memoryUsage();
+      const heapUsedMB = Math.round(memoryUsage.heapUsed / 1024 / 1024);
+      const heapTotalMB = Math.round(memoryUsage.heapTotal / 1024 / 1024);
+      const status = poolStats.waitingClients === 0 && heapUsedMB / heapTotalMB < 0.9 ? "healthy" : "degraded";
+      res.json({
+        status,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        uptime: Math.round(process.uptime()),
+        database: {
+          connections: poolStats.totalConnections,
+          idle: poolStats.idleConnections,
+          waiting: poolStats.waitingClients
+        },
+        memory: { heapUsedMB, heapTotalMB }
+      });
+    } catch (error) {
+      res.status(503).json({ status: "unhealthy", error: error.message });
+    }
+  });
+  app2.get("/api/performance/report", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (_req, res) => {
+    try {
+      const report = await performanceMonitor2.generateReport();
+      res.json(report);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  app2.get("/api/performance/cache-stats", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), (_req, res) => {
+    const enhanced = enhancedCache3.getStats();
+    const basic = performanceCache.getStats();
+    res.json({ enhanced, basic });
+  });
+  app2.get("/api/performance/database-stats", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (_req, res) => {
+    try {
+      const metrics = await databaseOptimizer2.getPerformanceMetrics();
+      const slowQueries = databaseOptimizer2.getTopSlowQueries(10);
+      res.json({ metrics, slowQueries });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  app2.get("/api/performance/socket-stats", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), (_req, res) => {
+    const stats = socketOptimizer2.getStats();
+    const roomCounts = Object.fromEntries(stats.roomCounts);
+    res.json({ ...stats, roomCounts });
+  });
   app2.use(teacher_assignment_routes_default);
   const ALLOWED_SYNC_TABLES = ["classes", "subjects", "academic_terms", "users", "students", "announcements", "exams", "homepage_content", "notifications"];
   const TABLE_PERMISSIONS = {
@@ -12348,6 +13961,9 @@ async function registerRoutes(app2) {
         teacherInChargeId: assignedTeacherId
       });
       const exam = await storage.createExam(examData);
+      if (exam.isPublished) {
+        invalidateVisibilityCache({ examId: exam.id });
+      }
       realtimeService.emitTableChange("exams", "INSERT", exam, void 0, teacherId);
       if (exam.classId) {
         realtimeService.emitToClass(exam.classId.toString(), "exam.created", exam);
@@ -12872,6 +14488,7 @@ async function registerRoutes(app2) {
       if (!exam) {
         return res.status(500).json({ message: "Failed to update exam" });
       }
+      invalidateVisibilityCache({ examId: exam.id });
       realtimeService.emitTableChange("exams", "UPDATE", exam, existingExam, teacherId);
       if (exam.classId) {
         realtimeService.emitToClass(exam.classId.toString(), "exam.updated", exam);
@@ -12900,6 +14517,7 @@ async function registerRoutes(app2) {
       if (!deletionResult.success) {
         return res.status(500).json({ message: "Failed to delete exam" });
       }
+      invalidateVisibilityCache({ examId });
       const duration = Date.now() - startTime;
       try {
         await storage.createAuditLog({
@@ -12973,6 +14591,7 @@ async function registerRoutes(app2) {
       if (!exam) {
         return res.status(500).json({ message: "Failed to update exam publish status" });
       }
+      invalidateVisibilityCache({ examId: exam.id });
       realtimeService.emitExamPublishEvent(examId, isPublished, exam, teacherId);
       res.json(exam);
     } catch (error) {
@@ -17685,7 +19304,15 @@ Treasure-Home School Administration
   app2.get("/api/vacancies", async (req, res) => {
     try {
       const status = req.query.status;
-      const vacancies3 = await storage.getAllVacancies(status);
+      const cacheKey = `vacancies:list:${status || "all"}`;
+      const vacancies3 = await enhancedCache3.getOrSet(
+        cacheKey,
+        () => storage.getAllVacancies(status),
+        EnhancedCache.TTL.MEDIUM,
+        // 5 minutes TTL
+        "L1"
+        // Hot data - public endpoint
+      );
       res.json(vacancies3);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch vacancies" });
@@ -17761,6 +19388,7 @@ Treasure-Home School Administration
         ...req.body,
         createdBy: req.user.id
       });
+      enhancedCache3.invalidate(/^vacancies:/);
       realtimeService.emitTableChange("vacancies", "INSERT", vacancy, void 0, req.user.id);
       realtimeService.emitEvent("vacancy.created", vacancy);
       res.status(201).json(vacancy);
@@ -17775,6 +19403,7 @@ Treasure-Home School Administration
       if (!vacancy) {
         return res.status(404).json({ message: "Vacancy not found" });
       }
+      enhancedCache3.invalidate(/^vacancies:/);
       realtimeService.emitTableChange("vacancies", "UPDATE", vacancy, existingVacancy, req.user.id);
       realtimeService.emitEvent("vacancy.closed", vacancy);
       res.json(vacancy);
@@ -19547,6 +21176,57 @@ Treasure-Home School Administration
       res.status(500).json({ message: error.message || "Failed to fetch teachers" });
     }
   });
+  app2.get("/api/my-active-exams", authenticateUser, authorizeRoles(ROLE_IDS.STUDENT), async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const student = await storage.getStudentByUserId(userId);
+      if (!student) {
+        return res.status(404).json({ message: "Student profile not found" });
+      }
+      if (!student.classId) {
+        return res.json({ activeExams: {}, examCounts: {} });
+      }
+      const assignments = await storage.getStudentSubjectAssignments(student.id);
+      if (assignments.length === 0) {
+        return res.json({ activeExams: {}, examCounts: {} });
+      }
+      const subjectIds = new Set(assignments.map((a) => a.subjectId));
+      const classExams = await storage.getExamsByClass(student.classId);
+      const now = /* @__PURE__ */ new Date();
+      const activeExamsBySubject = {};
+      const examCountsBySubject = {};
+      for (const exam of classExams) {
+        if (!subjectIds.has(exam.subjectId)) continue;
+        const isPublished = exam.isPublished;
+        const startTime = exam.startTime ? new Date(exam.startTime) : null;
+        const endTime = exam.endTime ? new Date(exam.endTime) : null;
+        const isActiveNow = isPublished && (!startTime || startTime <= now) && (!endTime || endTime >= now);
+        if (isPublished && (!endTime || endTime >= now)) {
+          examCountsBySubject[exam.subjectId] = (examCountsBySubject[exam.subjectId] || 0) + 1;
+        }
+        if (isActiveNow) {
+          if (!activeExamsBySubject[exam.subjectId]) {
+            activeExamsBySubject[exam.subjectId] = [];
+          }
+          activeExamsBySubject[exam.subjectId].push({
+            id: exam.id,
+            title: exam.name,
+            examType: exam.examType,
+            duration: exam.timeLimit,
+            startDate: exam.startTime,
+            endDate: exam.endTime
+          });
+        }
+      }
+      res.json({
+        activeExams: activeExamsBySubject,
+        examCounts: examCountsBySubject
+      });
+    } catch (error) {
+      console.error("Error fetching active exams:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch active exams" });
+    }
+  });
   if (process.env.NODE_ENV === "production" && process.env.FRONTEND_URL) {
     app2.get("*", (req, res) => {
       if (!req.path.startsWith("/api/") && !req.path.startsWith("/uploads/")) {
@@ -19890,6 +21570,8 @@ function validateEnvironment(isProduction4) {
 }
 
 // server/index.ts
+init_performance_monitor();
+init_database_optimization();
 import fs5 from "fs/promises";
 var isProduction3 = process.env.NODE_ENV === "production";
 validateEnvironment(isProduction3);
@@ -19983,6 +21665,9 @@ app.use((req, res, next) => {
   }
   res.on("finish", () => {
     const duration = Date.now() - start;
+    if (path5.startsWith("/api")) {
+      performanceMonitor.recordRequest(req.method, req.route?.path || path5, duration, res.statusCode);
+    }
     if (res.statusCode >= 400 && res.statusCode < 500) {
       console.log(`\u274C 4xx ERROR: ${req.method} ${req.originalUrl || path5} - Status ${res.statusCode} - Referer: ${req.get("referer") || "none"}`);
     }
@@ -20108,6 +21793,22 @@ function sanitizeLogData(data) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error(`\u274C Socket.IO initialization error: ${errorMessage}`);
+  }
+  try {
+    console.log("Initializing Performance Monitoring...");
+    performanceMonitor.start();
+    console.log("\u2705 Performance monitoring started");
+    databaseOptimizer.createPerformanceIndexes().then((result) => {
+      console.log(`\u2705 Database indexes: ${result.created.length} created/verified, ${result.errors.length} errors`);
+      if (result.errors.length > 0) {
+        console.log(`   Index errors: ${result.errors.slice(0, 3).join(", ")}${result.errors.length > 3 ? "..." : ""}`);
+      }
+    }).catch((err) => {
+      console.log(`\u26A0\uFE0F Database index creation skipped: ${err.message}`);
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.log(`\u26A0\uFE0F Performance monitoring initialization warning: ${errorMessage}`);
   }
   app.use((err, req, res, next) => {
     if (err.name === "MulterError" || err.message?.includes("Only image files") || err.message?.includes("Only document files") || err.message?.includes("Only CSV files")) {
