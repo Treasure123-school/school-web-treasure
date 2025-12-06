@@ -1,4 +1,3 @@
-import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
@@ -202,11 +201,7 @@ export default function StudentDashboard() {
   const attendanceImprovement = attendancePercentage >= 90;
 
   return (
-    <PortalLayout 
-      userRole="student" 
-      userName={`${user.firstName} ${user.lastName}`}
-      userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-    >
+    <>
       {/* Profile Completion Banner */}
       {!statusLoading && profileStatus && !profileStatus.completed && (
         <Alert variant="default" className="mb-6 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 animate-in fade-in slide-in-from-top-2 duration-500">
@@ -573,6 +568,6 @@ export default function StudentDashboard() {
           💡 <strong>Tip:</strong> Keep attendance above 90% to maintain your rank!
         </p>
       </div>
-    </PortalLayout>
+    </>
   );
 }

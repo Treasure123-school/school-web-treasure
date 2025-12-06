@@ -22,7 +22,6 @@ import {
   ChevronRight,
   Sparkles
 } from 'lucide-react';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
 import { useLocation } from 'wouter';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -144,7 +143,7 @@ export default function StudentSubjects() {
   const totalActiveExams = Object.values(examData.activeExams).flat().length;
 
   return (
-    <PortalLayout userRole={userRole} userName={userName} userInitials={userInitials}>
+    <>
       <div className="space-y-6" data-testid="student-subjects">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <div>
@@ -370,6 +369,6 @@ export default function StudentSubjects() {
           </div>
         )}
       </div>
-    </PortalLayout>
+    </>
   );
 }

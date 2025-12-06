@@ -1,4 +1,3 @@
-import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
@@ -130,11 +129,7 @@ export default function StudentAttendance() {
   ];
 
   return (
-    <PortalLayout 
-      userRole="student" 
-      userName={`${user.firstName} ${user.lastName}`}
-      userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-    >
+    <>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -333,6 +328,6 @@ export default function StudentAttendance() {
           </Card>
         )}
       </div>
-    </PortalLayout>
+    </>
   );
 }

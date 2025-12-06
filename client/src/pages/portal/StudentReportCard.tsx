@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -136,11 +135,7 @@ export default function StudentReportCard() {
   };
 
   return (
-    <PortalLayout
-      userRole={getRoleName(user.roleId)}
-      userName={user.firstName + ' ' + user.lastName}
-      userInitials={user.firstName.charAt(0) + user.lastName.charAt(0)}
-    >
+    <>
       <div className="space-y-6 print:space-y-4" data-testid="student-report-card">
         {/* Header */}
         <div className="flex justify-between items-center print:hidden">
@@ -376,6 +371,6 @@ export default function StudentReportCard() {
           </>
         )}
       </div>
-    </PortalLayout>
+    </>
   );
 }

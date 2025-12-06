@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useLocation } from 'wouter';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -2910,11 +2909,7 @@ export default function StudentExams() {
           </div>
         </div>
       ) : (
-        <PortalLayout
-          userRole={getRoleName(user.roleId)}
-          userName={user.firstName + ' ' + user.lastName}
-          userInitials={user.firstName.charAt(0) + user.lastName.charAt(0)}
-        >
+        <>
         <div className="space-y-6">
           <div className="mb-6">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -3107,6 +3102,6 @@ export default function StudentExams() {
             )}
           </div>
         </div>
-        </PortalLayout>
+        </>
       );
 }
