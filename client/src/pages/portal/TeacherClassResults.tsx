@@ -73,8 +73,7 @@ export default function TeacherClassResults() {
     : 0;
 
   return (
-    <PortalLayout userRole={userRole} userName={userName} userInitials={userInitials}>
-      <div className="container mx-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
+    <div className="container mx-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
         {/* Header - Mobile Responsive */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
@@ -307,6 +306,6 @@ export default function TeacherClassResults() {
           )}
         </div>
       </div>
-    </PortalLayout>
+    </div>
   );
 }

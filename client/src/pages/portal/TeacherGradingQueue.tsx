@@ -155,12 +155,7 @@ export default function TeacherGradingQueue() {
   };
 
   return (
-    <PortalLayout
-      userRole={getRoleName(user.roleId)}
-      userName={user.firstName + ' ' + user.lastName}
-      userInitials={user.firstName.charAt(0) + user.lastName.charAt(0)}
-    >
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">Grading Queue</h1>
@@ -472,6 +467,6 @@ export default function TeacherGradingQueue() {
           </Card>
         </div>
       </div>
-    </PortalLayout>
+    </div>
   );
 }

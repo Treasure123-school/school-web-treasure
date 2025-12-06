@@ -214,15 +214,9 @@ export default function TeacherDashboard() {
   }
   if (statusLoading || profileLoading) {
     return (
-      <PortalLayout
-        userRole="teacher"
-        userName={user.firstName + ' ' + user.lastName}
-        userInitials={user.firstName.charAt(0) + user.lastName.charAt(0)}
-      >
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      </PortalLayout>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
     );
   }
   const isLoading = classesLoading || studentsLoading || examsLoading || gradingTasksLoading;
@@ -242,11 +236,7 @@ export default function TeacherDashboard() {
   const pendingGradesCount = (pendingGradingTasks as any[]).length;
 
   return (
-    <PortalLayout 
-      userRole="teacher" 
-      userName={`${user.firstName} ${user.lastName}`}
-      userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-    >
+    <>
       {/* Profile Completion Notice - Shows when profile is not complete (even if exists but empty) */}
       {!statusLoading && profileStatus && !profileStatus.profileCompleted && (
         <div className="mb-4 sm:mb-6 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4 md:p-5 shadow-sm animate-slide-up" data-testid="profile-incomplete-banner">
@@ -463,6 +453,6 @@ export default function TeacherDashboard() {
           </CardContent>
         </Card>
       )}
-    </PortalLayout>
+    </>
   );
 }

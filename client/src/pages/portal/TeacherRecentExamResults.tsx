@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -125,8 +124,7 @@ export default function TeacherRecentExamResults() {
   };
 
   return (
-    <PortalLayout userRole={userRole} userName={userName} userInitials={userInitials}>
-      <div className="container mx-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
+    <div className="container mx-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
             <Button variant="outline" size="sm" asChild data-testid="button-back" className="w-fit">
@@ -352,8 +350,7 @@ export default function TeacherRecentExamResults() {
             )}
           </CardContent>
         </Card>
-      </div>
-    </PortalLayout>
+    </div>
   );
 }
 

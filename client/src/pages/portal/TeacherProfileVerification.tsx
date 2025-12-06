@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -298,12 +297,7 @@ export default function TeacherProfileVerification() {
     return <div>Please log in to access this page.</div>;
   }
   return (
-    <PortalLayout
-      userRole="admin"
-      userName={`${user.firstName} ${user.lastName}`}
-      userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-    >
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold tracking-tight" data-testid="heading-page-title">
@@ -570,6 +564,6 @@ export default function TeacherProfileVerification() {
 
       {/* Profile Details Dialog */}
       <ProfileDetailsDialog />
-    </PortalLayout>
+    </div>
   );
 }

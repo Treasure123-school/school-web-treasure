@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient, resetCircuitBreaker, getCircuitBreakerStatus } from '@/lib/queryClient';
 import { optimisticToggle, optimisticDelete, optimisticCreate, optimisticUpdateItem, rollbackOnError } from '@/lib/optimisticUpdates';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1384,12 +1383,7 @@ export default function ExamManagement() {
   };
 
   return (
-    <PortalLayout
-      userRole={getRoleName(user.roleId)}
-      userName={user.firstName + ' ' + user.lastName}
-      userInitials={user.firstName.charAt(0) + user.lastName.charAt(0)}
-    >
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Circuit Breaker Status Display */}
         {(() => {
           const cbStatus = getCircuitBreakerStatus();
@@ -2885,7 +2879,6 @@ export default function ExamManagement() {
             </DialogContent>
           </Dialog>
         )}
-      </div>
-    </PortalLayout>
+    </div>
   );
 }

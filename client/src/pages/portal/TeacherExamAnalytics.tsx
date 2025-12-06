@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/lib/auth';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -71,12 +70,7 @@ export default function TeacherExamAnalytics() {
   ];
 
   return (
-    <PortalLayout
-      userRole="teacher"
-      userName={userName}
-      userInitials={userInitials}
-    >
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold" data-testid="heading-exam-analytics">Exam Analytics</h1>
           <p className="text-muted-foreground">Insights and performance metrics for your exams</p>
@@ -217,7 +211,6 @@ export default function TeacherExamAnalytics() {
             )}
           </CardContent>
         </Card>
-      </div>
-    </PortalLayout>
+    </div>
   );
 }

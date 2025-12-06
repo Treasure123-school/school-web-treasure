@@ -9,7 +9,6 @@ import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import type { Class, Subject, AcademicTerm } from '@shared/schema';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { ROLE_IDS } from '@/lib/roles';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1334,8 +1333,7 @@ export default function CreateExam() {
   };
 
   return (
-    <PortalLayout userRole={userRole} userName={userName} userInitials={userInitials}>
-      <div className="max-w-6xl mx-auto py-8 px-4" data-testid="create-exam-page">
+    <div className="max-w-6xl mx-auto py-8 px-4" data-testid="create-exam-page">
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -1435,6 +1433,6 @@ export default function CreateExam() {
           </Card>
         </form>
       </div>
-    </PortalLayout>
+    </div>
   );
 }

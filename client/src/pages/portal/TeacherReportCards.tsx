@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -612,12 +611,7 @@ export default function TeacherReportCards() {
   } : null;
 
   return (
-    <PortalLayout 
-      userRole={userRole} 
-      userName={userName}
-      userInitials={userInitials}
-    >
-      <div className="space-y-6" data-testid="teacher-report-cards">
+    <div className="space-y-6" data-testid="teacher-report-cards">
         <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Report Cards</h1>
@@ -1554,6 +1548,6 @@ export default function TeacherReportCards() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </PortalLayout>
+    </div>
   );
 }
