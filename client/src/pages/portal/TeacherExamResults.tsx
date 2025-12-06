@@ -40,6 +40,7 @@ interface EnrichedExamResult extends ExamResult {
   studentName?: string;
   studentUsername?: string;
   admissionNumber?: string | null;
+  testScore?: number | null;
 }
 
 interface EditableScore {
