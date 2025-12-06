@@ -28,7 +28,7 @@ const TeacherExamResults = lazy(() => import('@/pages/portal/TeacherExamResults'
 const ExamManagement = lazy(() => import('@/pages/portal/ExamManagement'));
 // const CreateExam = lazy(() => import('@/pages/portal/CreateExam'));
 const TeacherExamAnalytics = lazy(() => import('@/pages/portal/TeacherExamAnalytics'));
-// const TeacherReportCards = lazy(() => import('@/pages/portal/TeacherReportCards'));
+const TeacherReportCards = lazy(() => import('@/pages/portal/TeacherReportCards'));
 const TeacherRecentExamResults = lazy(() => import('@/pages/portal/TeacherRecentExamResults'));
 const ExamReports = lazy(() => import('@/pages/portal/ExamReports'));
 
@@ -112,7 +112,7 @@ export function TeacherPortalShell() {
           <Route path="/portal/teacher/exams/manage" component={ExamManagement} />
           <Route path="/portal/teacher/exams" component={ExamManagement} />
           <Route path="/portal/teacher/exam-analytics" component={TeacherExamAnalytics} />
-          <Route path="/portal/teacher/report-cards" component={PortalComingSoon} />
+          <Route path="/portal/teacher/report-cards" component={TeacherReportCards} />
           <Route path="/portal/teacher/recent-exam-results" component={TeacherRecentExamResults} />
           <Route path="/portal/teacher/*" component={PortalComingSoon} />
         </Switch>
