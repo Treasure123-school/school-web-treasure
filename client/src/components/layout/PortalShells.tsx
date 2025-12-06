@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Switch, Route, useLocation } from 'wouter';
 import PortalLayout from './PortalLayout';
 import { useAuth } from '@/lib/auth';
-import { PageContentSkeleton } from '@/components/ui/skeletons';
+import { PageContentSkeleton, PortalLayoutSkeleton } from '@/components/ui/skeletons';
 
 const StudentDashboard = lazy(() => import('@/pages/portal/StudentDashboard'));
 const StudentGrades = lazy(() => import('@/pages/portal/StudentGrades'));
@@ -57,9 +57,9 @@ const ParentDashboard = lazy(() => import('@/pages/portal/ParentDashboard'));
 const ParentReportCards = lazy(() => import('@/pages/portal/ParentReportCards'));
 
 export function StudentPortalShell() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   
-  if (!user) return <PageContentSkeleton />;
+  if (isLoading || !user) return <PortalLayoutSkeleton />;
   
   const userName = `${user.firstName} ${user.lastName}`;
   const userInitials = `${user.firstName[0]}${user.lastName[0]}`;
@@ -88,9 +88,9 @@ export function StudentPortalShell() {
 }
 
 export function TeacherPortalShell() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   
-  if (!user) return <PageContentSkeleton />;
+  if (isLoading || !user) return <PortalLayoutSkeleton />;
   
   const userName = `${user.firstName} ${user.lastName}`;
   const userInitials = `${user.firstName[0]}${user.lastName[0]}`;
@@ -120,9 +120,9 @@ export function TeacherPortalShell() {
 }
 
 export function AdminPortalShell() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   
-  if (!user) return <PageContentSkeleton />;
+  if (isLoading || !user) return <PortalLayoutSkeleton />;
   
   const userName = `${user.firstName} ${user.lastName}`;
   const userInitials = `${user.firstName[0]}${user.lastName[0]}`;
@@ -162,9 +162,9 @@ export function AdminPortalShell() {
 }
 
 export function ParentPortalShell() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   
-  if (!user) return <PageContentSkeleton />;
+  if (isLoading || !user) return <PortalLayoutSkeleton />;
   
   const userName = `${user.firstName} ${user.lastName}`;
   const userInitials = `${user.firstName[0]}${user.lastName[0]}`;
