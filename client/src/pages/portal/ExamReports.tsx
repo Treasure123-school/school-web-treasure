@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -160,11 +159,7 @@ export default function ExamReports() {
   };
 
   return (
-    <PortalLayout
-      userRole={getRoleName(user.roleId)}
-      userName={user.firstName + ' ' + user.lastName}
-      userInitials={user.firstName.charAt(0) + user.lastName.charAt(0)}
-    >
+    <>
       <div className="space-y-4 sm:space-y-6">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
           <div>
@@ -454,6 +449,6 @@ export default function ExamReports() {
           </Card>
         )}
       </div>
-    </PortalLayout>
+    </>
   );
 }

@@ -1,4 +1,3 @@
-import PortalLayout from '@/components/layout/PortalLayout';
 import { StatsCard } from '@/components/ui/stats-card';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -633,11 +632,7 @@ export default function AdminDashboard() {
   });
 
   return (
-    <PortalLayout
-      userRole="admin"
-      userName={`${user.firstName} ${user.lastName}`}
-      userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-    >
+    <>
       {/* Admin Role Header - Brand Identity */}
       <div className="mb-6 bg-gradient-to-r from-red-600 via-rose-600 to-pink-600 rounded-2xl p-6 text-white shadow-xl" data-testid="admin-role-header">
         <div className="flex items-center gap-4">
@@ -1312,6 +1307,6 @@ export default function AdminDashboard() {
           </div>
         </CardContent>
       </Card>
-    </PortalLayout>
+    </>
   );
 }

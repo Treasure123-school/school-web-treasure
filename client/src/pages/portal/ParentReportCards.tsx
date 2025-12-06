@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -121,17 +120,10 @@ export default function ParentReportCards() {
 
   if (!user) {
     return (
-      <PortalLayout userRole="parent" userName="" userInitials="">
         <div className="text-center py-12">Please log in to access parent portal.</div>
-      </PortalLayout>
     );
   }
   return (
-    <PortalLayout
-      userRole="parent"
-      userName={`${user.firstName} ${user.lastName}`}
-      userInitials={`${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`}
-    >
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -350,6 +342,5 @@ export default function ParentReportCards() {
           </div>
         )}
       </div>
-    </PortalLayout>
   );
 }

@@ -67,9 +67,6 @@ export default function TeacherExamResults() {
   if (!user) {
     return <div>Loading...</div>;
   }
-  const userName = `${user.firstName} ${user.lastName}`;
-  const userInitials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`;
-  const userRole = (user.role?.toLowerCase() || 'teacher') as 'admin' | 'teacher' | 'student' | 'parent';
 
   const { data: exams = [] } = useQuery<Exam[]>({
     queryKey: ['/api/exams'],
@@ -323,7 +320,6 @@ export default function TeacherExamResults() {
 
   if (!currentExam) {
     return (
-      <PortalLayout userRole={userRole} userName={userName} userInitials={userInitials}>
         <div className="container mx-auto p-6">
           <div className="text-center py-12">
             <p className="text-muted-foreground">Exam not found</p>
@@ -332,11 +328,9 @@ export default function TeacherExamResults() {
             </Button>
           </div>
         </div>
-      </PortalLayout>
     );
   }
   return (
-    <PortalLayout userRole={userRole} userName={userName} userInitials={userInitials}>
       <div className="container mx-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
@@ -697,6 +691,5 @@ export default function TeacherExamResults() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-    </PortalLayout>
   );
 }

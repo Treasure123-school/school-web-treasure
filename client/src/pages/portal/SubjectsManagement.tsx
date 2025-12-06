@@ -14,7 +14,6 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit, Search, BookOpen, Trash2, GraduationCap, Palette, Briefcase, BookMarked } from 'lucide-react';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 
@@ -41,21 +40,6 @@ export default function SubjectsManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingSubject, setEditingSubject] = useState<any>(null);
   const [subjectToDelete, setSubjectToDelete] = useState<any>(null);
-
-  const userName = user ? `${user.firstName} ${user.lastName}` : 'User';
-  const userInitials = user ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}` : 'U';
-  // Map roleId to role name - matches ROLE_IDS in lib/roles.ts
-  const getRoleName = (roleId: number): 'admin' | 'teacher' | 'parent' | 'student' => {
-    const roleMap: { [key: number]: 'admin' | 'teacher' | 'parent' | 'student' } = {
-      1: 'admin',     // Super Admin
-      2: 'admin',     // Admin
-      3: 'teacher',   // Teacher
-      4: 'student',   // Student
-      5: 'parent'     // Parent
-    };
-    return roleMap[roleId] || 'admin';
-  };
-  const userRole = user ? getRoleName(user.roleId) : 'admin';
 
   const { register, handleSubmit, formState: { errors }, setValue, reset, control, watch } = useForm<SubjectForm>({
     resolver: zodResolver(subjectFormSchema),
@@ -273,8 +257,7 @@ export default function SubjectsManagement() {
   };
 
   return (
-    <PortalLayout userRole={userRole} userName={userName} userInitials={userInitials}>
-      <div className="space-y-6" data-testid="subjects-management">
+    <div className="space-y-6" data-testid="subjects-management">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Subjects Management</h1>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -559,7 +542,6 @@ export default function SubjectsManagement() {
           </DialogContent>
         </Dialog>
       )}
-      </div>
-    </PortalLayout>
+    </div>
   );
 }

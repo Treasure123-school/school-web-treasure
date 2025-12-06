@@ -16,7 +16,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createStudentSchema, quickCreateStudentSchema, type CreateStudentRequest, type QuickCreateStudentRequest } from '@shared/schema';
 import { UserPlus, Edit, Search, Download, Trash2, Shield, ShieldOff, Upload, FileText, Key, AlertTriangle, AlertCircle, GraduationCap, Palette, Briefcase, Info } from 'lucide-react';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import { ROLE_IDS } from '@/lib/roles';
@@ -589,11 +588,6 @@ export default function StudentManagement() {
   });
 
   return (
-    <PortalLayout
-      userRole="admin"
-      userName={`${user.firstName} ${user.lastName}`}
-      userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-    >
       <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
         {/* Page Header - Fully Responsive */}
         <div className="flex flex-col gap-3">
@@ -1742,6 +1736,6 @@ export default function StudentManagement() {
           )}
         </CardContent>
       </Card>
-    </PortalLayout>
+      </div>
   );
 }

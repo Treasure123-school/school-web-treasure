@@ -308,26 +308,15 @@ export default function TeacherProfile() {
 
   if (isLoading) {
     return (
-      <PortalLayout
-        userRole="teacher"
-        userName={`${user.firstName} ${user.lastName}`}
-        userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-      >
         <Card>
           <CardContent className="p-6">
             <div className="text-center">Loading profile...</div>
           </CardContent>
         </Card>
-      </PortalLayout>
     );
   }
   if (teacherProfileError) {
     return (
-      <PortalLayout
-        userRole="teacher"
-        userName={`${user.firstName} ${user.lastName}`}
-        userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-      >
         <Card>
           <CardContent className="p-6">
             <div className="text-center text-destructive">
@@ -345,16 +334,10 @@ export default function TeacherProfile() {
             </div>
           </CardContent>
         </Card>
-      </PortalLayout>
     );
   }
 
   return (
-    <PortalLayout
-      userRole="teacher"
-      userName={`${user.firstName} ${user.lastName}`}
-      userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-    >
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -984,6 +967,5 @@ export default function TeacherProfile() {
           </CardContent>
         </Card>
       </div>
-    </PortalLayout>
   );
 }

@@ -13,7 +13,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { Search, BookOpen, Users, GraduationCap, Palette, Briefcase, BookMarked, Wand2, Plus, X, Loader2 } from 'lucide-react';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
 
 const DEPARTMENT_OPTIONS = [
@@ -39,9 +38,6 @@ export default function StudentSubjectAssignment() {
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedSubjects, setSelectedSubjects] = useState<number[]>([]);
 
-  const userName = user ? `${user.firstName} ${user.lastName}` : 'User';
-  const userInitials = user ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}` : 'U';
-  const userRole = 'admin' as const;
 
   const { data: students = [], isLoading: studentsLoading } = useQuery({
     queryKey: ['/api/students'],
@@ -217,7 +213,6 @@ export default function StudentSubjectAssignment() {
   };
 
   return (
-    <PortalLayout userRole={userRole} userName={userName} userInitials={userInitials}>
       <div className="space-y-6" data-testid="student-subject-assignment">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <div>
@@ -481,6 +476,5 @@ export default function StudentSubjectAssignment() {
           </Card>
         )}
       </div>
-    </PortalLayout>
   );
 }

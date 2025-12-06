@@ -16,7 +16,6 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { UserPlus, Edit, Search, Mail, Phone, MapPin, GraduationCap, Trash2, Copy, CheckCircle, BookOpen, Plus, X, Briefcase, Palette } from 'lucide-react';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
 import { ROLE_IDS } from '@/lib/roles';
 import { isSeniorSecondaryClass } from '@/lib/utils';

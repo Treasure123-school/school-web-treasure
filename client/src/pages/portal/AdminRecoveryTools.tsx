@@ -1,5 +1,4 @@
 
-import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -138,11 +137,7 @@ export default function AdminRecoveryTools() {
   };
 
   return (
-    <PortalLayout
-      userRole="admin"
-      userName={`${user?.firstName} ${user?.lastName}`}
-      userInitials={`${user?.firstName[0]}${user?.lastName[0]}`}
-    >
+    <>
       <div className="space-y-6">
         {/* Header */}
         <div className="bg-gradient-to-r from-red-600 via-rose-600 to-pink-600 rounded-2xl p-6 text-white shadow-xl">
@@ -334,6 +329,6 @@ export default function AdminRecoveryTools() {
           </CardContent>
         </Card>
       </div>
-    </PortalLayout>
+    </>
   );
 }

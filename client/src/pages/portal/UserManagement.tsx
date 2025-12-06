@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
-import PortalLayout from "@/components/layout/PortalLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1101,11 +1100,6 @@ export default function UserManagement() {
   );
 
   return (
-    <PortalLayout 
-      userRole="admin" 
-      userName={`${user.firstName} ${user.lastName}`}
-      userInitials={`${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`}
-    >
       <div className="space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
@@ -1416,6 +1410,6 @@ export default function UserManagement() {
 
       {renderSuspendDialog()}
       {renderDeleteDialog()}
-    </PortalLayout>
+      </div>
   );
 }
