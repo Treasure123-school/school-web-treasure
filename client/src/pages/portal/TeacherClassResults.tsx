@@ -305,7 +305,6 @@ export default function TeacherClassResults() {
             </Card>
           )}
         </div>
-      </div>
     </div>
   );
 }

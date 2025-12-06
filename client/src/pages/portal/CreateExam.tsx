@@ -1432,7 +1432,6 @@ export default function CreateExam() {
             </CardContent>
           </Card>
         </form>
-      </div>
     </div>
   );
 }

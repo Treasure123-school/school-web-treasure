@@ -560,7 +560,6 @@ export default function TeacherProfileVerification() {
             </Card>
           </TabsContent>
         </Tabs>
-      </div>
 
       {/* Profile Details Dialog */}
       <ProfileDetailsDialog />

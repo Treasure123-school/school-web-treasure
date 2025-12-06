@@ -466,7 +466,6 @@ export default function TeacherGradingQueue() {
             </CardContent>
           </Card>
         </div>
-      </div>
     </div>
   );
 }

@@ -1211,7 +1211,6 @@ export default function TeacherReportCards() {
             </TabsContent>
           </Tabs>
         )}
-      </div>
 
       {/* View Report Card Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
