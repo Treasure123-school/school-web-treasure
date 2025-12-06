@@ -418,7 +418,7 @@ function Router() {
       </Route>
 
       {/* Student Portal - Persistent Layout Shell */}
-      <Route path="/portal/student/:rest*">
+      <Route path="/portal/student/*">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
           <StudentPortalShell />
         </ProtectedRoute>
@@ -430,7 +430,7 @@ function Router() {
       </Route>
 
       {/* Teacher Portal - Persistent Layout Shell */}
-      <Route path="/portal/teacher/:rest*">
+      <Route path="/portal/teacher/*">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
           <TeacherPortalShell />
         </ProtectedRoute>
@@ -442,7 +442,7 @@ function Router() {
       </Route>
 
       {/* Admin Portal - Persistent Layout Shell */}
-      <Route path="/portal/admin/:rest*">
+      <Route path="/portal/admin/*">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <AdminPortalShell />
         </ProtectedRoute>
@@ -454,7 +454,7 @@ function Router() {
       </Route>
 
       {/* Parent Portal - Persistent Layout Shell */}
-      <Route path="/portal/parent/:rest*">
+      <Route path="/portal/parent/*">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.PARENT]}>
           <ParentPortalShell />
         </ProtectedRoute>

@@ -550,13 +550,14 @@ export default function TeacherExamResults() {
                       <TableRow>
                         <TableHead className="text-xs">Rank</TableHead>
                         <TableHead className="text-xs">Student</TableHead>
-                        <TableHead className="text-xs hidden md:table-cell">Username</TableHead>
-                        <TableHead className="text-xs hidden lg:table-cell">Adm. No.</TableHead>
+                        <TableHead className="text-xs hidden md:table-cell">Adm. No.</TableHead>
+                        <TableHead className="text-xs hidden lg:table-cell">Test Score</TableHead>
                         <TableHead className="text-xs">Exam Score</TableHead>
+                        <TableHead className="text-xs">Total</TableHead>
                         <TableHead className="text-xs hidden lg:table-cell">Percentage</TableHead>
                         <TableHead className="text-xs">Grade</TableHead>
-                        <TableHead className="text-xs">Status</TableHead>
-                        <TableHead className="text-xs hidden lg:table-cell">Submitted At</TableHead>
+                        <TableHead className="text-xs hidden xl:table-cell">Submitted At</TableHead>
+                        <TableHead className="text-xs hidden xl:table-cell">Remarks</TableHead>
                         <TableHead className="text-xs">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -577,14 +578,17 @@ export default function TeacherExamResults() {
                             <TableCell className="font-medium text-xs sm:text-sm py-2" data-testid={`text-student-name-${index}`}>
                               {result.studentName || 'Unknown Student'}
                             </TableCell>
-                            <TableCell className="text-xs hidden md:table-cell py-2" data-testid={`text-student-username-${index}`}>
-                              @{result.studentUsername || result.studentId}
-                            </TableCell>
-                            <TableCell className="text-xs hidden lg:table-cell py-2" data-testid={`text-student-adm-${index}`}>
+                            <TableCell className="text-xs hidden md:table-cell py-2" data-testid={`text-student-adm-${index}`}>
                               {result.admissionNumber || '-'}
                             </TableCell>
-                            <TableCell className="text-xs sm:text-sm py-2" data-testid={`text-score-${index}`}>
-                              {result.score || 0} / {result.maxScore || 0}
+                            <TableCell className="text-xs hidden lg:table-cell py-2" data-testid={`text-test-score-${index}`}>
+                              {result.testScore ?? '-'}
+                            </TableCell>
+                            <TableCell className="text-xs sm:text-sm py-2" data-testid={`text-exam-score-${index}`}>
+                              {result.score || 0}
+                            </TableCell>
+                            <TableCell className="text-xs sm:text-sm py-2 font-medium" data-testid={`text-total-${index}`}>
+                              {(result.testScore ?? 0) + (result.score ?? 0)} / {result.maxScore || 0}
                             </TableCell>
                             <TableCell className="text-xs hidden lg:table-cell py-2" data-testid={`text-percentage-${index}`}>
                               {percentage.toFixed(1)}%
@@ -594,20 +598,11 @@ export default function TeacherExamResults() {
                                 {grade}
                               </span>
                             </TableCell>
-                            <TableCell className="py-2">
-                              <div className="flex items-center gap-1">
-                                {isPassed ? (
-                                  <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" data-testid={`icon-passed-${index}`} />
-                                ) : (
-                                  <XCircle className="h-3 w-3 sm:h-4 sm:w-4 text-red-500" data-testid={`icon-failed-${index}`} />
-                                )}
-                                <span className={`text-xs ${isPassed ? 'text-green-600' : 'text-red-600'}`} data-testid={`text-status-${index}`}>
-                                  {isPassed ? 'Passed' : 'Failed'}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-xs hidden lg:table-cell py-2" data-testid={`text-submitted-at-${index}`}>
+                            <TableCell className="text-xs hidden xl:table-cell py-2" data-testid={`text-submitted-at-${index}`}>
                               {result.createdAt ? format(new Date(result.createdAt), 'PPp') : 'N/A'}
+                            </TableCell>
+                            <TableCell className="text-xs hidden xl:table-cell py-2 max-w-[150px] truncate" data-testid={`text-remarks-${index}`} title={result.remarks || '-'}>
+                              {result.remarks || '-'}
                             </TableCell>
                             <TableCell className="py-2">
                               <div className="flex items-center gap-1">

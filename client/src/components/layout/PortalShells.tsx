@@ -82,7 +82,7 @@ export function StudentPortalShell() {
           <Route path="/portal/student/gallery" component={PortalGallery} />
           <Route path="/portal/student/study-resources" component={StudentStudyResources} />
           <Route path="/portal/student/subjects" component={StudentSubjects} />
-          <Route path="/portal/student/:rest*" component={PortalComingSoon} />
+          <Route path="/portal/student/*" component={PortalComingSoon} />
         </Switch>
       </Suspense>
     </PortalLayout>
@@ -114,7 +114,7 @@ export function TeacherPortalShell() {
           <Route path="/portal/teacher/exam-analytics" component={TeacherExamAnalytics} />
           <Route path="/portal/teacher/report-cards" component={PortalComingSoon} />
           <Route path="/portal/teacher/recent-exam-results" component={TeacherRecentExamResults} />
-          <Route path="/portal/teacher/:rest*" component={PortalComingSoon} />
+          <Route path="/portal/teacher/*" component={PortalComingSoon} />
         </Switch>
       </Suspense>
     </PortalLayout>
@@ -156,7 +156,7 @@ export function AdminPortalShell() {
           <Route path="/portal/admin/exams" component={AdminExamOverview} />
           <Route path="/portal/exam-sessions" component={ExamSessions} />
           <Route path="/portal/exam-reports" component={ExamReports} />
-          <Route path="/portal/admin/:rest*" component={PortalComingSoon} />
+          <Route path="/portal/admin/*" component={PortalComingSoon} />
         </Switch>
       </Suspense>
     </PortalLayout>
@@ -177,7 +177,7 @@ export function ParentPortalShell() {
         <Switch>
           <Route path="/portal/parent" component={ParentDashboard} />
           <Route path="/portal/parent/reports" component={ParentReportCards} />
-          <Route path="/portal/parent/:rest*" component={PortalComingSoon} />
+          <Route path="/portal/parent/*" component={PortalComingSoon} />
         </Switch>
       </Suspense>
     </PortalLayout>
