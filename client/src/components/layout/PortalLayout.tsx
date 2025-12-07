@@ -177,6 +177,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
               { href: `/portal/${userRole}/subject-manager/department-mapping`, icon: ClipboardList, label: 'Department Mapping' },
               { href: `/portal/${userRole}/subject-manager/assign-teachers`, icon: Users, label: 'Assign Teachers' },
               { href: `/portal/${userRole}/subject-manager/report-rules`, icon: FileText, label: 'Report Card Rules' },
+              { href: `/portal/${userRole}/subject-manager/class-level-assignment`, icon: ClipboardCheck, label: 'Class-Level Assignment' },
             ]
           },
           {

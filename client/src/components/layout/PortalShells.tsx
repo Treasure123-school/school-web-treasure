@@ -56,6 +56,7 @@ const ClassSubjectMapping = lazy(() => import('@/pages/portal/ClassSubjectMappin
 const DepartmentSubjectMapping = lazy(() => import('@/pages/portal/DepartmentSubjectMapping'));
 const AssignSubjectTeachers = lazy(() => import('@/pages/portal/AssignSubjectTeachers'));
 const ReportCardSubjectRules = lazy(() => import('@/pages/portal/ReportCardSubjectRules'));
+const ClassLevelSubjectAssignment = lazy(() => import('@/pages/portal/ClassLevelSubjectAssignment'));
 
 const ParentDashboard = lazy(() => import('@/pages/portal/ParentDashboard'));
 const ParentReportCards = lazy(() => import('@/pages/portal/ParentReportCards'));
@@ -163,6 +164,7 @@ export function AdminPortalShell() {
           <Route path="/portal/admin/subject-manager/department-mapping" component={DepartmentSubjectMapping} />
           <Route path="/portal/admin/subject-manager/assign-teachers" component={AssignSubjectTeachers} />
           <Route path="/portal/admin/subject-manager/report-rules" component={ReportCardSubjectRules} />
+          <Route path="/portal/admin/subject-manager/class-level-assignment" component={ClassLevelSubjectAssignment} />
           <Route path="/portal/admin/results/exams" component={PortalComingSoon} />
           <Route path="/portal/admin/results/ca" component={PortalComingSoon} />
           <Route path="/portal/admin/results/grades" component={PortalComingSoon} />

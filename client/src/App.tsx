@@ -39,6 +39,7 @@ const ClassSubjectMapping = lazy(() => import("@/pages/portal/ClassSubjectMappin
 const DepartmentSubjectMapping = lazy(() => import("@/pages/portal/DepartmentSubjectMapping"));
 const AssignSubjectTeachers = lazy(() => import("@/pages/portal/AssignSubjectTeachers"));
 const ReportCardSubjectRules = lazy(() => import("@/pages/portal/ReportCardSubjectRules"));
+const ClassLevelSubjectAssignment = lazy(() => import("@/pages/portal/ClassLevelSubjectAssignment"));
 
 // Profile Onboarding (used for all authenticated users)
 const ProfileOnboarding = lazy(() => import("@/pages/ProfileOnboarding"));
@@ -177,6 +178,11 @@ function Router() {
       <Route path="/portal/superadmin/subject-manager/report-rules">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
           <ReportCardSubjectRules />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/portal/superadmin/subject-manager/class-level-assignment">
+        <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
+          <ClassLevelSubjectAssignment />
         </ProtectedRoute>
       </Route>
 
