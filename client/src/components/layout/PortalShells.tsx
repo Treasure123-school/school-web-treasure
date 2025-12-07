@@ -22,9 +22,10 @@ const TeacherDashboard = lazy(() => import('@/pages/portal/TeacherDashboard'));
 const TeacherProfile = lazy(() => import('@/pages/portal/TeacherProfile'));
 const TeacherProfileAssignmentDashboard = lazy(() => import('@/pages/portal/TeacherProfileAssignmentDashboard'));
 const TeacherGradingQueue = lazy(() => import('@/pages/portal/TeacherGradingQueue'));
+const TeacherClassResults = lazy(() => import('@/pages/portal/TeacherClassResults'));
 const TeacherExamResults = lazy(() => import('@/pages/portal/TeacherExamResults'));
 const ExamManagement = lazy(() => import('@/pages/portal/ExamManagement'));
-// const CreateExam = lazy(() => import('@/pages/portal/CreateExam'));
+const CreateExam = lazy(() => import('@/pages/portal/CreateExam'));
 const TeacherExamAnalytics = lazy(() => import('@/pages/portal/TeacherExamAnalytics'));
 const TeacherReportCards = lazy(() => import('@/pages/portal/TeacherReportCards'));
 const TeacherRecentExamResults = lazy(() => import('@/pages/portal/TeacherRecentExamResults'));
@@ -37,8 +38,7 @@ const AuditLogs = lazy(() => import('@/pages/portal/AuditLogs'));
 const ProfileCompletionMonitoring = lazy(() => import('@/pages/portal/ProfileCompletionMonitoring'));
 const StudentManagement = lazy(() => import('@/pages/portal/StudentManagement'));
 const TeachersManagement = lazy(() => import('@/pages/portal/TeachersManagement'));
-// Temporarily disabled to isolate ESBuild parsing errors
-// const TeacherProfileVerification = lazy(() => import('@/pages/portal/TeacherProfileVerification'));
+const TeacherProfileVerification = lazy(() => import('@/pages/portal/TeacherProfileVerification'));
 const ClassesManagement = lazy(() => import('@/pages/portal/ClassesManagement'));
 const SubjectsManagement = lazy(() => import('@/pages/portal/SubjectsManagement'));
 const StudentSubjectAssignment = lazy(() => import('@/pages/portal/StudentSubjectAssignment'));
@@ -104,9 +104,9 @@ export function TeacherPortalShell() {
           <Route path="/portal/teacher/profile-assignments" component={TeacherProfileAssignmentDashboard} />
           <Route path="/portal/teacher/coming-soon" component={PortalComingSoon} />
           <Route path="/portal/teacher/grading-queue" component={TeacherGradingQueue} />
-          <Route path="/portal/teacher/results/class/:classId" component={PortalComingSoon} />
+          <Route path="/portal/teacher/results/class/:classId" component={TeacherClassResults} />
           <Route path="/portal/teacher/results/exam/:examId" component={TeacherExamResults} />
-          <Route path="/portal/teacher/exams/create" component={PortalComingSoon} />
+          <Route path="/portal/teacher/exams/create" component={CreateExam} />
           <Route path="/portal/teacher/exams/manage" component={ExamManagement} />
           <Route path="/portal/teacher/exams" component={ExamManagement} />
           <Route path="/portal/teacher/exam-analytics" component={TeacherExamAnalytics} />
@@ -138,7 +138,7 @@ export function AdminPortalShell() {
           <Route path="/portal/admin/profile-completion" component={ProfileCompletionMonitoring} />
           <Route path="/portal/admin/students" component={StudentManagement} />
           <Route path="/portal/admin/teachers" component={TeachersManagement} />
-          <Route path="/portal/admin/teacher-verification" component={PortalComingSoon} />
+          <Route path="/portal/admin/teacher-verification" component={TeacherProfileVerification} />
           <Route path="/portal/admin/classes" component={ClassesManagement} />
           <Route path="/portal/admin/subjects" component={SubjectsManagement} />
           <Route path="/portal/admin/student-subjects" component={StudentSubjectAssignment} />
