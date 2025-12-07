@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from "react";
 
 interface SkeletonBaseProps {
   className?: string;
@@ -242,6 +243,144 @@ export function AppShellSkeleton() {
         <div className="flex-1 overflow-hidden">
           <DashboardSkeleton />
         </div>
+      </div>
+    </div>
+  );
+}
+
+export function PortalLayoutSkeleton({ storageKey = 'sidebarCollapsed' }: { storageKey?: string } = {}) {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const savedState = localStorage.getItem(storageKey);
+    if (savedState !== null) {
+      setSidebarCollapsed(savedState === 'true');
+    }
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [storageKey]);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 flex" data-testid="skeleton-portal-layout">
+      {!isMobile && (
+        <div className={`${sidebarCollapsed ? 'w-20' : 'w-64'} bg-white dark:bg-gray-900 shadow-xl border-r border-gray-200 dark:border-gray-700 h-screen sticky top-0 transition-all duration-300 ease-in-out`}>
+          <div className="flex flex-col h-full">
+            <div className="flex-shrink-0 h-[84px] flex items-center border-b border-gray-200 dark:border-gray-700 px-4 bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900">
+              <div className={`flex items-center w-full transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'justify-center' : 'space-x-3'}`}>
+                <SkeletonShimmer className={`${sidebarCollapsed ? 'h-7 w-7' : 'h-11 w-11'} rounded-2xl transition-all duration-300 ease-in-out`} />
+                {!sidebarCollapsed && (
+                  <div className="space-y-2 flex-1">
+                    <SkeletonShimmer className="h-4 w-28" />
+                    <SkeletonShimmer className="h-3 w-20" />
+                  </div>
+                )}
+              </div>
+            </div>
+            <nav className={`flex-1 p-3 space-y-1.5 transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'px-2' : ''}`}>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <SkeletonShimmer key={i} className={`h-10 ${sidebarCollapsed ? 'w-10 mx-auto' : 'w-full'} rounded-xl`} />
+              ))}
+            </nav>
+          </div>
+        </div>
+      )}
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-md h-[84px] flex items-center px-4 sm:px-5 md:px-6">
+          <div className="flex justify-between items-center gap-2 sm:gap-3 w-full max-w-7xl mx-auto">
+            <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4 flex-1 min-w-0">
+              {isMobile && <SkeletonShimmer className="h-9 w-9 rounded-lg flex-shrink-0" />}
+              <div className="min-w-0 flex-1 space-y-2">
+                <SkeletonShimmer className="h-6 w-48" />
+                <SkeletonShimmer className="h-4 w-64" />
+              </div>
+            </div>
+            <div className="flex items-center space-x-2 flex-shrink-0">
+              <SkeletonShimmer className="h-9 w-9 rounded-full" />
+              <div className="flex items-center space-x-2 bg-gray-50 dark:bg-gray-800 rounded-full px-3 py-1.5">
+                <SkeletonShimmer className="h-8 w-8 rounded-full" />
+                {!isMobile && <SkeletonShimmer className="h-4 w-20" />}
+              </div>
+              <SkeletonShimmer className="h-9 w-9 rounded-lg" />
+            </div>
+          </div>
+        </header>
+        <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-x-hidden">
+          <div className="max-w-7xl mx-auto">
+            <PageContentSkeleton />
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+export function SuperAdminLayoutSkeleton() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const savedState = localStorage.getItem('superadmin-sidebar-collapsed');
+    if (savedState !== null) {
+      setSidebarCollapsed(savedState === 'true');
+    }
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-gray-900 dark:to-slate-900 flex" data-testid="skeleton-superadmin-layout">
+      {!isMobile && (
+        <div className={`${sidebarCollapsed ? 'w-20' : 'w-72'} bg-white dark:bg-gray-900 shadow-xl border-r border-gray-200 dark:border-gray-700 h-screen sticky top-0 transition-all duration-300 ease-in-out`}>
+          <div className="flex flex-col h-full">
+            <div className="flex-shrink-0 h-[80px] flex items-center border-b border-gray-200 dark:border-gray-700 px-4 bg-gradient-to-r from-blue-600 to-blue-700">
+              <div className={`flex items-center w-full transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'justify-center' : 'space-x-3'}`}>
+                <SkeletonShimmer className={`${sidebarCollapsed ? 'h-8 w-8' : 'h-12 w-12'} rounded-2xl bg-white/20`} />
+                {!sidebarCollapsed && (
+                  <div className="space-y-2 flex-1">
+                    <SkeletonShimmer className="h-4 w-32 bg-white/30" />
+                    <SkeletonShimmer className="h-3 w-24 bg-white/20" />
+                  </div>
+                )}
+              </div>
+            </div>
+            <nav className={`flex-1 p-3 space-y-1.5 transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'px-2' : ''}`}>
+              {Array.from({ length: 10 }).map((_, i) => (
+                <SkeletonShimmer key={i} className={`h-10 ${sidebarCollapsed ? 'w-10 mx-auto' : 'w-full'} rounded-xl`} />
+              ))}
+            </nav>
+          </div>
+        </div>
+      )}
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm h-[80px] flex items-center px-4 sm:px-6">
+          <div className="flex justify-between items-center gap-3 w-full max-w-7xl mx-auto">
+            <div className="flex items-center space-x-3 flex-1 min-w-0">
+              {isMobile && <SkeletonShimmer className="h-9 w-9 rounded-lg flex-shrink-0" />}
+              <div className="min-w-0 flex-1 space-y-2">
+                <SkeletonShimmer className="h-6 w-56" />
+                <SkeletonShimmer className="h-4 w-40" />
+              </div>
+            </div>
+            <div className="flex items-center space-x-3 flex-shrink-0">
+              <SkeletonShimmer className="h-9 w-9 rounded-full" />
+              <div className="flex items-center space-x-2 bg-gray-50 dark:bg-gray-800 rounded-full px-3 py-1.5">
+                <SkeletonShimmer className="h-8 w-8 rounded-full" />
+                {!isMobile && <SkeletonShimmer className="h-4 w-24" />}
+              </div>
+              <SkeletonShimmer className="h-9 w-9 rounded-lg" />
+            </div>
+          </div>
+        </header>
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-x-hidden">
+          <div className="max-w-7xl mx-auto">
+            <PageContentSkeleton />
+          </div>
+        </main>
       </div>
     </div>
   );
