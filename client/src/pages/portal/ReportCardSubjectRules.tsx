@@ -12,7 +12,6 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { FileText, Save, Loader2, BookMarked, GraduationCap, Palette, Briefcase, Info, Settings, CheckCircle2 } from 'lucide-react';
-import SuperAdminLayout from '@/components/SuperAdminLayout';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const CLASS_GROUPS = [
@@ -153,7 +152,6 @@ export default function ReportCardSubjectRules() {
   const currentRules = getCurrentRules();
 
   return (
-    <SuperAdminLayout>
       <div className="space-y-6" data-testid="report-card-rules">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <div>
@@ -401,6 +399,5 @@ export default function ReportCardSubjectRules() {
           </TabsContent>
         </Tabs>
       </div>
-    </SuperAdminLayout>
   );
 }
