@@ -173,11 +173,8 @@ export default function PortalLayout({ children, userRole, userName, userInitial
             setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'admin-subject-manager' : null),
             items: [
               { href: `/portal/${userRole}/subject-manager/subjects`, icon: BookOpen, label: 'Subject List' },
-              { href: `/portal/${userRole}/subject-manager/class-mapping`, icon: ClipboardCheck, label: 'Class Subject Mapping' },
-              { href: `/portal/${userRole}/subject-manager/department-mapping`, icon: ClipboardList, label: 'Department Mapping' },
+              { href: `/portal/${userRole}/subject-manager/unified-assignment`, icon: ClipboardCheck, label: 'Class & Dept Assignment' },
               { href: `/portal/${userRole}/subject-manager/assign-teachers`, icon: Users, label: 'Assign Teachers' },
-              { href: `/portal/${userRole}/subject-manager/report-rules`, icon: FileText, label: 'Report Card Rules' },
-              { href: `/portal/${userRole}/subject-manager/class-level-assignment`, icon: ClipboardCheck, label: 'Class-Level Assignment' },
             ]
           },
           {

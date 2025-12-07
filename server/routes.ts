@@ -10519,6 +10519,131 @@ Treasure-Home School Administration
       }
     });
 
+    // ==================== UNIFIED SUBJECT ASSIGNMENT ROUTES ====================
+    // Single source of truth for all subject visibility across the system
+
+    // Get all subject assignments (for the unified configuration page)
+    app.get('/api/unified-subject-assignments', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const allMappings = await storage.getAllClassSubjectMappings();
+        res.json(allMappings);
+      } catch (error: any) {
+        console.error('Error fetching unified subject assignments:', error);
+        res.status(500).json({ message: error.message || 'Failed to fetch subject assignments' });
+      }
+    });
+
+    // Bulk update subject assignments (additions and removals)
+    app.put('/api/unified-subject-assignments', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { additions, removals } = req.body;
+        
+        // Validate input
+        if (!Array.isArray(additions) && !Array.isArray(removals)) {
+          return res.status(400).json({ message: 'additions and/or removals arrays are required' });
+        }
+
+        const affectedClassIds = new Set<number>();
+        let addedCount = 0;
+        let removedCount = 0;
+
+        // Process removals first
+        if (Array.isArray(removals) && removals.length > 0) {
+          for (const removal of removals) {
+            const { classId, subjectId, department } = removal;
+            if (!classId || !subjectId) continue;
+            
+            // Find and delete the mapping
+            const existingMappings = await storage.getClassSubjectMappings(classId, department || undefined);
+            const mappingToDelete = existingMappings.find(m => 
+              m.subjectId === subjectId && 
+              (department === null ? m.department === null : m.department === department)
+            );
+            
+            if (mappingToDelete) {
+              await storage.deleteClassSubjectMapping(mappingToDelete.id);
+              affectedClassIds.add(classId);
+              removedCount++;
+            }
+          }
+        }
+
+        // Process additions
+        if (Array.isArray(additions) && additions.length > 0) {
+          for (const addition of additions) {
+            const { classId, subjectId, department, isCompulsory } = addition;
+            if (!classId || !subjectId) continue;
+            
+            // Check if mapping already exists
+            const existingMappings = await storage.getClassSubjectMappings(classId, department || undefined);
+            const alreadyExists = existingMappings.some(m => 
+              m.subjectId === subjectId && 
+              (department === null ? m.department === null : m.department === department)
+            );
+            
+            if (!alreadyExists) {
+              await storage.createClassSubjectMapping({
+                classId,
+                subjectId,
+                department: department || null,
+                isCompulsory: isCompulsory || false
+              });
+              affectedClassIds.add(classId);
+              addedCount++;
+            }
+          }
+        }
+
+        // Invalidate visibility cache for all affected classes
+        for (const classId of affectedClassIds) {
+          invalidateVisibilityCache({ classId });
+        }
+
+        // Invalidate related query caches
+        console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Updated: ${addedCount} added, ${removedCount} removed, ${affectedClassIds.size} classes affected`);
+
+        res.json({ 
+          message: 'Subject assignments updated successfully',
+          added: addedCount,
+          removed: removedCount,
+          affectedClasses: affectedClassIds.size
+        });
+      } catch (error: any) {
+        console.error('Error updating unified subject assignments:', error);
+        res.status(500).json({ message: error.message || 'Failed to update subject assignments' });
+      }
+    });
+
+    // Get subject visibility for a specific class (used by exam creation, report cards, etc.)
+    app.get('/api/subject-visibility/:classId', authenticateUser, async (req: Request, res: Response) => {
+      try {
+        const { classId } = req.params;
+        const { department } = req.query;
+        
+        const mappings = await storage.getClassSubjectMappings(
+          Number(classId),
+          department as string | undefined
+        );
+        
+        // Get full subject details for each mapping
+        const subjectIds = mappings.map(m => m.subjectId);
+        const subjects = await Promise.all(
+          subjectIds.map(id => storage.getSubject(id))
+        );
+        
+        const visibleSubjects = subjects.filter(Boolean).map((subject, index) => ({
+          ...subject,
+          isCompulsory: mappings[index]?.isCompulsory || false,
+          department: mappings[index]?.department
+        }));
+        
+        res.json(visibleSubjects);
+      } catch (error: any) {
+        console.error('Error fetching subject visibility:', error);
+        res.status(500).json({ message: error.message || 'Failed to fetch subject visibility' });
+      }
+    });
+
     // Get subjects by category (general, science, art, commercial)
     app.get('/api/subjects/by-category/:category', authenticateUser, async (req: Request, res: Response) => {
       try {

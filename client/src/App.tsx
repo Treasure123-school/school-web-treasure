@@ -35,11 +35,8 @@ const SuperAdminPlaceholder = lazy(() => import("@/pages/portal/SuperAdminPlaceh
 
 // Super Admin Subject Manager pages (used in Super Admin routes)
 const SubjectsManagement = lazy(() => import("@/pages/portal/SubjectsManagement"));
-const ClassSubjectMapping = lazy(() => import("@/pages/portal/ClassSubjectMapping"));
-const DepartmentSubjectMapping = lazy(() => import("@/pages/portal/DepartmentSubjectMapping"));
+const UnifiedSubjectAssignment = lazy(() => import("@/pages/portal/UnifiedSubjectAssignment"));
 const AssignSubjectTeachers = lazy(() => import("@/pages/portal/AssignSubjectTeachers"));
-const ReportCardSubjectRules = lazy(() => import("@/pages/portal/ReportCardSubjectRules"));
-const ClassLevelSubjectAssignment = lazy(() => import("@/pages/portal/ClassLevelSubjectAssignment"));
 
 // Profile Onboarding (used for all authenticated users)
 const ProfileOnboarding = lazy(() => import("@/pages/ProfileOnboarding"));
@@ -160,29 +157,14 @@ function Router() {
           <SubjectsManagement />
         </ProtectedRoute>
       </Route>
-      <Route path="/portal/superadmin/subject-manager/class-mapping">
+      <Route path="/portal/superadmin/subject-manager/unified-assignment">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
-          <ClassSubjectMapping />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/superadmin/subject-manager/department-mapping">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
-          <DepartmentSubjectMapping />
+          <UnifiedSubjectAssignment />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/superadmin/subject-manager/assign-teachers">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
           <AssignSubjectTeachers />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/superadmin/subject-manager/report-rules">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
-          <ReportCardSubjectRules />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/superadmin/subject-manager/class-level-assignment">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
-          <ClassLevelSubjectAssignment />
         </ProtectedRoute>
       </Route>
 

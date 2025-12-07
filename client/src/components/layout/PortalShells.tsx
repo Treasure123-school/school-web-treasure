@@ -52,11 +52,8 @@ const SettingsManagement = lazy(() => import('@/pages/portal/SettingsManagement'
 const AdminRecoveryTools = lazy(() => import('@/pages/portal/AdminRecoveryTools'));
 const AdminExamOverview = lazy(() => import('@/pages/portal/AdminExamOverview'));
 const ExamSessions = lazy(() => import('@/pages/portal/ExamSessions'));
-const ClassSubjectMapping = lazy(() => import('@/pages/portal/ClassSubjectMapping'));
-const DepartmentSubjectMapping = lazy(() => import('@/pages/portal/DepartmentSubjectMapping'));
+const UnifiedSubjectAssignment = lazy(() => import('@/pages/portal/UnifiedSubjectAssignment'));
 const AssignSubjectTeachers = lazy(() => import('@/pages/portal/AssignSubjectTeachers'));
-const ReportCardSubjectRules = lazy(() => import('@/pages/portal/ReportCardSubjectRules'));
-const ClassLevelSubjectAssignment = lazy(() => import('@/pages/portal/ClassLevelSubjectAssignment'));
 
 const ParentDashboard = lazy(() => import('@/pages/portal/ParentDashboard'));
 const ParentReportCards = lazy(() => import('@/pages/portal/ParentReportCards'));
@@ -160,11 +157,8 @@ export function AdminPortalShell() {
           <Route path="/portal/exam-sessions" component={ExamSessions} />
           <Route path="/portal/exam-reports" component={ExamReports} />
           <Route path="/portal/admin/subject-manager/subjects" component={SubjectsManagement} />
-          <Route path="/portal/admin/subject-manager/class-mapping" component={ClassSubjectMapping} />
-          <Route path="/portal/admin/subject-manager/department-mapping" component={DepartmentSubjectMapping} />
+          <Route path="/portal/admin/subject-manager/unified-assignment" component={UnifiedSubjectAssignment} />
           <Route path="/portal/admin/subject-manager/assign-teachers" component={AssignSubjectTeachers} />
-          <Route path="/portal/admin/subject-manager/report-rules" component={ReportCardSubjectRules} />
-          <Route path="/portal/admin/subject-manager/class-level-assignment" component={ClassLevelSubjectAssignment} />
           <Route path="/portal/admin/results/exams" component={PortalComingSoon} />
           <Route path="/portal/admin/results/ca" component={PortalComingSoon} />
           <Route path="/portal/admin/results/grades" component={PortalComingSoon} />

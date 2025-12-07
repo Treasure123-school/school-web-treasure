@@ -500,6 +500,7 @@ export interface IStorage {
   createClassSubjectMapping(mapping: InsertClassSubjectMapping): Promise<ClassSubjectMapping>;
   getClassSubjectMappingById(id: number): Promise<ClassSubjectMapping | undefined>;
   getClassSubjectMappings(classId: number, department?: string): Promise<ClassSubjectMapping[]>;
+  getAllClassSubjectMappings(): Promise<ClassSubjectMapping[]>;
   getSubjectsByClassAndDepartment(classId: number, department?: string): Promise<Subject[]>;
   deleteClassSubjectMapping(id: number): Promise<boolean>;
   deleteClassSubjectMappingsByClass(classId: number): Promise<boolean>;
@@ -6735,6 +6736,12 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(schema.classSubjectMappings)
       .where(eq(schema.classSubjectMappings.classId, classId));
+  }
+
+  async getAllClassSubjectMappings(): Promise<ClassSubjectMapping[]> {
+    return await this.db
+      .select()
+      .from(schema.classSubjectMappings);
   }
 
   async getSubjectsByClassAndDepartment(classId: number, department?: string): Promise<Subject[]> {
