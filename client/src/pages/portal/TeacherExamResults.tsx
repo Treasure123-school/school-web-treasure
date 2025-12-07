@@ -207,34 +207,39 @@ export default function TeacherExamResults() {
   const subject = subjects.find((s) => s.id === currentExam?.subjectId);
   const examClass = classes.find((c) => c.id === currentExam?.classId);
 
+  // Helper function to calculate combined scores - test score (max 40) + exam score (max 60) = 100 total
+  const calculateCombinedScores = (result: EnrichedExamResult) => {
+    const testMaxScore = 40;
+    const examMaxScore = result.maxScore ?? 60;
+    const totalMaxScore = testMaxScore + examMaxScore;
+    const totalScore = (result.testScore ?? 0) + (result.score ?? 0);
+    const percentage = totalMaxScore > 0 ? (totalScore / totalMaxScore) * 100 : 0;
+    return { testMaxScore, examMaxScore, totalMaxScore, totalScore, percentage };
+  };
+
   const totalSubmissions = examResults.length;
   const averageScore = totalSubmissions > 0
-    ? examResults.reduce((sum: number, r) => sum + (r.score ?? 0), 0) / totalSubmissions
+    ? examResults.reduce((sum: number, r) => sum + calculateCombinedScores(r).totalScore, 0) / totalSubmissions
     : 0;
   
   const averagePercentage = totalSubmissions > 0
-    ? examResults.reduce((sum: number, r) => {
-        const percentage = (r.maxScore ?? 0) > 0 ? ((r.score ?? 0) / (r.maxScore ?? 0)) * 100 : 0;
-        return sum + percentage;
-      }, 0) / totalSubmissions
+    ? examResults.reduce((sum: number, r) => sum + calculateCombinedScores(r).percentage, 0) / totalSubmissions
     : 0;
 
   const highestScore = totalSubmissions > 0
-    ? Math.max(...examResults.map((r) => r.score ?? 0))
+    ? Math.max(...examResults.map((r) => calculateCombinedScores(r).totalScore))
     : 0;
 
   const lowestScore = totalSubmissions > 0
-    ? Math.min(...examResults.map((r) => r.score ?? 0))
+    ? Math.min(...examResults.map((r) => calculateCombinedScores(r).totalScore))
     : 0;
 
-  const passCount = examResults.filter((r) => {
-    const percentage = (r.maxScore ?? 0) > 0 ? ((r.score ?? 0) / (r.maxScore ?? 0)) * 100 : 0;
-    return percentage >= 50;
-  }).length;
+  const passCount = examResults.filter((r) => calculateCombinedScores(r).percentage >= 50).length;
 
   const failCount = totalSubmissions - passCount;
 
-  const sortedResults = [...examResults].sort((a, b) => (b.score || 0) - (a.score || 0));
+  // Sort by combined total score instead of just exam score
+  const sortedResults = [...examResults].sort((a, b) => calculateCombinedScores(b).totalScore - calculateCombinedScores(a).totalScore);
 
   const getGrade = (percentage: number) => {
     if (percentage >= 90) return { grade: 'A+', color: 'text-green-600' };
@@ -293,16 +298,18 @@ export default function TeacherExamResults() {
     if (!currentExam || examResults.length === 0) return;
 
     const csvContent = [
-      ['Student Name', 'Username', 'Admission No.', 'Exam Score', 'Max Score', 'Percentage', 'Grade', 'Submitted At'].join(','),
+      ['Student Name', 'Username', 'Admission No.', 'Test Score', 'Exam Score', 'Total Score', 'Max Score', 'Percentage', 'Grade', 'Submitted At'].join(','),
       ...sortedResults.map((result) => {
-        const percentage = (result.maxScore ?? 0) > 0 ? ((result.score ?? 0) / (result.maxScore ?? 0)) * 100 : 0;
+        const { totalScore, totalMaxScore, percentage } = calculateCombinedScores(result);
         const { grade } = getGrade(percentage);
         return [
           `"${result.studentName || 'Unknown Student'}"`,
           result.studentUsername || result.studentId,
           result.admissionNumber || '-',
+          result.testScore ?? 0,
           result.score ?? 0,
-          result.maxScore ?? 0,
+          totalScore,
+          totalMaxScore,
           percentage.toFixed(1) + '%',
           grade,
           result.createdAt ? format(new Date(result.createdAt), 'PPpp') : 'N/A'
@@ -445,7 +452,7 @@ export default function TeacherExamResults() {
               <>
                 <div className="block sm:hidden space-y-3">
                   {sortedResults.map((result, index) => {
-                    const percentage = (result.maxScore ?? 0) > 0 ? ((result.score ?? 0) / (result.maxScore ?? 0)) * 100 : 0;
+                    const { totalScore, totalMaxScore, percentage } = calculateCombinedScores(result);
                     const { grade, color } = getGrade(percentage);
                     const isPassed = percentage >= 50;
                     const isSyncing = syncingResults.has(result.id);
@@ -490,9 +497,9 @@ export default function TeacherExamResults() {
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-xs mb-3">
                           <div>
-                            <span className="text-muted-foreground">Score</span>
+                            <span className="text-muted-foreground">Total Score</span>
                             <p className="font-medium" data-testid={`text-score-mobile-${index}`}>
-                              {result.score || 0}/{result.maxScore || 0}
+                              {totalScore}/{totalMaxScore}
                             </p>
                           </div>
                           <div>
@@ -564,7 +571,7 @@ export default function TeacherExamResults() {
                     </TableHeader>
                     <TableBody>
                       {sortedResults.map((result, index) => {
-                        const percentage = (result.maxScore ?? 0) > 0 ? ((result.score ?? 0) / (result.maxScore ?? 0)) * 100 : 0;
+                        const { totalScore, totalMaxScore, percentage } = calculateCombinedScores(result);
                         const { grade, color } = getGrade(percentage);
                         const isPassed = percentage >= 50;
                         const isSyncing = syncingResults.has(result.id);
@@ -589,7 +596,7 @@ export default function TeacherExamResults() {
                               {result.score || 0}
                             </TableCell>
                             <TableCell className="text-xs sm:text-sm py-2 font-medium" data-testid={`text-total-${index}`}>
-                              {(result.testScore ?? 0) + (result.score ?? 0)} / {result.maxScore || 0}
+                              {totalScore} / {totalMaxScore}
                             </TableCell>
                             <TableCell className="text-xs hidden lg:table-cell py-2" data-testid={`text-percentage-${index}`}>
                               {percentage.toFixed(1)}%
