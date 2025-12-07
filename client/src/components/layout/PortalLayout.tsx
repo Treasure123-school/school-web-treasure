@@ -161,6 +161,36 @@ export default function PortalLayout({ children, userRole, userName, userInitial
               { href: `/portal/${userRole}/classes`, icon: BookOpen, label: 'Classes' },
               { href: `/portal/${userRole}/subjects`, icon: BookOpen, label: 'Subjects' },
               { href: `/portal/${userRole}/academic-terms`, icon: Calendar, label: 'Academic Terms' },
+              { href: `/portal/${userRole}/academics/timetable`, icon: Calendar, label: 'Timetable' },
+              { href: `/portal/${userRole}/academics/curriculum`, icon: BookOpen, label: 'Curriculum' },
+            ]
+          },
+          {
+            type: 'group',
+            label: 'Subject Manager',
+            icon: GraduationCap,
+            isOpen: openMenuKey === 'admin-subject-manager',
+            setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'admin-subject-manager' : null),
+            items: [
+              { href: `/portal/${userRole}/subject-manager/subjects`, icon: BookOpen, label: 'Subject List' },
+              { href: `/portal/${userRole}/subject-manager/class-mapping`, icon: ClipboardCheck, label: 'Class Subject Mapping' },
+              { href: `/portal/${userRole}/subject-manager/department-mapping`, icon: ClipboardList, label: 'Department Mapping' },
+              { href: `/portal/${userRole}/subject-manager/assign-teachers`, icon: Users, label: 'Assign Teachers' },
+              { href: `/portal/${userRole}/subject-manager/report-rules`, icon: FileText, label: 'Report Card Rules' },
+            ]
+          },
+          {
+            type: 'group',
+            label: 'Results',
+            icon: ClipboardList,
+            isOpen: openMenuKey === 'admin-results',
+            setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'admin-results' : null),
+            items: [
+              { href: `/portal/${userRole}/results/exams`, icon: ClipboardCheck, label: 'Exam Setup' },
+              { href: `/portal/${userRole}/results/ca`, icon: ClipboardList, label: 'Continuous Assessment' },
+              { href: `/portal/${userRole}/results/grades`, icon: Award, label: 'Grade Boundaries' },
+              { href: `/portal/${userRole}/results/processing`, icon: Activity, label: 'Result Processing' },
+              { href: `/portal/${userRole}/results/publishing`, icon: Eye, label: 'Result Publishing' },
             ]
           },
           {
