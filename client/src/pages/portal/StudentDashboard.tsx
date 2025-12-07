@@ -6,7 +6,6 @@ import { TrendingUp, Calendar, Trophy, MessageSquare, BookOpen, ClipboardList, S
 import { Link, useLocation } from 'wouter';
 import { useEffect } from 'react';
 import { apiRequest } from '@/lib/queryClient';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CircularProgress } from '@/components/ui/circular-progress';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { MiniLineChart } from '@/components/ui/mini-line-chart';
@@ -204,34 +203,35 @@ export default function StudentDashboard() {
     <>
       {/* Profile Completion Banner */}
       {!statusLoading && profileStatus && !profileStatus.completed && (
-        <Alert variant="default" className="mb-6 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 animate-in fade-in slide-in-from-top-2 duration-500">
-          <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-          <AlertTitle className="text-yellow-800 dark:text-yellow-200 font-semibold">
-            Complete Your Profile
-          </AlertTitle>
-          <AlertDescription className="text-yellow-700 dark:text-yellow-300">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1">
-                <p className="mb-2">
-                  Your profile is incomplete. Complete it to unlock all features including exams, grades, and study resources.
-                </p>
-                {profileStatus.percentage > 0 && (
-                  <p className="text-sm">
-                    Profile completion: <strong>{profileStatus.percentage}%</strong>
-                  </p>
-                )}
+        <div className="mb-4 sm:mb-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 sm:p-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-500" data-testid="profile-incomplete-banner">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+            <div className="flex items-start sm:items-center gap-2 sm:gap-3 flex-1">
+              <div className="bg-yellow-100 dark:bg-yellow-900/50 rounded-lg p-1.5 sm:p-2 flex-shrink-0">
+                <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600 dark:text-yellow-400" />
               </div>
-              <Button 
-                onClick={() => navigate('/portal/student/profile')}
-                variant="default"
-                className="bg-yellow-600 hover:bg-yellow-700 text-white shadow-lg"
-                data-testid="button-complete-profile"
-              >
-                Complete Profile
-              </Button>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm sm:text-base font-semibold text-yellow-800 dark:text-yellow-200">
+                  Complete Your Profile
+                </h3>
+                <p className="text-xs sm:text-sm text-yellow-700 dark:text-yellow-300 line-clamp-2 sm:line-clamp-none">
+                  Complete it to unlock exams, grades, and study resources.
+                  {profileStatus.percentage > 0 && (
+                    <span className="ml-1 font-medium">({profileStatus.percentage}% done)</span>
+                  )}
+                </p>
+              </div>
             </div>
-          </AlertDescription>
-        </Alert>
+            <Button 
+              onClick={() => navigate('/portal/student/profile')}
+              variant="default"
+              size="sm"
+              className="bg-yellow-600 hover:bg-yellow-700 text-white shadow-sm w-full sm:w-auto text-xs sm:text-sm"
+              data-testid="button-complete-profile"
+            >
+              Complete Profile
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* Smart Dashboard Welcome Box */}
