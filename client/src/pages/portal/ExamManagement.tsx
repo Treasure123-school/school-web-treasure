@@ -289,21 +289,59 @@ export default function ExamManagement() {
     staleTime: 60000,
   });
 
-  // Use teacher's assigned classes only (not all classes) for dropdowns
-  const classes = myAssignments?.classes || [];
+  // Use teacher's assigned classes for dropdowns (teachers), or all classes (admins)
+  const classes = myAssignments?.isAdmin ? allClasses : (myAssignments?.classes || []);
   const classesLoading = assignmentsLoading;
 
   // Filter subjects based on selected class - only show subjects the teacher is assigned to for that class
   const selectedClassId = watchExam('classId');
-  const availableSubjects = myAssignments && selectedClassId ? (
-    myAssignments.isAdmin 
-      ? myAssignments.subjects
-      : myAssignments.subjects.filter((s: any) => 
-          myAssignments.assignments.some(a => a.classId === selectedClassId && a.subjectId === s.id && a.isActive)
-        )
-  ) : [];
 
-  // availableSubjects is for dropdown selections (filtered to teacher's assignments)
+  // Fetch class-subject mappings for the selected class (used for admins to filter subjects)
+  const { data: classSubjectMappings = [], isLoading: mappingsLoading } = useQuery<Array<{
+    id: number;
+    classId: number;
+    subjectId: number;
+    department: string | null;
+    isCompulsory: boolean;
+    subjectName: string;
+    subjectCode: string;
+    category: string;
+  }>>({
+    queryKey: ['/api/class-subject-mappings', selectedClassId],
+    queryFn: async () => {
+      if (!selectedClassId) return [];
+      const response = await apiRequest('GET', `/api/class-subject-mappings/${selectedClassId}`);
+      return await response.json();
+    },
+    enabled: !!selectedClassId && myAssignments?.isAdmin === true,
+    staleTime: 30000,
+  });
+
+  // Filter subjects based on selected class - use class_subject_mappings as source of truth for admins
+  const availableSubjects = (() => {
+    if (!myAssignments || !selectedClassId) return [];
+    
+    // For admins, use class-subject-mappings as the source of truth
+    if (myAssignments.isAdmin) {
+      if (mappingsLoading) return [];
+      
+      // If no mappings configured, show empty list with clear message
+      if (classSubjectMappings.length === 0) return [];
+      
+      // Return subjects from mappings - filter allSubjects to mapped subjects only
+      const mappedSubjectIds = classSubjectMappings.map(m => m.subjectId);
+      return allSubjects.filter((s: Subject) => mappedSubjectIds.includes(s.id));
+    }
+    
+    // For teachers, only show subjects they are assigned to for the selected class
+    return myAssignments.subjects.filter((s: any) => 
+      myAssignments.assignments.some(a => a.classId === selectedClassId && a.subjectId === s.id && a.isActive)
+    );
+  })();
+
+  const subjectsLoading = assignmentsLoading || (myAssignments?.isAdmin && mappingsLoading);
+
+  // availableSubjects is for dropdown selections (filtered to teacher's assignments or class mappings)
   const subjects = availableSubjects;
 
   // Clear subject and teacher when class changes (to prevent stale selections)
@@ -1507,9 +1545,19 @@ export default function ExamManagement() {
                             }
                           }} 
                           value={field.value !== undefined && field.value !== null ? field.value.toString() : ''}
+                          disabled={subjectsLoading || !selectedClassId}
                         >
                           <SelectTrigger data-testid="select-exam-subject">
-                            <SelectValue placeholder="Select subject" />
+                            <SelectValue placeholder={
+                              subjectsLoading ? "Loading subjects..." : 
+                              !selectedClassId ? "Select a class first" :
+                              subjects.length === 0 ? (
+                                myAssignments?.isAdmin 
+                                  ? "No subjects configured for this class" 
+                                  : "No subjects assigned for this class"
+                              ) :
+                              "Select subject"
+                            } />
                           </SelectTrigger>
                           <SelectContent>
                             {subjects.map((subject: any) => (
@@ -1522,6 +1570,11 @@ export default function ExamManagement() {
                       )}
                     />
                     {examErrors.subjectId && <p className="text-sm text-red-500">{examErrors.subjectId.message}</p>}
+                    {myAssignments?.isAdmin && selectedClassId && !subjectsLoading && subjects.length === 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Configure subjects for this class in Subject Manager &gt; Class Level Assignment
+                      </p>
+                    )}
                   </div>
                 </div>
 
