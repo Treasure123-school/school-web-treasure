@@ -21,9 +21,7 @@ const PortalComingSoon = lazy(() => import('@/pages/portal/PortalComingSoon'));
 const TeacherDashboard = lazy(() => import('@/pages/portal/TeacherDashboard'));
 const TeacherProfile = lazy(() => import('@/pages/portal/TeacherProfile'));
 const TeacherProfileAssignmentDashboard = lazy(() => import('@/pages/portal/TeacherProfileAssignmentDashboard'));
-// Temporarily disabled to isolate ESBuild parsing errors
-// const TeacherGradingQueue = lazy(() => import('@/pages/portal/TeacherGradingQueue'));
-// const TeacherClassResults = lazy(() => import('@/pages/portal/TeacherClassResults'));
+const TeacherGradingQueue = lazy(() => import('@/pages/portal/TeacherGradingQueue'));
 const TeacherExamResults = lazy(() => import('@/pages/portal/TeacherExamResults'));
 const ExamManagement = lazy(() => import('@/pages/portal/ExamManagement'));
 // const CreateExam = lazy(() => import('@/pages/portal/CreateExam'));
@@ -105,7 +103,7 @@ export function TeacherPortalShell() {
           <Route path="/portal/teacher/profile" component={TeacherProfile} />
           <Route path="/portal/teacher/profile-assignments" component={TeacherProfileAssignmentDashboard} />
           <Route path="/portal/teacher/coming-soon" component={PortalComingSoon} />
-          <Route path="/portal/teacher/grading-queue" component={PortalComingSoon} />
+          <Route path="/portal/teacher/grading-queue" component={TeacherGradingQueue} />
           <Route path="/portal/teacher/results/class/:classId" component={PortalComingSoon} />
           <Route path="/portal/teacher/results/exam/:examId" component={TeacherExamResults} />
           <Route path="/portal/teacher/exams/create" component={PortalComingSoon} />
