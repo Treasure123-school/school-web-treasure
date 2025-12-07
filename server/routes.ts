@@ -10452,6 +10452,9 @@ Treasure-Home School Administration
           isCompulsory: isCompulsory || false
         });
         
+        // Invalidate visibility cache for this class (affects exam visibility)
+        invalidateVisibilityCache({ classId });
+        
         res.status(201).json(mapping);
       } catch (error: any) {
         console.error('Error creating class-subject mapping:', error);
@@ -10493,11 +10496,21 @@ Treasure-Home School Administration
       try {
         const { id } = req.params;
         
+        // Get the mapping first to know the classId for cache invalidation
+        const mappingToDelete = await storage.getClassSubjectMappingById(Number(id));
+        
+        if (!mappingToDelete) {
+          return res.status(404).json({ message: 'Mapping not found' });
+        }
+        
         const success = await storage.deleteClassSubjectMapping(Number(id));
         
         if (!success) {
-          return res.status(404).json({ message: 'Mapping not found' });
+          return res.status(500).json({ message: 'Failed to delete mapping' });
         }
+        
+        // Invalidate visibility cache for this class (affects exam visibility)
+        invalidateVisibilityCache({ classId: mappingToDelete.classId });
         
         res.json({ message: 'Mapping deleted successfully' });
       } catch (error: any) {

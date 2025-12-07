@@ -209,13 +209,41 @@ export default function CreateExam() {
   const classes = myAssignments?.classes || [];
   const classesLoading = assignmentsLoading;
 
-  // Filter subjects based on selected class - only show subjects the teacher is assigned to for that class
+  // Fetch class-subject mappings for the selected class (used for admins to filter subjects)
+  const { data: classSubjectMappings = [], isLoading: mappingsLoading } = useQuery<Array<{
+    id: number;
+    classId: number;
+    subjectId: number;
+    department: string | null;
+    isCompulsory: boolean;
+    subjectName: string;
+    subjectCode: string;
+    category: string;
+  }>>({
+    queryKey: ['/api/class-subject-mappings', selectedClassId],
+    queryFn: async () => {
+      if (!selectedClassId) return [];
+      const response = await apiRequest('GET', `/api/class-subject-mappings/${selectedClassId}`);
+      return await response.json();
+    },
+    enabled: !!selectedClassId && myAssignments?.isAdmin === true,
+    staleTime: 30000,
+  });
+
+  // Filter subjects based on selected class - use class_subject_mappings as source of truth
   const availableSubjects = useMemo(() => {
     if (!myAssignments || !selectedClassId) return [];
     
-    // If admin, show all subjects
+    // For admins, use class-subject-mappings as the source of truth
     if (myAssignments.isAdmin) {
-      return myAssignments.subjects;
+      if (mappingsLoading) return [];
+      
+      // If no mappings configured, show empty list with clear message
+      if (classSubjectMappings.length === 0) return [];
+      
+      // Return subjects from mappings - map to Subject format
+      const mappedSubjectIds = classSubjectMappings.map(m => m.subjectId);
+      return myAssignments.subjects.filter(s => mappedSubjectIds.includes(s.id));
     }
     
     // For teachers, only show subjects they are assigned to for the selected class
@@ -224,9 +252,9 @@ export default function CreateExam() {
       .map(a => a.subjectId);
     
     return myAssignments.subjects.filter(s => validSubjectIds.includes(s.id));
-  }, [myAssignments, selectedClassId]);
+  }, [myAssignments, selectedClassId, classSubjectMappings, mappingsLoading]);
 
-  const subjectsLoading = assignmentsLoading;
+  const subjectsLoading = assignmentsLoading || (myAssignments?.isAdmin && mappingsLoading);
 
   // Fetch academic terms with real-time updates
   const { data: terms = [], isLoading: termsLoading } = useQuery<AcademicTerm[]>({
@@ -512,7 +540,11 @@ export default function CreateExam() {
                             <SelectValue placeholder={
                               subjectsLoading ? "Loading subjects..." : 
                               !selectedClassId ? "Select a class first" :
-                              availableSubjects.length === 0 ? "No subjects assigned for this class" :
+                              availableSubjects.length === 0 ? (
+                                myAssignments?.isAdmin 
+                                  ? "No subjects configured for this class" 
+                                  : "No subjects assigned for this class"
+                              ) :
                               "Select subject"
                             } />
                           </SelectTrigger>
@@ -530,6 +562,12 @@ export default function CreateExam() {
                       <p className="text-sm text-destructive flex items-center gap-1">
                         <AlertCircle className="w-4 h-4" />
                         {form.formState.errors.subjectId.message}
+                      </p>
+                    )}
+                    {myAssignments?.isAdmin && selectedClassId && !subjectsLoading && availableSubjects.length === 0 && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Info className="w-3 h-3" />
+                        Configure subjects for this class in Subject Manager &gt; Class Level Assignment
                       </p>
                     )}
                   </div>
