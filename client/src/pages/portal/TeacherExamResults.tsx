@@ -16,8 +16,15 @@ import {
   XCircle,
   RefreshCw,
   Loader2,
-  RotateCcw
+  RotateCcw,
+  MoreVertical
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Link } from 'wouter';
 import { format } from 'date-fns';
 import { useAuth } from '@/lib/auth';
@@ -515,37 +522,41 @@ export default function TeacherExamResults() {
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 pt-2 border-t">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleSyncToReportCard(result.id)}
-                            disabled={isSyncing}
-                            className="flex-1"
-                            data-testid={`button-sync-mobile-${index}`}
-                          >
-                            {isSyncing ? (
-                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                            ) : (
-                              <RefreshCw className="h-3 w-3 mr-1" />
-                            )}
-                            Sync to Report
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleAllowRetakeClick(result)}
-                            disabled={allowingRetake.has(result.id)}
-                            className="flex-1"
-                            data-testid={`button-retake-mobile-${index}`}
-                          >
-                            {allowingRetake.has(result.id) ? (
-                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                            ) : (
-                              <RotateCcw className="h-3 w-3 mr-1" />
-                            )}
-                            Allow Retake
-                          </Button>
+                        <div className="flex items-center justify-end pt-2 border-t">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                data-testid={`button-actions-mobile-${index}`}
+                                disabled={isSyncing || allowingRetake.has(result.id)}
+                              >
+                                {(isSyncing || allowingRetake.has(result.id)) ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <MoreVertical className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => handleSyncToReportCard(result.id)}
+                                disabled={isSyncing}
+                                data-testid={`button-sync-mobile-${index}`}
+                              >
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Sync to Report
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleAllowRetakeClick(result)}
+                                disabled={allowingRetake.has(result.id)}
+                                data-testid={`button-retake-mobile-${index}`}
+                              >
+                                <RotateCcw className="h-4 w-4 mr-2" />
+                                Allow Retake
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                     );
