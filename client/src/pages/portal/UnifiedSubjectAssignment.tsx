@@ -135,79 +135,218 @@ export default function UnifiedSubjectAssignment() {
   const getAssignmentKey = (classId: number, subjectId: number, department: string | null | undefined) => 
     `${classId}-${subjectId}-${normalizeDept(department) || 'null'}`;
 
+  // Check if an SSS class (used for special handling of NULL-department records)
+  const isSSSClass = useCallback((classId: number): boolean => {
+    return sssClasses.some(c => c.id === classId);
+  }, [sssClasses]);
+
   // Check if assignment exists in database (handles null/undefined/empty department)
+  // For SSS classes: also returns true if a NULL-department record exists (legacy data support)
   const existsInDatabase = useCallback((classId: number, subjectId: number, department: string | null | undefined): boolean => {
     const normalizedDept = normalizeDept(department);
-    return currentAssignments.some(a => 
+    
+    // First check for exact match
+    const exactMatch = currentAssignments.some(a => 
       a.classId === classId && 
       a.subjectId === subjectId && 
       normalizeDept(a.department) === normalizedDept
+    );
+    
+    if (exactMatch) return true;
+    
+    // For SSS classes with a specific department request, also check for NULL-department records
+    // This handles legacy data where SSS assignments were stored without department
+    if (normalizedDept !== null && isSSSClass(classId)) {
+      return currentAssignments.some(a => 
+        a.classId === classId && 
+        a.subjectId === subjectId && 
+        normalizeDept(a.department) === null
+      );
+    }
+    
+    return false;
+  }, [currentAssignments, isSSSClass]);
+
+  // Check if a NULL-department record exists for this class/subject (for removal handling)
+  const hasNullDepartmentRecord = useCallback((classId: number, subjectId: number): boolean => {
+    return currentAssignments.some(a => 
+      a.classId === classId && 
+      a.subjectId === subjectId && 
+      normalizeDept(a.department) === null
     );
   }, [currentAssignments]);
 
   const isSubjectAssigned = useCallback((classId: number, subjectId: number, department: string | null = null): boolean => {
     const key = getAssignmentKey(classId, subjectId, department);
+    const nullKey = getAssignmentKey(classId, subjectId, null);
     
     // Check pending state first (these override DB state)
     if (pendingRemovals.has(key)) return false;
     if (pendingChanges.has(key)) return true;
     
+    // For SSS with specific department, also check if NULL-department is being removed
+    if (department !== null && isSSSClass(classId)) {
+      if (pendingRemovals.has(nullKey)) return false;
+    }
+    
     // Check database state
     return existsInDatabase(classId, subjectId, department);
-  }, [pendingRemovals, pendingChanges, existsInDatabase]);
+  }, [pendingRemovals, pendingChanges, existsInDatabase, isSSSClass]);
 
   const toggleSubjectAssignment = useCallback((classId: number, subjectId: number, department: string | null = null, checked?: boolean | 'indeterminate') => {
     // Skip indeterminate state
     if (checked === 'indeterminate') return;
     
     const key = getAssignmentKey(classId, subjectId, department);
+    const nullKey = getAssignmentKey(classId, subjectId, null);
     
     // Determine if we should assign based on the checked value
     // If checked is explicitly true/false, use that; otherwise toggle
     const shouldAssign = typeof checked === 'boolean' ? checked : !isSubjectAssigned(classId, subjectId, department);
     
     if (shouldAssign) {
-      // ASSIGN: Remove from pending removals and add to pending changes
+      // ASSIGN: For SSS, determine the proper handling based on NULL record state
+      const hasNullRecord = department !== null && isSSSClass(classId) && hasNullDepartmentRecord(classId, subjectId);
+      const nullWasBeingRemoved = pendingRemovals.has(nullKey);
+      
+      // Check if ALL departments will be assigned after this toggle
+      // Only then should we cancel the NULL removal and clear replacements
+      let allDepartmentsAssigned = false;
+      if (hasNullRecord && nullWasBeingRemoved && department !== null) {
+        const otherDepts = DEPARTMENTS.filter(d => d !== department);
+        allDepartmentsAssigned = otherDepts.every(otherDept => 
+          isSubjectAssigned(classId, subjectId, otherDept)
+        );
+      }
+      
+      // Remove from pending removals
       setPendingRemovals(prev => {
         const next = new Set(prev);
         next.delete(key);
+        // Only cancel NULL removal if ALL departments will now be assigned
+        if (hasNullRecord && nullWasBeingRemoved && allDepartmentsAssigned) {
+          next.delete(nullKey);
+        }
         return next;
       });
       
-      // Only add to pendingChanges if not already in DB
-      if (!existsInDatabase(classId, subjectId, department)) {
-        setPendingChanges(prev => {
-          const next = new Map(prev);
-          next.set(key, {
-            classId,
-            subjectId,
-            department: normalizeDept(department),
-            isCompulsory: false
-          });
-          return next;
-        });
-      } else {
-        // It exists in DB and we're assigning, just remove from pending changes if it was there
-        setPendingChanges(prev => {
-          const next = new Map(prev);
+      // Update pending changes
+      setPendingChanges(prev => {
+        const next = new Map(prev);
+        
+        // If ALL departments will be assigned, clear all replacement entries
+        if (hasNullRecord && nullWasBeingRemoved && allDepartmentsAssigned && department !== null) {
+          const otherDepts = DEPARTMENTS.filter(d => d !== department);
+          for (const otherDept of otherDepts) {
+            const otherKey = getAssignmentKey(classId, subjectId, otherDept);
+            // Only delete if it's a replacement (not in DB originally)
+            const hasOtherExact = currentAssignments.some(a => 
+              a.classId === classId && 
+              a.subjectId === subjectId && 
+              normalizeDept(a.department) === otherDept
+            );
+            if (!hasOtherExact) {
+              next.delete(otherKey);
+            }
+          }
+        }
+        
+        // Only add to pendingChanges if not already in DB (exact match)
+        const hasExactMatch = currentAssignments.some(a => 
+          a.classId === classId && 
+          a.subjectId === subjectId && 
+          normalizeDept(a.department) === normalizeDept(department)
+        );
+        
+        if (!hasExactMatch) {
+          // Add department-specific record if:
+          // 1. No NULL record exists, OR
+          // 2. NULL record is being removed and NOT all departments will be assigned
+          if (!hasNullRecord) {
+            next.set(key, {
+              classId,
+              subjectId,
+              department: normalizeDept(department),
+              isCompulsory: false
+            });
+          } else if (nullWasBeingRemoved && !allDepartmentsAssigned) {
+            // NULL is being removed but not all depts assigned - add specific record
+            next.set(key, {
+              classId,
+              subjectId,
+              department: normalizeDept(department),
+              isCompulsory: false
+            });
+          }
+          // If allDepartmentsAssigned, we canceled the NULL removal so it covers this dept
+        } else {
+          // It exists in DB and we're assigning, just remove from pending changes if it was there
           next.delete(key);
-          return next;
-        });
-      }
+        }
+        
+        return next;
+      });
     } else {
-      // UNASSIGN: Remove from pending changes and possibly add to pending removals
+      // UNASSIGN: First determine what needs to happen atomically
+      const hasNullRecord = department !== null && isSSSClass(classId) && hasNullDepartmentRecord(classId, subjectId);
+      const hasExactMatch = currentAssignments.some(a => 
+        a.classId === classId && 
+        a.subjectId === subjectId && 
+        normalizeDept(a.department) === normalizeDept(department)
+      );
+      
+      // Calculate replacements needed for other departments (only if NULL record exists and will be removed)
+      const replacementsNeeded: Array<{key: string, dept: string}> = [];
+      if (hasNullRecord) {
+        const otherDepts = DEPARTMENTS.filter(d => d !== department);
+        for (const otherDept of otherDepts) {
+          const otherKey = getAssignmentKey(classId, subjectId, otherDept);
+          // Only create replacement if:
+          // 1. Not already in DB with exact match, AND
+          // 2. Currently assigned (via isSubjectAssigned) for that department
+          const hasOtherExact = currentAssignments.some(a => 
+            a.classId === classId && 
+            a.subjectId === subjectId && 
+            normalizeDept(a.department) === otherDept
+          );
+          // Check if other dept is currently considered assigned
+          const otherIsAssigned = isSubjectAssigned(classId, subjectId, otherDept);
+          if (!hasOtherExact && otherIsAssigned) {
+            replacementsNeeded.push({key: otherKey, dept: otherDept});
+          }
+        }
+      }
+      
+      // Update pending changes
       setPendingChanges(prev => {
         const next = new Map(prev);
         next.delete(key);
+        
+        // Add replacement records for other departments
+        for (const {key: otherKey, dept: otherDept} of replacementsNeeded) {
+          next.set(otherKey, {
+            classId,
+            subjectId,
+            department: otherDept,
+            isCompulsory: false
+          });
+        }
         return next;
       });
       
-      // Only add to pendingRemovals if it exists in DB
-      if (existsInDatabase(classId, subjectId, department)) {
-        setPendingRemovals(prev => new Set([...prev, key]));
-      }
+      // Update pending removals
+      setPendingRemovals(prev => {
+        const next = new Set(prev);
+        if (hasNullRecord) {
+          next.add(nullKey);
+        }
+        if (hasExactMatch) {
+          next.add(key);
+        }
+        return next;
+      });
     }
-  }, [isSubjectAssigned, existsInDatabase]);
+  }, [isSubjectAssigned, currentAssignments, isSSSClass, hasNullDepartmentRecord, pendingRemovals]);
 
   const toggleAllJSSSubjects = useCallback((subjectId: number, checked: boolean | 'indeterminate') => {
     if (checked === 'indeterminate') return;
@@ -259,62 +398,147 @@ export default function UnifiedSubjectAssignment() {
     });
   }, [jssClasses, existsInDatabase]);
 
-  const toggleAllSSSSubjectsForDept = useCallback((subjectId: number, department: string, checked: boolean | 'indeterminate') => {
+  const toggleAllSSSSubjectsForDept = useCallback((subjectId: number, department: string | null, checked: boolean | 'indeterminate') => {
     if (checked === 'indeterminate') return;
     
-    // Use functional updates to avoid stale state
-    setPendingChanges(prevChanges => {
-      const newChanges = new Map(prevChanges);
-      sssClasses.forEach(cls => {
-        const key = getAssignmentKey(cls.id, subjectId, department);
-        const inDB = existsInDatabase(cls.id, subjectId, department);
+    // Normalize department - treat 'null' string as actual null
+    const normalizedDept = department === 'null' ? null : department;
+    
+    // Pre-compute all changes and removals atomically
+    const newRemovals = new Set(pendingRemovals);
+    const newChanges = new Map(pendingChanges);
+    
+    sssClasses.forEach(cls => {
+      const key = getAssignmentKey(cls.id, subjectId, normalizedDept);
+      const nullKey = getAssignmentKey(cls.id, subjectId, null);
+      
+      // Check for exact match in DB
+      const hasExactMatch = currentAssignments.some(a => 
+        a.classId === cls.id && 
+        a.subjectId === subjectId && 
+        normalizeDept(a.department) === normalizedDept
+      );
+      
+      // Check for NULL-department record  
+      const hasNullRecord = hasNullDepartmentRecord(cls.id, subjectId);
+      
+      if (checked) {
+        // ASSIGN: Check if we're canceling a previous unassign that added replacements
+        const nullWasBeingRemoved = newRemovals.has(nullKey);
         
-        if (checked) {
-          // Add to changes only if not in DB
-          if (!inDB) {
+        // Check if ALL departments will be assigned after this toggle
+        let allDepartmentsAssigned = false;
+        if (hasNullRecord && nullWasBeingRemoved && normalizedDept !== null) {
+          const otherDepts = DEPARTMENTS.filter(d => d !== normalizedDept);
+          allDepartmentsAssigned = otherDepts.every(otherDept => 
+            isSubjectAssigned(cls.id, subjectId, otherDept)
+          );
+        }
+        
+        // Remove from removals when assigning
+        newRemovals.delete(key);
+        // Only cancel NULL removal if ALL departments will be assigned
+        if (hasNullRecord && nullWasBeingRemoved && allDepartmentsAssigned) {
+          newRemovals.delete(nullKey);
+        }
+        
+        // If ALL departments will be assigned, clear all replacement entries
+        if (hasNullRecord && nullWasBeingRemoved && allDepartmentsAssigned && normalizedDept !== null) {
+          const otherDepts = DEPARTMENTS.filter(d => d !== normalizedDept);
+          for (const otherDept of otherDepts) {
+            const otherKey = getAssignmentKey(cls.id, subjectId, otherDept);
+            // Only delete if it's a replacement (not in DB originally)
+            const hasOtherExact = currentAssignments.some(a => 
+              a.classId === cls.id && 
+              a.subjectId === subjectId && 
+              normalizeDept(a.department) === otherDept
+            );
+            if (!hasOtherExact) {
+              newChanges.delete(otherKey);
+            }
+          }
+        }
+        
+        // Add to changes only if not in DB and we should create a new record
+        if (!hasExactMatch) {
+          // Add department-specific record if:
+          // 1. No NULL record exists, OR
+          // 2. NULL record is being removed and NOT all departments will be assigned
+          const nullStillBeingRemoved = newRemovals.has(nullKey);
+          if (!hasNullRecord) {
             newChanges.set(key, {
               classId: cls.id,
               subjectId,
-              department,
+              department: normalizedDept,
               isCompulsory: false
             });
-          } else {
-            newChanges.delete(key);
+          } else if (nullStillBeingRemoved) {
+            // NULL record is still being removed - need department-specific record
+            newChanges.set(key, {
+              classId: cls.id,
+              subjectId,
+              department: normalizedDept,
+              isCompulsory: false
+            });
           }
+          // If !nullStillBeingRemoved (i.e., allDepartmentsAssigned), the NULL covers this dept
         } else {
-          // Remove from changes
           newChanges.delete(key);
         }
-      });
-      return newChanges;
-    });
-    
-    setPendingRemovals(prevRemovals => {
-      const newRemovals = new Set(prevRemovals);
-      sssClasses.forEach(cls => {
-        const key = getAssignmentKey(cls.id, subjectId, department);
-        const inDB = existsInDatabase(cls.id, subjectId, department);
+      } else {
+        // UNASSIGN: Remove from changes
+        newChanges.delete(key);
         
-        if (checked) {
-          // Remove from removals when assigning
-          newRemovals.delete(key);
-        } else {
-          // Add to removals only if in DB
-          if (inDB) {
-            newRemovals.add(key);
+        // Add to removals
+        if (hasExactMatch) {
+          newRemovals.add(key);
+        }
+        if (normalizedDept !== null && hasNullRecord) {
+          newRemovals.add(nullKey);
+        }
+        
+        // Create replacement records for OTHER departments if NULL record exists
+        // Only create for departments that are currently considered assigned
+        if (normalizedDept !== null && hasNullRecord) {
+          const otherDepts = DEPARTMENTS.filter(d => d !== normalizedDept);
+          for (const otherDept of otherDepts) {
+            const otherKey = getAssignmentKey(cls.id, subjectId, otherDept);
+            // Only add if:
+            // 1. Not already in DB with exact match, AND
+            // 2. Currently assigned for that department
+            const hasOtherExact = currentAssignments.some(a => 
+              a.classId === cls.id && 
+              a.subjectId === subjectId && 
+              normalizeDept(a.department) === otherDept
+            );
+            // Check current assigned state (considers pending state too)
+            const otherIsAssigned = isSubjectAssigned(cls.id, subjectId, otherDept);
+            if (!hasOtherExact && otherIsAssigned) {
+              newChanges.set(otherKey, {
+                classId: cls.id,
+                subjectId,
+                department: otherDept,
+                isCompulsory: false
+              });
+            }
           }
         }
-      });
-      return newRemovals;
+      }
     });
-  }, [sssClasses, existsInDatabase]);
+    
+    // Apply all changes atomically
+    setPendingRemovals(newRemovals);
+    setPendingChanges(newChanges);
+  }, [sssClasses, currentAssignments, hasNullDepartmentRecord, pendingRemovals, pendingChanges, isSubjectAssigned]);
 
   const areAllJSSAssigned = useCallback((subjectId: number): boolean => {
     return jssClasses.every(cls => isSubjectAssigned(cls.id, subjectId, null));
   }, [jssClasses, isSubjectAssigned]);
 
-  const areAllSSSAssignedForDept = useCallback((subjectId: number, department: string): boolean => {
-    return sssClasses.every(cls => isSubjectAssigned(cls.id, subjectId, department));
+  const areAllSSSAssignedForDept = useCallback((subjectId: number, department: string | null): boolean => {
+    // Normalize department - treat 'null' string as actual null
+    const normalizedDept = department === 'null' ? null : department;
+    return sssClasses.every(cls => isSubjectAssigned(cls.id, subjectId, normalizedDept));
   }, [sssClasses, isSubjectAssigned]);
 
   const hasPendingChanges = pendingChanges.size > 0 || pendingRemovals.size > 0;
