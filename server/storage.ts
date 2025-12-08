@@ -514,6 +514,11 @@ export interface IStorage {
   // Sync students with class_subject_mappings (single source of truth)
   syncStudentsWithClassMappings(classId: number, department?: string): Promise<{synced: number; errors: string[]}>;
   syncAllStudentsWithMappings(): Promise<{synced: number; errors: string[]}>;
+  
+  // Cleanup and sync report cards with class_subject_mappings
+  cleanupReportCardItems(studentId: string): Promise<{removed: number; kept: number}>;
+  cleanupReportCardsForClasses(classIds: number[]): Promise<{studentsProcessed: number; itemsRemoved: number; errors: string[]}>;
+  cleanupAllReportCards(): Promise<{studentsProcessed: number; itemsRemoved: number; errors: string[]}>;
 
   // Smart deletion methods
   validateDeletion(userId: string): Promise<{
@@ -6970,6 +6975,126 @@ export class DatabaseStorage implements IStorage {
     } catch (error: any) {
       console.error('[SYNC] Error syncing all students:', error);
       return { synced: 0, errors: [error.message] };
+    }
+  }
+
+  async cleanupReportCardItems(studentId: string): Promise<{removed: number; kept: number}> {
+    try {
+      const student = await this.getStudent(studentId);
+      if (!student || !student.classId) {
+        return { removed: 0, kept: 0 };
+      }
+
+      const classInfo = await this.getClass(student.classId);
+      if (!classInfo) {
+        return { removed: 0, kept: 0 };
+      }
+
+      const isSeniorSecondary = classInfo.level && 
+        ['SS1', 'SS2', 'SS3', 'Senior Secondary'].some(level => 
+          classInfo.level?.toLowerCase().includes(level.toLowerCase()) ||
+          classInfo.name?.toLowerCase().includes(level.toLowerCase())
+        );
+      
+      const studentDept = (student as any).department?.toLowerCase()?.trim() || undefined;
+      const effectiveDept = isSeniorSecondary ? studentDept : undefined;
+      
+      const allowedSubjects = await this.getSubjectsByClassAndDepartment(student.classId, effectiveDept);
+      const allowedSubjectIds = new Set(allowedSubjects.map(s => s.id));
+      
+      // If no allowed subjects, we should delete ALL report card items for this student
+      // This handles the case where a class lost all its subject mappings
+
+      const reportCards = await db.select()
+        .from(schema.reportCards)
+        .where(eq(schema.reportCards.studentId, studentId));
+      
+      let totalRemoved = 0;
+      let totalKept = 0;
+
+      for (const reportCard of reportCards) {
+        const items = await db.select()
+          .from(schema.reportCardItems)
+          .where(eq(schema.reportCardItems.reportCardId, reportCard.id));
+        
+        for (const item of items) {
+          if (!allowedSubjectIds.has(item.subjectId)) {
+            await db.delete(schema.reportCardItems)
+              .where(eq(schema.reportCardItems.id, item.id));
+            totalRemoved++;
+          } else {
+            totalKept++;
+          }
+        }
+      }
+
+      console.log(`[CLEANUP] Student ${studentId}: removed ${totalRemoved} items, kept ${totalKept}`);
+      return { removed: totalRemoved, kept: totalKept };
+    } catch (error: any) {
+      console.error(`[CLEANUP] Error cleaning up report card for student ${studentId}:`, error);
+      return { removed: 0, kept: 0 };
+    }
+  }
+
+  async cleanupReportCardsForClasses(classIds: number[]): Promise<{studentsProcessed: number; itemsRemoved: number; errors: string[]}> {
+    let studentsProcessed = 0;
+    let totalItemsRemoved = 0;
+    const errors: string[] = [];
+    
+    if (!classIds || classIds.length === 0) {
+      return { studentsProcessed: 0, itemsRemoved: 0, errors: [] };
+    }
+    
+    try {
+      // Get only students in the affected classes
+      const students = await db.select({ id: schema.students.id })
+        .from(schema.students)
+        .where(inArray(schema.students.classId, classIds));
+      
+      console.log(`[CLEANUP] Processing ${students.length} students from ${classIds.length} affected classes`);
+      
+      for (const student of students) {
+        try {
+          const result = await this.cleanupReportCardItems(student.id);
+          totalItemsRemoved += result.removed;
+          studentsProcessed++;
+        } catch (error: any) {
+          errors.push(`Failed to cleanup student ${student.id}: ${error.message}`);
+        }
+      }
+      
+      console.log(`[CLEANUP] Processed ${studentsProcessed} students in affected classes, removed ${totalItemsRemoved} report card items`);
+      return { studentsProcessed, itemsRemoved: totalItemsRemoved, errors };
+    } catch (error: any) {
+      console.error('[CLEANUP] Error cleaning up report cards for classes:', error);
+      return { studentsProcessed: 0, itemsRemoved: 0, errors: [error.message] };
+    }
+  }
+
+  async cleanupAllReportCards(): Promise<{studentsProcessed: number; itemsRemoved: number; errors: string[]}> {
+    let studentsProcessed = 0;
+    let totalItemsRemoved = 0;
+    const errors: string[] = [];
+    
+    try {
+      const students = await db.select({ id: schema.students.id })
+        .from(schema.students);
+      
+      for (const student of students) {
+        try {
+          const result = await this.cleanupReportCardItems(student.id);
+          totalItemsRemoved += result.removed;
+          studentsProcessed++;
+        } catch (error: any) {
+          errors.push(`Failed to cleanup student ${student.id}: ${error.message}`);
+        }
+      }
+      
+      console.log(`[CLEANUP] Processed ${studentsProcessed} students, removed ${totalItemsRemoved} report card items`);
+      return { studentsProcessed, itemsRemoved: totalItemsRemoved, errors };
+    } catch (error: any) {
+      console.error('[CLEANUP] Error cleaning up all report cards:', error);
+      return { studentsProcessed: 0, itemsRemoved: 0, errors: [error.message] };
     }
   }
 }

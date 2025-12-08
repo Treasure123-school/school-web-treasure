@@ -10615,6 +10615,10 @@ Treasure-Home School Administration
         }
         console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Synced ${totalSynced} students with new mappings`);
 
+        // CRITICAL: Cleanup report cards for ONLY affected classes (not all students)
+        const cleanupResult = await storage.cleanupReportCardsForClasses(result.affectedClassIds);
+        console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Cleaned up ${cleanupResult.itemsRemoved} report card items from ${cleanupResult.studentsProcessed} students in ${result.affectedClassIds.length} affected classes`);
+
         // Emit websocket event for real-time propagation to all connected clients
         const socketIO = realtimeService.getIO();
         if (socketIO && result.affectedClassIds.length > 0) {
@@ -10637,6 +10641,7 @@ Treasure-Home School Administration
           removed: result.removed,
           affectedClasses: result.affectedClassIds.length,
           studentsSynced: totalSynced,
+          reportCardItemsRemoved: cleanupResult.itemsRemoved,
           syncErrors: syncErrors.length > 0 ? syncErrors : undefined
         });
       } catch (error: any) {
@@ -10697,21 +10702,48 @@ Treasure-Home School Administration
         
         const result = await storage.syncAllStudentsWithMappings();
         
+        // Also cleanup report cards after syncing
+        const cleanupResult = await storage.cleanupAllReportCards();
+        
         // Invalidate all visibility caches
         invalidateVisibilityCache({ all: true });
         SubjectAssignmentService.invalidateAllCaches();
         
-        console.log(`[ADMIN-SYNC] Completed: ${result.synced} students synced, ${result.errors.length} errors`);
+        console.log(`[ADMIN-SYNC] Completed: ${result.synced} students synced, ${cleanupResult.itemsRemoved} report card items removed, ${result.errors.length} errors`);
         
         res.json({
           message: 'Student subject sync completed',
           studentsSynced: result.synced,
+          reportCardItemsRemoved: cleanupResult.itemsRemoved,
           errors: result.errors.length > 0 ? result.errors.slice(0, 20) : undefined,
           totalErrors: result.errors.length
         });
       } catch (error: any) {
         console.error('[ADMIN-SYNC] Error syncing students:', error);
         res.status(500).json({ message: error.message || 'Failed to sync students' });
+      }
+    });
+
+    // ADMIN: Cleanup report cards - remove items for subjects no longer in class_subject_mappings
+    // Use this to fix existing report cards that have extra subjects
+    app.post('/api/admin/cleanup-report-cards', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        console.log('[ADMIN-CLEANUP] Starting report card cleanup...');
+        
+        const result = await storage.cleanupAllReportCards();
+        
+        console.log(`[ADMIN-CLEANUP] Completed: ${result.itemsRemoved} items removed from ${result.studentsProcessed} students`);
+        
+        res.json({
+          message: 'Report card cleanup completed',
+          studentsProcessed: result.studentsProcessed,
+          itemsRemoved: result.itemsRemoved,
+          errors: result.errors.length > 0 ? result.errors.slice(0, 20) : undefined,
+          totalErrors: result.errors.length
+        });
+      } catch (error: any) {
+        console.error('[ADMIN-CLEANUP] Error:', error);
+        res.status(500).json({ message: error.message || 'Failed to cleanup report cards' });
       }
     });
 
