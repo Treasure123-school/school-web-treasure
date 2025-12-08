@@ -5120,33 +5120,16 @@ export class DatabaseStorage implements IStorage {
             ));
           console.log(`[REPORT-CARD-SYNC] Using ${relevantSubjects.length} subjects from student's personal assignments`);
         } else {
-          // PRIORITY 2: Use class_subject_mappings as single source of truth (consistent with student portal)
-          // This uses the same source as /api/my-subjects endpoint
+          // PRIORITY 2: Use class_subject_mappings as SINGLE SOURCE OF TRUTH
+          // NO FALLBACK - Admin must configure subjects via Subject Manager
           relevantSubjects = await this.getSubjectsByClassAndDepartment(classId, studentDepartment);
           
           if (relevantSubjects.length > 0) {
             console.log(`[REPORT-CARD-SYNC] Using ${relevantSubjects.length} subjects from class_subject_mappings (department: ${studentDepartment || 'none'})`);
           } else {
-            // PRIORITY 3: Fall back to category-based filtering only if no mappings exist
-            const allSubjects = await db.select()
-              .from(schema.subjects)
-              .where(eq(schema.subjects.isActive, true));
-
-            relevantSubjects = allSubjects.filter((subject: any) => {
-              const category = (subject.category || 'general').trim().toLowerCase();
-              
-              if (isSeniorSecondary && studentDepartment) {
-                // SS student with department: include general + department subjects
-                return category === 'general' || category === studentDepartment;
-              } else if (isSeniorSecondary && !studentDepartment) {
-                // SS student without department: include only general subjects
-                return category === 'general';
-              } else {
-                // Non-SS student (JSS): include only general subjects
-                return category === 'general';
-              }
-            });
-            console.log(`[REPORT-CARD-SYNC] Using ${relevantSubjects.length} subjects from category-based fallback`);
+            // No fallback - if no mappings exist, create empty report card
+            // Admin must assign subjects via the Subject Manager
+            console.log(`[REPORT-CARD-SYNC] No subjects found in class_subject_mappings for class ${classId}, department: ${studentDepartment || 'none'}. Admin must assign subjects.`);
           }
         }
 
