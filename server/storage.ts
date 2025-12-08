@@ -510,6 +510,10 @@ export interface IStorage {
   getSubjectsByCategory(category: string): Promise<Subject[]>;
   getSubjectsForClassLevel(classLevel: string, department?: string): Promise<Subject[]>;
   autoAssignSubjectsToStudent(studentId: string, classId: number, department?: string): Promise<StudentSubjectAssignment[]>;
+  
+  // Sync students with class_subject_mappings (single source of truth)
+  syncStudentsWithClassMappings(classId: number, department?: string): Promise<{synced: number; errors: string[]}>;
+  syncAllStudentsWithMappings(): Promise<{synced: number; errors: string[]}>;
 
   // Smart deletion methods
   validateDeletion(userId: string): Promise<{
@@ -4508,7 +4512,24 @@ export class DatabaseStorage implements IStorage {
             continue;
           }
 
-          // Create or update report card items for each subject
+          // Get the set of valid subject IDs from class_subject_mappings
+          const validSubjectIds = new Set(subjects.map(s => s.id));
+
+          // CLEANUP: Remove report card items that are NOT in class_subject_mappings
+          // This ensures only the admin-assigned subjects appear on report cards
+          const existingItems = await db.select()
+            .from(schema.reportCardItems)
+            .where(eq(schema.reportCardItems.reportCardId, reportCardId));
+          
+          for (const item of existingItems) {
+            if (!validSubjectIds.has(item.subjectId)) {
+              await db.delete(schema.reportCardItems)
+                .where(eq(schema.reportCardItems.id, item.id));
+              console.log(`[REPORT-CARD] Removed invalid subject ${item.subjectId} from report card ${reportCardId}`);
+            }
+          }
+
+          // Create or update report card items for each valid subject
           for (const subject of subjects) {
             const existingItem = await db.select()
               .from(schema.reportCardItems)
@@ -6866,6 +6887,90 @@ export class DatabaseStorage implements IStorage {
     
     const subjectIds = subjects.map(s => s.id);
     return await this.assignSubjectsToStudent(studentId, classId, subjectIds, termId);
+  }
+
+  async syncStudentsWithClassMappings(classId: number, department?: string): Promise<{synced: number; errors: string[]}> {
+    const errors: string[] = [];
+    let synced = 0;
+    
+    try {
+      const classInfo = await this.getClass(classId);
+      if (!classInfo) {
+        return { synced: 0, errors: ['Class not found'] };
+      }
+      
+      const isSeniorSecondary = classInfo.level && 
+        ['SS1', 'SS2', 'SS3', 'Senior Secondary'].some(level => 
+          classInfo.level?.toLowerCase().includes(level.toLowerCase())
+        );
+      
+      const students = await this.getStudentsByClass(classId);
+      
+      for (const student of students) {
+        try {
+          const studentDept = (student as any).department?.toLowerCase()?.trim() || undefined;
+          
+          if (department && studentDept !== department.toLowerCase().trim()) {
+            continue;
+          }
+          
+          const effectiveDept = isSeniorSecondary ? studentDept : undefined;
+          const mappedSubjects = await this.getSubjectsByClassAndDepartment(classId, effectiveDept);
+          
+          if (mappedSubjects.length === 0) {
+            errors.push(`No subjects mapped for student ${student.id} (class ${classId}, dept: ${effectiveDept || 'none'})`);
+            continue;
+          }
+          
+          await db.delete(schema.studentSubjectAssignments)
+            .where(eq(schema.studentSubjectAssignments.studentId, student.id));
+          
+          const currentTerm = await this.getCurrentTerm();
+          for (const subject of mappedSubjects) {
+            await db.insert(schema.studentSubjectAssignments)
+              .values({
+                studentId: student.id,
+                classId: classId,
+                subjectId: subject.id,
+                termId: currentTerm?.id || null,
+                isActive: true
+              })
+              .onConflictDoNothing();
+          }
+          
+          synced++;
+        } catch (studentError: any) {
+          errors.push(`Failed to sync student ${student.id}: ${studentError.message}`);
+        }
+      }
+      
+      console.log(`[SYNC] Synced ${synced} students in class ${classId}${department ? ` (${department})` : ''}`);
+      return { synced, errors };
+    } catch (error: any) {
+      console.error('[SYNC] Error syncing students with class mappings:', error);
+      return { synced: 0, errors: [error.message] };
+    }
+  }
+
+  async syncAllStudentsWithMappings(): Promise<{synced: number; errors: string[]}> {
+    let totalSynced = 0;
+    const allErrors: string[] = [];
+    
+    try {
+      const classes = await this.getClasses();
+      
+      for (const classInfo of classes) {
+        const result = await this.syncStudentsWithClassMappings(classInfo.id);
+        totalSynced += result.synced;
+        allErrors.push(...result.errors);
+      }
+      
+      console.log(`[SYNC] Total synced: ${totalSynced} students across ${classes.length} classes`);
+      return { synced: totalSynced, errors: allErrors };
+    } catch (error: any) {
+      console.error('[SYNC] Error syncing all students:', error);
+      return { synced: 0, errors: [error.message] };
+    }
   }
 }
 // Initialize storage - PostgreSQL database only

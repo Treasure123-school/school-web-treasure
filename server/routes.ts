@@ -10604,6 +10604,17 @@ Treasure-Home School Administration
           SubjectAssignmentService.invalidateClassCache(classId);
         }
 
+        // CRITICAL: Sync all students in affected classes with the new mappings
+        // This ensures student_subject_assignments match class_subject_mappings
+        let totalSynced = 0;
+        const syncErrors: string[] = [];
+        for (const classId of result.affectedClassIds) {
+          const syncResult = await storage.syncStudentsWithClassMappings(classId);
+          totalSynced += syncResult.synced;
+          syncErrors.push(...syncResult.errors);
+        }
+        console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Synced ${totalSynced} students with new mappings`);
+
         // Emit websocket event for real-time propagation to all connected clients
         const socketIO = realtimeService.getIO();
         if (socketIO && result.affectedClassIds.length > 0) {
@@ -10612,18 +10623,21 @@ Treasure-Home School Administration
             affectedClassIds: result.affectedClassIds,
             added: result.added,
             removed: result.removed,
+            studentsSynced: totalSynced,
             timestamp: new Date().toISOString()
           });
           console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Emitted websocket event to all clients`);
         }
 
-        console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Updated: ${result.added} added, ${result.removed} removed, ${result.affectedClassIds.length} classes affected`);
+        console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Updated: ${result.added} added, ${result.removed} removed, ${result.affectedClassIds.length} classes affected, ${totalSynced} students synced`);
 
         res.json({ 
           message: 'Subject assignments updated successfully',
           added: result.added,
           removed: result.removed,
-          affectedClasses: result.affectedClassIds.length
+          affectedClasses: result.affectedClassIds.length,
+          studentsSynced: totalSynced,
+          syncErrors: syncErrors.length > 0 ? syncErrors : undefined
         });
       } catch (error: any) {
         console.error('Error updating unified subject assignments:', error);
@@ -10672,6 +10686,32 @@ Treasure-Home School Administration
       } catch (error: any) {
         console.error('Error fetching subjects by category:', error);
         res.status(500).json({ message: error.message || 'Failed to fetch subjects' });
+      }
+    });
+
+    // ADMIN: Sync all students with class_subject_mappings
+    // Use this to fix existing students who have incorrect subject assignments
+    app.post('/api/admin/sync-all-student-subjects', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        console.log('[ADMIN-SYNC] Starting full sync of all students with class_subject_mappings...');
+        
+        const result = await storage.syncAllStudentsWithMappings();
+        
+        // Invalidate all visibility caches
+        invalidateVisibilityCache({ all: true });
+        SubjectAssignmentService.invalidateAllCaches();
+        
+        console.log(`[ADMIN-SYNC] Completed: ${result.synced} students synced, ${result.errors.length} errors`);
+        
+        res.json({
+          message: 'Student subject sync completed',
+          studentsSynced: result.synced,
+          errors: result.errors.length > 0 ? result.errors.slice(0, 20) : undefined,
+          totalErrors: result.errors.length
+        });
+      } catch (error: any) {
+        console.error('[ADMIN-SYNC] Error syncing students:', error);
+        res.status(500).json({ message: error.message || 'Failed to sync students' });
       }
     });
 
