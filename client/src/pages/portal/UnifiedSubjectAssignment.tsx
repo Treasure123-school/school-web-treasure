@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import { 
   Save, 
   Loader2, 
@@ -19,11 +20,12 @@ import {
   Palette, 
   Briefcase, 
   Info, 
-  CheckCircle2,
   School,
   Users,
   BookOpen,
-  RefreshCw
+  RefreshCw,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import SuperAdminLayout from '@/components/SuperAdminLayout';
 
@@ -94,6 +96,19 @@ export default function UnifiedSubjectAssignment() {
       const response = await apiRequest('GET', '/api/unified-subject-assignments');
       return await response.json();
     },
+  });
+
+  const handleRealtimeEvent = useCallback((event: any) => {
+    if (event.eventType === 'subject-assignments-updated' || event.type === 'subject-assignments-updated') {
+      console.log('[REALTIME] Subject assignments updated, refreshing data...');
+      refetchAssignments();
+    }
+  }, [refetchAssignments]);
+
+  const { isConnected } = useSocketIORealtime({
+    queryKey: ['/api/unified-subject-assignments'],
+    enabled: true,
+    onEvent: handleRealtimeEvent,
   });
 
   const activeSubjects = useMemo(() => subjects.filter(s => s.isActive), [subjects]);
@@ -391,7 +406,20 @@ export default function UnifiedSubjectAssignment() {
               Centralized configuration for all subject visibility across the school portal
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="status-connection">
+              {isConnected ? (
+                <>
+                  <Wifi className="w-3 h-3 text-green-500" />
+                  <span className="hidden sm:inline">Live</span>
+                </>
+              ) : (
+                <>
+                  <WifiOff className="w-3 h-3 text-yellow-500" />
+                  <span className="hidden sm:inline">Offline</span>
+                </>
+              )}
+            </div>
             {hasPendingChanges && (
               <>
                 <Button 

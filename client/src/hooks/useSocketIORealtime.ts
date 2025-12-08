@@ -291,6 +291,7 @@ export function useSocketIORealtime({
         'attendance.marked', 'attendance.updated',
         'notification',
         'upload.progress',
+        'subject-assignments-updated',
       ];
 
       // Store handler references for proper cleanup

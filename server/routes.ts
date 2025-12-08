@@ -10479,6 +10479,18 @@ Treasure-Home School Administration
         // Invalidate visibility cache for this class (affects exam visibility)
         invalidateVisibilityCache({ classId });
         
+        // Emit websocket event for real-time propagation
+        const socketIO = realtimeService.getIO();
+        if (socketIO) {
+          socketIO.emit('subject-assignments-updated', {
+            eventType: 'subject-assignments-updated',
+            affectedClassIds: [classId],
+            added: 1,
+            removed: 0,
+            timestamp: new Date().toISOString()
+          });
+        }
+        
         res.status(201).json(mapping);
       } catch (error: any) {
         console.error('Error creating class-subject mapping:', error);
@@ -10536,6 +10548,18 @@ Treasure-Home School Administration
         // Invalidate visibility cache for this class (affects exam visibility)
         invalidateVisibilityCache({ classId: mappingToDelete.classId });
         
+        // Emit websocket event for real-time propagation
+        const socketIO = realtimeService.getIO();
+        if (socketIO) {
+          socketIO.emit('subject-assignments-updated', {
+            eventType: 'subject-assignments-updated',
+            affectedClassIds: [mappingToDelete.classId],
+            added: 0,
+            removed: 1,
+            timestamp: new Date().toISOString()
+          });
+        }
+        
         res.json({ message: 'Mapping deleted successfully' });
       } catch (error: any) {
         console.error('Error deleting class-subject mapping:', error);
@@ -10582,6 +10606,7 @@ Treasure-Home School Administration
         const socketIO = realtimeService.getIO();
         if (socketIO && result.affectedClassIds.length > 0) {
           socketIO.emit('subject-assignments-updated', {
+            eventType: 'subject-assignments-updated',
             affectedClassIds: result.affectedClassIds,
             added: result.added,
             removed: result.removed,
