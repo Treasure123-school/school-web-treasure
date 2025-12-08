@@ -129,11 +129,15 @@ export default function UnifiedSubjectAssignment() {
     );
   };
 
-  const toggleSubjectAssignment = (classId: number, subjectId: number, department: string | null = null) => {
+  const toggleSubjectAssignment = (classId: number, subjectId: number, department: string | null = null, checked?: boolean | 'indeterminate') => {
+    if (checked === 'indeterminate') return;
+    
     const key = getAssignmentKey(classId, subjectId, department);
     const isCurrentlyAssigned = isSubjectAssigned(classId, subjectId, department);
     
-    if (isCurrentlyAssigned) {
+    const shouldAssign = checked === true ? true : checked === false ? false : !isCurrentlyAssigned;
+    
+    if (!shouldAssign) {
       const existsInDB = currentAssignments.some(a => 
         a.classId === classId && 
         a.subjectId === subjectId && 
@@ -169,7 +173,9 @@ export default function UnifiedSubjectAssignment() {
     }
   };
 
-  const toggleAllJSSSubjects = (subjectId: number, checked: boolean) => {
+  const toggleAllJSSSubjects = (subjectId: number, checked: boolean | 'indeterminate') => {
+    if (checked === 'indeterminate') return;
+    
     jssClasses.forEach(cls => {
       const key = getAssignmentKey(cls.id, subjectId, null);
       const isCurrentlyAssigned = isSubjectAssigned(cls.id, subjectId, null);
@@ -202,7 +208,9 @@ export default function UnifiedSubjectAssignment() {
     });
   };
 
-  const toggleAllSSSSubjectsForDept = (subjectId: number, department: string, checked: boolean) => {
+  const toggleAllSSSSubjectsForDept = (subjectId: number, department: string, checked: boolean | 'indeterminate') => {
+    if (checked === 'indeterminate') return;
+    
     sssClasses.forEach(cls => {
       const key = getAssignmentKey(cls.id, subjectId, department);
       const isCurrentlyAssigned = isSubjectAssigned(cls.id, subjectId, department);
@@ -335,7 +343,7 @@ export default function UnifiedSubjectAssignment() {
           id={key}
           checked={isAssigned}
           disabled={isSaving}
-          onCheckedChange={() => toggleSubjectAssignment(classId, subject.id, department)}
+          onCheckedChange={(checked) => toggleSubjectAssignment(classId, subject.id, department, checked)}
           data-testid={`checkbox-subject-${subject.id}-class-${classId}${department ? `-dept-${department}` : ''}`}
         />
         <label htmlFor={key} className={`flex items-center gap-2 text-sm flex-1 ${isSaving ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
@@ -479,7 +487,7 @@ export default function UnifiedSubjectAssignment() {
                               <Checkbox
                                 id={`jss-all-${subject.id}`}
                                 checked={areAllJSSAssigned(subject.id)}
-                                onCheckedChange={(checked) => toggleAllJSSSubjects(subject.id, !!checked)}
+                                onCheckedChange={(checked) => toggleAllJSSSubjects(subject.id, checked)}
                                 data-testid={`checkbox-jss-all-${subject.id}`}
                               />
                               <label htmlFor={`jss-all-${subject.id}`} className="text-sm cursor-pointer">
@@ -569,7 +577,7 @@ export default function UnifiedSubjectAssignment() {
                                       <Checkbox
                                         id={`sss-${dept}-all-general-${subject.id}`}
                                         checked={areAllSSSAssignedForDept(subject.id, dept)}
-                                        onCheckedChange={(checked) => toggleAllSSSSubjectsForDept(subject.id, dept, !!checked)}
+                                        onCheckedChange={(checked) => toggleAllSSSSubjectsForDept(subject.id, dept, checked)}
                                         data-testid={`checkbox-sss-${dept}-all-${subject.id}`}
                                       />
                                       <label htmlFor={`sss-${dept}-all-general-${subject.id}`} className="text-sm cursor-pointer">
@@ -587,7 +595,7 @@ export default function UnifiedSubjectAssignment() {
                                       <Checkbox
                                         id={`sss-${dept}-all-${subject.id}`}
                                         checked={areAllSSSAssignedForDept(subject.id, dept)}
-                                        onCheckedChange={(checked) => toggleAllSSSSubjectsForDept(subject.id, dept, !!checked)}
+                                        onCheckedChange={(checked) => toggleAllSSSSubjectsForDept(subject.id, dept, checked)}
                                         data-testid={`checkbox-sss-${dept}-all-specific-${subject.id}`}
                                       />
                                       <label htmlFor={`sss-${dept}-all-${subject.id}`} className="text-sm cursor-pointer">
