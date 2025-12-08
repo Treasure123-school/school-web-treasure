@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -157,11 +156,7 @@ export default function PerformanceMonitoring() {
   };
 
   return (
-    <PortalLayout 
-      userRole="admin" 
-      userName={`${user.firstName} ${user.lastName}`}
-      userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-    >
+    <>
       <div className="space-y-4 sm:space-y-6" data-testid="performance-monitoring-page">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
@@ -434,6 +429,6 @@ export default function PerformanceMonitoring() {
           Last updated: {new Date().toLocaleString()}
         </div>
       </div>
-    </PortalLayout>
+    </>
   );
 }

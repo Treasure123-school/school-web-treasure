@@ -14,7 +14,6 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit, Search, BookOpen, Trash2, GraduationCap, Palette, Briefcase, BookMarked } from 'lucide-react';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 
@@ -273,7 +272,7 @@ export default function SubjectsManagement() {
   };
 
   return (
-    <PortalLayout userRole={userRole} userName={userName} userInitials={userInitials}>
+    <>
       <div className="space-y-6" data-testid="subjects-management">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Subjects Management</h1>
@@ -560,6 +559,6 @@ export default function SubjectsManagement() {
         </Dialog>
       )}
       </div>
-    </PortalLayout>
+    </>
   );
 }

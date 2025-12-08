@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { StatsCard } from '@/components/ui/stats-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -246,11 +245,7 @@ export default function ParentDashboard() {
   ];
 
   return (
-    <PortalLayout
-      userRole="parent"
-      userName={`${user.firstName} ${user.lastName}`}
-      userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-    >
+    <>
       <div className="space-y-6 sm:space-y-8">
         {/* Parent Role Header - Brand Identity */}
         <div className="mb-6 bg-gradient-to-r from-amber-600 via-orange-600 to-yellow-600 rounded-2xl p-6 text-white shadow-xl" data-testid="parent-role-header">
@@ -738,6 +733,6 @@ export default function ParentDashboard() {
           </Card>
         </div>
       </div>
-    </PortalLayout>
+    </>
   );
 }

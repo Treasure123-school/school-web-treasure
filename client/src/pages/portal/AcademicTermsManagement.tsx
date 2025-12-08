@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -275,11 +274,7 @@ export default function AcademicTermsManagement() {
   }
 
   return (
-    <PortalLayout
-      userRole={getRoleName(user.roleId)}
-      userName={user.firstName + ' ' + user.lastName}
-      userInitials={user.firstName.charAt(0) + user.lastName.charAt(0)}
-    >
+    <>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
@@ -474,6 +469,6 @@ export default function AcademicTermsManagement() {
           </CardContent>
         </Card>
       </div>
-    </PortalLayout>
+    </>
   );
 }

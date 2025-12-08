@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -218,11 +217,7 @@ export default function VacancyManagement() {
   if (!user) return null;
 
   return (
-    <PortalLayout
-      userRole="admin"
-      userName={`${user.firstName} ${user.lastName}`}
-      userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-    >
+    <>
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Job Vacancies & Applications</h1>
@@ -620,6 +615,6 @@ export default function VacancyManagement() {
           </Dialog>
         )}
       </div>
-    </PortalLayout>
+    </>
   );
 }

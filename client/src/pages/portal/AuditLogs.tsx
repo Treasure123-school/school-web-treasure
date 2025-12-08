@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
-import PortalLayout from "@/components/layout/PortalLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -121,11 +120,7 @@ export default function AuditLogs() {
   };
 
   return (
-    <PortalLayout 
-      userRole="admin" 
-      userName={`${user.firstName} ${user.lastName}`}
-      userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-    >
+    <>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -237,6 +232,6 @@ export default function AuditLogs() {
           </CardContent>
         </Card>
       </div>
-    </PortalLayout>
+    </>
   );
 }

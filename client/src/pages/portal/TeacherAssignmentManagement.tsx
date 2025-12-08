@@ -14,7 +14,6 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import { Search, Plus, Edit, Trash2, History, Users, BookOpen, GraduationCap, CheckCircle, XCircle, AlertTriangle, Clock, Filter } from 'lucide-react';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
 import { ROLE_IDS } from '@/lib/roles';
 import { isSeniorSecondaryClass } from '@/lib/utils';
@@ -333,7 +332,7 @@ export default function TeacherAssignmentManagement() {
   }, [assignments]);
 
   return (
-    <PortalLayout userRole={userRole} userName={userName} userInitials={userInitials}>
+    <>
       <div className="p-6 space-y-6" data-testid="teacher-assignment-management">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -922,6 +921,6 @@ export default function TeacherAssignmentManagement() {
           </DialogContent>
         </Dialog>
       </div>
-    </PortalLayout>
+    </>
   );
 }

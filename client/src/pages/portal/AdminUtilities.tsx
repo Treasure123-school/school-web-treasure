@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, CheckCircle, XCircle } from "lucide-react";
-import PortalLayout from "@/components/layout/PortalLayout";
 
 export default function AdminUtilities() {
   const { user } = useAuth();
@@ -39,11 +38,7 @@ export default function AdminUtilities() {
     return <div>Please log in to access admin utilities.</div>;
   }
   return (
-    <PortalLayout 
-      userRole="admin" 
-      userName={`${user.firstName} ${user.lastName}`}
-      userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-    >
+    <>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Admin Utilities</h1>
@@ -79,6 +74,6 @@ export default function AdminUtilities() {
           </CardContent>
         </Card>
       </div>
-    </PortalLayout>
+    </>
   );
 }

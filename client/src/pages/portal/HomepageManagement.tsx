@@ -11,7 +11,6 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { getApiUrl } from '@/config/api';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { useAuth } from '@/lib/auth';
 import type { HomePageContent } from '@shared/schema';
 
@@ -262,11 +261,7 @@ export default function HomepageManagement() {
     return <div>Loading...</div>;
   }
   return (
-    <PortalLayout 
-      userRole="admin" 
-      userName={`${user.firstName} ${user.lastName}`}
-      userInitials={`${user.firstName[0]}${user.lastName[0]}`}
-    >
+    <>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
@@ -523,6 +518,6 @@ export default function HomepageManagement() {
           </CardContent>
         </Card>
       </div>
-    </PortalLayout>
+    </>
   );
 }

@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-import PortalLayout from '@/components/layout/PortalLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,11 +73,7 @@ export default function AdminExamOverview() {
   const draftExams = exams.filter(e => !e.isPublished).length;
 
   return (
-    <PortalLayout
-      userRole="admin"
-      userName={userName}
-      userInitials={userInitials}
-    >
+    <>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
@@ -256,6 +251,6 @@ export default function AdminExamOverview() {
           </CardContent>
         </Card>
       </div>
-    </PortalLayout>
+    </>
   );
 }
