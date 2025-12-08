@@ -8745,14 +8745,38 @@ Treasure-Home School Administration
         const term = await storage.getAcademicTerm(Number(termId));
         const exams = await storage.getExamsByClassAndTerm(student.classId, Number(termId));
         
-        // Get subjects that have exams for this class/term (represents class curriculum)
-        const classSubjectIds = new Set(exams.map(e => e.subjectId));
-        const allSubjects = await storage.getSubjects();
-        const classSubjects = allSubjects.filter(s => classSubjectIds.has(s.id));
+        // PRIMARY SOURCE: Use class_subject_mappings as the single source of truth for report card subjects
+        // This ensures report cards show the same subjects as the admin configured
+        const classLevel = studentClass?.level ?? '';
+        const isSSS = studentClass?.name?.startsWith('SS') || classLevel.includes('Senior Secondary');
+        
+        let mappings;
+        if (isSSS && student.department) {
+          mappings = await storage.getClassSubjectMappings(student.classId, student.department);
+        } else {
+          mappings = await storage.getClassSubjectMappings(student.classId);
+        }
+        
+        // Get subject details for each mapping
+        const classSubjects: any[] = [];
+        for (const mapping of mappings) {
+          const subject = await storage.getSubject(mapping.subjectId);
+          if (subject && subject.isActive) {
+            classSubjects.push(subject);
+          }
+        }
+        
+        // Fallback to exam-based subjects if no mappings exist (backwards compatibility)
+        if (classSubjects.length === 0) {
+          console.log(`[REPORT-CARD] No class-subject mappings for ${studentClass?.name}, falling back to exam-based subjects`);
+          const classSubjectIds = new Set(exams.map(e => e.subjectId));
+          const allSubjects = await storage.getSubjects();
+          classSubjects.push(...allSubjects.filter(s => classSubjectIds.has(s.id)));
+        }
 
         const subjectScores: Record<number, { testScores: number[], testMax: number[], examScores: number[], examMax: number[], subjectName: string, hasData: boolean }> = {};
 
-        // Initialize with all class subjects
+        // Initialize with all class subjects from mappings
         for (const subject of classSubjects) {
           subjectScores[subject.id] = {
             testScores: [],
@@ -10688,6 +10712,7 @@ Treasure-Home School Administration
     });
 
     // Get current student's assigned subjects (for student portal)
+    // Uses class_subject_mappings as the single source of truth
     app.get('/api/my-subjects', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req: Request, res: Response) => {
       try {
         const userId = req.user!.id;
@@ -10698,22 +10723,58 @@ Treasure-Home School Administration
           return res.status(404).json({ message: 'Student profile not found' });
         }
         
-        // Get assigned subjects
-        const assignments = await storage.getStudentSubjectAssignments(student.id);
+        if (!student.classId) {
+          return res.json([]);
+        }
+        
+        // Get class info to determine if it's JSS or SSS
+        const classInfo = await storage.getClass(student.classId);
+        if (!classInfo) {
+          return res.json([]);
+        }
+        
+        // PRIMARY SOURCE: Use class_subject_mappings as the single source of truth
+        // For JSS: get all mappings with department = null
+        // For SSS: get mappings with department matching student's department OR null (general subjects shared with that dept)
+        const level = classInfo?.level ?? '';
+        const isSSS = classInfo?.name?.startsWith('SS') || level.includes('Senior Secondary');
+        
+        let mappings;
+        if (isSSS && student.department) {
+          // For SSS students with a department, get mappings for their specific department
+          mappings = await storage.getClassSubjectMappings(student.classId, student.department);
+        } else {
+          // For JSS students or SSS students without department, get mappings with department = null
+          mappings = await storage.getClassSubjectMappings(student.classId);
+        }
+        
+        // If no mappings exist yet for this class, return empty array
+        // This ensures admin must configure subjects first
+        if (mappings.length === 0) {
+          console.log(`[MY-SUBJECTS] No class-subject mappings found for class ${classInfo.name}${student.department ? ` (${student.department})` : ''}`);
+          return res.json([]);
+        }
         
         // Enrich with subject details
-        const enrichedAssignments = await Promise.all(assignments.map(async (assignment) => {
-          const subject = await storage.getSubject(assignment.subjectId);
+        const enrichedSubjects = await Promise.all(mappings.map(async (mapping) => {
+          const subject = await storage.getSubject(mapping.subjectId);
           return {
-            id: assignment.id,
-            subjectId: assignment.subjectId,
+            id: mapping.id, // Use mapping ID for consistency
+            subjectId: mapping.subjectId,
             subjectName: subject?.name,
             subjectCode: subject?.code,
-            category: subject?.category || 'general'
+            category: subject?.category || 'general',
+            isCompulsory: mapping.isCompulsory,
+            department: mapping.department
           };
         }));
         
-        res.json(enrichedAssignments);
+        // Filter out any entries where subject wasn't found
+        const validSubjects = enrichedSubjects.filter(s => s.subjectName);
+        
+        console.log(`[MY-SUBJECTS] Returned ${validSubjects.length} subjects for student in ${classInfo.name}${student.department ? ` (${student.department})` : ''}`);
+        
+        res.json(validSubjects);
       } catch (error: any) {
         console.error('Error fetching my subjects:', error);
         res.status(500).json({ message: error.message || 'Failed to fetch subjects' });
@@ -10721,6 +10782,7 @@ Treasure-Home School Administration
     });
 
     // Get teachers for current student's subjects (for student portal)
+    // Uses class_subject_mappings as the single source of truth
     app.get('/api/my-subject-teachers', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req: Request, res: Response) => {
       try {
         const userId = req.user!.id;
@@ -10735,18 +10797,32 @@ Treasure-Home School Administration
           return res.json({});
         }
         
-        // Get assigned subjects
-        const assignments = await storage.getStudentSubjectAssignments(student.id);
+        // Get class info to determine if it's JSS or SSS
+        const classInfo = await storage.getClass(student.classId);
+        if (!classInfo) {
+          return res.json({});
+        }
         
-        // Get teachers for each subject in the student's class
+        // Use class_subject_mappings as the single source of truth
+        const level = classInfo?.level ?? '';
+        const isSSS = classInfo?.name?.startsWith('SS') || level.includes('Senior Secondary');
+        
+        let mappings;
+        if (isSSS && student.department) {
+          mappings = await storage.getClassSubjectMappings(student.classId, student.department);
+        } else {
+          mappings = await storage.getClassSubjectMappings(student.classId);
+        }
+        
+        // Get teachers for each mapped subject
         const teacherMap: Record<number, any> = {};
         
-        for (const assignment of assignments) {
+        for (const mapping of mappings) {
           try {
-            const teachers = await storage.getTeachersForClassSubject(student.classId, assignment.subjectId);
+            const teachers = await storage.getTeachersForClassSubject(student.classId, mapping.subjectId);
             if (teachers && teachers.length > 0) {
               const teacher = teachers[0];
-              teacherMap[assignment.subjectId] = {
+              teacherMap[mapping.subjectId] = {
                 id: teacher.id,
                 firstName: teacher.firstName,
                 lastName: teacher.lastName,
