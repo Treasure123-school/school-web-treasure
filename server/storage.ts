@@ -504,6 +504,7 @@ export interface IStorage {
   getSubjectsByClassAndDepartment(classId: number, department?: string): Promise<Subject[]>;
   deleteClassSubjectMapping(id: number): Promise<boolean>;
   deleteClassSubjectMappingsByClass(classId: number): Promise<boolean>;
+  bulkUpdateClassSubjectMappings(additions: Array<{classId: number; subjectId: number; department: string | null; isCompulsory?: boolean}>, removals: Array<{classId: number; subjectId: number; department: string | null}>): Promise<{added: number; removed: number; affectedClassIds: number[]}>;
 
   // Department-based subject logic
   getSubjectsByCategory(category: string): Promise<Subject[]>;
@@ -6773,6 +6774,83 @@ export class DatabaseStorage implements IStorage {
       .delete(schema.classSubjectMappings)
       .where(eq(schema.classSubjectMappings.classId, classId));
     return true;
+  }
+
+  async bulkUpdateClassSubjectMappings(
+    additions: Array<{classId: number; subjectId: number; department: string | null; isCompulsory?: boolean}>,
+    removals: Array<{classId: number; subjectId: number; department: string | null}>
+  ): Promise<{added: number; removed: number; affectedClassIds: number[]}> {
+    // Use transaction for atomic updates - all changes commit or rollback together
+    return await this.db.transaction(async (tx: any) => {
+      const affectedClassIds = new Set<number>();
+      let addedCount = 0;
+      let removedCount = 0;
+
+      // Process removals first (within transaction)
+      for (const removal of removals) {
+        const { classId, subjectId, department } = removal;
+        if (!classId || !subjectId) continue;
+        
+        affectedClassIds.add(classId);
+        
+        // Delete matching mapping
+        if (department === null) {
+          const result = await tx
+            .delete(schema.classSubjectMappings)
+            .where(
+              and(
+                eq(schema.classSubjectMappings.classId, classId),
+                eq(schema.classSubjectMappings.subjectId, subjectId),
+                sql`${schema.classSubjectMappings.department} IS NULL`
+              )
+            )
+            .returning();
+          removedCount += result.length;
+        } else {
+          const result = await tx
+            .delete(schema.classSubjectMappings)
+            .where(
+              and(
+                eq(schema.classSubjectMappings.classId, classId),
+                eq(schema.classSubjectMappings.subjectId, subjectId),
+                eq(schema.classSubjectMappings.department, department)
+              )
+            )
+            .returning();
+          removedCount += result.length;
+        }
+      }
+
+      // Process additions (within transaction)
+      for (const addition of additions) {
+        const { classId, subjectId, department, isCompulsory } = addition;
+        if (!classId || !subjectId) continue;
+        
+        affectedClassIds.add(classId);
+        
+        // Use upsert to handle potential conflicts
+        const result = await tx
+          .insert(schema.classSubjectMappings)
+          .values({
+            classId,
+            subjectId,
+            department: department || null,
+            isCompulsory: isCompulsory || false
+          })
+          .onConflictDoNothing()
+          .returning();
+        
+        if (result.length > 0) {
+          addedCount++;
+        }
+      }
+
+      return {
+        added: addedCount,
+        removed: removedCount,
+        affectedClassIds: Array.from(affectedClassIds)
+      };
+    });
   }
 
   // Department-based subject logic implementations

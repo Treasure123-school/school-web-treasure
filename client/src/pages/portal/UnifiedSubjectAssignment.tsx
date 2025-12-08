@@ -329,15 +329,16 @@ export default function UnifiedSubjectAssignment() {
     return (
       <div 
         key={`${classId}-${subject.id}-${department}`}
-        className={`flex items-center gap-2 p-2 rounded-md transition-colors ${isPending ? 'bg-yellow-50 dark:bg-yellow-950/30' : ''}`}
+        className={`flex items-center gap-2 p-2 rounded-md transition-colors ${isPending ? 'bg-yellow-50 dark:bg-yellow-950/30' : ''} ${isSaving ? 'opacity-70' : ''}`}
       >
         <Checkbox
           id={key}
           checked={isAssigned}
+          disabled={isSaving}
           onCheckedChange={() => toggleSubjectAssignment(classId, subject.id, department)}
           data-testid={`checkbox-subject-${subject.id}-class-${classId}${department ? `-dept-${department}` : ''}`}
         />
-        <label htmlFor={key} className="flex items-center gap-2 text-sm cursor-pointer flex-1">
+        <label htmlFor={key} className={`flex items-center gap-2 text-sm flex-1 ${isSaving ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
           <span>{subject.name}</span>
           <Badge className={`text-xs ${config.color}`}>{subject.code}</Badge>
           {isPending && <Badge variant="outline" className="text-xs text-yellow-600">Pending</Badge>}

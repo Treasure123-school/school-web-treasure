@@ -10543,70 +10543,36 @@ Treasure-Home School Administration
           return res.status(400).json({ message: 'additions and/or removals arrays are required' });
         }
 
-        const affectedClassIds = new Set<number>();
-        let addedCount = 0;
-        let removedCount = 0;
-
-        // Process removals first
-        if (Array.isArray(removals) && removals.length > 0) {
-          for (const removal of removals) {
-            const { classId, subjectId, department } = removal;
-            if (!classId || !subjectId) continue;
-            
-            // Find and delete the mapping
-            const existingMappings = await storage.getClassSubjectMappings(classId, department || undefined);
-            const mappingToDelete = existingMappings.find(m => 
-              m.subjectId === subjectId && 
-              (department === null ? m.department === null : m.department === department)
-            );
-            
-            if (mappingToDelete) {
-              await storage.deleteClassSubjectMapping(mappingToDelete.id);
-              affectedClassIds.add(classId);
-              removedCount++;
-            }
-          }
-        }
-
-        // Process additions
-        if (Array.isArray(additions) && additions.length > 0) {
-          for (const addition of additions) {
-            const { classId, subjectId, department, isCompulsory } = addition;
-            if (!classId || !subjectId) continue;
-            
-            // Check if mapping already exists
-            const existingMappings = await storage.getClassSubjectMappings(classId, department || undefined);
-            const alreadyExists = existingMappings.some(m => 
-              m.subjectId === subjectId && 
-              (department === null ? m.department === null : m.department === department)
-            );
-            
-            if (!alreadyExists) {
-              await storage.createClassSubjectMapping({
-                classId,
-                subjectId,
-                department: department || null,
-                isCompulsory: isCompulsory || false
-              });
-              affectedClassIds.add(classId);
-              addedCount++;
-            }
-          }
-        }
+        // Use the bulk update method for atomic operation
+        const result = await storage.bulkUpdateClassSubjectMappings(
+          additions || [],
+          removals || []
+        );
 
         // Invalidate visibility cache for all affected classes
-        for (const classId of affectedClassIds) {
+        for (const classId of result.affectedClassIds) {
           invalidateVisibilityCache({ classId });
         }
 
-        // Invalidate related query caches
-        console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Updated: ${addedCount} added, ${removedCount} removed, ${affectedClassIds.size} classes affected`);
+        // Emit websocket event for real-time propagation to all connected clients
+        const socketIO = realtimeService.getIO();
+        if (socketIO && result.affectedClassIds.length > 0) {
+          socketIO.emit('subject-assignments-updated', {
+            affectedClassIds: result.affectedClassIds,
+            added: result.added,
+            removed: result.removed,
+            timestamp: new Date().toISOString()
+          });
+          console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Emitted websocket event to all clients`);
+        }
+
+        console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Updated: ${result.added} added, ${result.removed} removed, ${result.affectedClassIds.length} classes affected`);
 
         res.json({ 
           message: 'Subject assignments updated successfully',
-          added: addedCount,
-          removed: removedCount,
-          affectedClasses: affectedClassIds.size
+          added: result.added,
+          removed: result.removed,
+          affectedClasses: result.affectedClassIds.length
         });
       } catch (error: any) {
         console.error('Error updating unified subject assignments:', error);
