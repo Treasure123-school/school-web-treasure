@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -128,45 +128,68 @@ export default function UnifiedSubjectAssignment() {
     [classes]
   );
 
-  const getAssignmentKey = (classId: number, subjectId: number, department: string | null) => 
-    `${classId}-${subjectId}-${department || 'null'}`;
+  // Normalize department: treat undefined, empty string, and null as null
+  const normalizeDept = (dept: string | null | undefined): string | null => {
+    if (dept === undefined || dept === null || dept === '') return null;
+    return dept;
+  };
 
-  const isSubjectAssigned = (classId: number, subjectId: number, department: string | null = null): boolean => {
-    const key = getAssignmentKey(classId, subjectId, department);
-    
-    if (pendingRemovals.has(key)) return false;
-    if (pendingChanges.has(key)) return true;
-    
+  const getAssignmentKey = (classId: number, subjectId: number, department: string | null | undefined) => 
+    `${classId}-${subjectId}-${normalizeDept(department) || 'null'}`;
+
+  // Check if assignment exists in database (handles null/undefined/empty department)
+  const existsInDatabase = useCallback((classId: number, subjectId: number, department: string | null | undefined): boolean => {
+    const normalizedDept = normalizeDept(department);
     return currentAssignments.some(a => 
       a.classId === classId && 
       a.subjectId === subjectId && 
-      (department === null ? a.department === null : a.department === department)
+      normalizeDept(a.department) === normalizedDept
     );
-  };
+  }, [currentAssignments]);
 
-  const toggleSubjectAssignment = (classId: number, subjectId: number, department: string | null = null, checked?: boolean | 'indeterminate') => {
+  const isSubjectAssigned = useCallback((classId: number, subjectId: number, department: string | null = null): boolean => {
+    const key = getAssignmentKey(classId, subjectId, department);
+    
+    // Check pending state first (these override DB state)
+    if (pendingRemovals.has(key)) return false;
+    if (pendingChanges.has(key)) return true;
+    
+    // Check database state
+    return existsInDatabase(classId, subjectId, department);
+  }, [pendingRemovals, pendingChanges, existsInDatabase]);
+
+  const toggleSubjectAssignment = useCallback((classId: number, subjectId: number, department: string | null = null, checked?: boolean | 'indeterminate') => {
+    // Skip indeterminate state
     if (checked === 'indeterminate') return;
     
     const key = getAssignmentKey(classId, subjectId, department);
-    const isCurrentlyAssigned = isSubjectAssigned(classId, subjectId, department);
     
-    const shouldAssign = checked === true ? true : checked === false ? false : !isCurrentlyAssigned;
+    // Determine if we should assign based on the checked value
+    // If checked is explicitly true/false, use that; otherwise toggle
+    const shouldAssign = typeof checked === 'boolean' ? checked : !isSubjectAssigned(classId, subjectId, department);
     
-    if (!shouldAssign) {
-      const existsInDB = currentAssignments.some(a => 
-        a.classId === classId && 
-        a.subjectId === subjectId && 
-        (department === null ? a.department === null : a.department === department)
-      );
+    if (shouldAssign) {
+      // ASSIGN: Remove from pending removals and add to pending changes
+      setPendingRemovals(prev => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
       
-      if (existsInDB) {
-        setPendingRemovals(prev => new Set([...prev, key]));
+      // Only add to pendingChanges if not already in DB
+      if (!existsInDatabase(classId, subjectId, department)) {
         setPendingChanges(prev => {
           const next = new Map(prev);
-          next.delete(key);
+          next.set(key, {
+            classId,
+            subjectId,
+            department: normalizeDept(department),
+            isCompulsory: false
+          });
           return next;
         });
       } else {
+        // It exists in DB and we're assigning, just remove from pending changes if it was there
         setPendingChanges(prev => {
           const next = new Map(prev);
           next.delete(key);
@@ -174,97 +197,127 @@ export default function UnifiedSubjectAssignment() {
         });
       }
     } else {
-      setPendingRemovals(prev => {
-        const next = new Set(prev);
+      // UNASSIGN: Remove from pending changes and possibly add to pending removals
+      setPendingChanges(prev => {
+        const next = new Map(prev);
         next.delete(key);
         return next;
       });
-      setPendingChanges(prev => new Map(prev).set(key, {
-        classId,
-        subjectId,
-        department,
-        isCompulsory: false
-      }));
+      
+      // Only add to pendingRemovals if it exists in DB
+      if (existsInDatabase(classId, subjectId, department)) {
+        setPendingRemovals(prev => new Set([...prev, key]));
+      }
     }
-  };
+  }, [isSubjectAssigned, existsInDatabase]);
 
-  const toggleAllJSSSubjects = (subjectId: number, checked: boolean | 'indeterminate') => {
+  const toggleAllJSSSubjects = useCallback((subjectId: number, checked: boolean | 'indeterminate') => {
     if (checked === 'indeterminate') return;
     
-    jssClasses.forEach(cls => {
-      const key = getAssignmentKey(cls.id, subjectId, null);
-      const isCurrentlyAssigned = isSubjectAssigned(cls.id, subjectId, null);
-      
-      if (checked && !isCurrentlyAssigned) {
-        setPendingRemovals(prev => {
-          const next = new Set(prev);
-          next.delete(key);
-          return next;
-        });
-        setPendingChanges(prev => new Map(prev).set(key, {
-          classId: cls.id,
-          subjectId,
-          department: null,
-          isCompulsory: false
-        }));
-      } else if (!checked && isCurrentlyAssigned) {
-        const existsInDB = currentAssignments.some(a => 
-          a.classId === cls.id && a.subjectId === subjectId && a.department === null
-        );
-        if (existsInDB) {
-          setPendingRemovals(prev => new Set([...prev, key]));
+    // Use functional updates to avoid stale state
+    setPendingChanges(prevChanges => {
+      const newChanges = new Map(prevChanges);
+      jssClasses.forEach(cls => {
+        const key = getAssignmentKey(cls.id, subjectId, null);
+        const inDB = existsInDatabase(cls.id, subjectId, null);
+        
+        if (checked) {
+          // Add to changes only if not in DB
+          if (!inDB) {
+            newChanges.set(key, {
+              classId: cls.id,
+              subjectId,
+              department: null,
+              isCompulsory: false
+            });
+          } else {
+            newChanges.delete(key);
+          }
+        } else {
+          // Remove from changes
+          newChanges.delete(key);
         }
-        setPendingChanges(prev => {
-          const next = new Map(prev);
-          next.delete(key);
-          return next;
-        });
-      }
+      });
+      return newChanges;
     });
-  };
+    
+    setPendingRemovals(prevRemovals => {
+      const newRemovals = new Set(prevRemovals);
+      jssClasses.forEach(cls => {
+        const key = getAssignmentKey(cls.id, subjectId, null);
+        const inDB = existsInDatabase(cls.id, subjectId, null);
+        
+        if (checked) {
+          // Remove from removals when assigning
+          newRemovals.delete(key);
+        } else {
+          // Add to removals only if in DB
+          if (inDB) {
+            newRemovals.add(key);
+          }
+        }
+      });
+      return newRemovals;
+    });
+  }, [jssClasses, existsInDatabase]);
 
-  const toggleAllSSSSubjectsForDept = (subjectId: number, department: string, checked: boolean | 'indeterminate') => {
+  const toggleAllSSSSubjectsForDept = useCallback((subjectId: number, department: string, checked: boolean | 'indeterminate') => {
     if (checked === 'indeterminate') return;
     
-    sssClasses.forEach(cls => {
-      const key = getAssignmentKey(cls.id, subjectId, department);
-      const isCurrentlyAssigned = isSubjectAssigned(cls.id, subjectId, department);
-      
-      if (checked && !isCurrentlyAssigned) {
-        setPendingRemovals(prev => {
-          const next = new Set(prev);
-          next.delete(key);
-          return next;
-        });
-        setPendingChanges(prev => new Map(prev).set(key, {
-          classId: cls.id,
-          subjectId,
-          department,
-          isCompulsory: false
-        }));
-      } else if (!checked && isCurrentlyAssigned) {
-        const existsInDB = currentAssignments.some(a => 
-          a.classId === cls.id && a.subjectId === subjectId && a.department === department
-        );
-        if (existsInDB) {
-          setPendingRemovals(prev => new Set([...prev, key]));
+    // Use functional updates to avoid stale state
+    setPendingChanges(prevChanges => {
+      const newChanges = new Map(prevChanges);
+      sssClasses.forEach(cls => {
+        const key = getAssignmentKey(cls.id, subjectId, department);
+        const inDB = existsInDatabase(cls.id, subjectId, department);
+        
+        if (checked) {
+          // Add to changes only if not in DB
+          if (!inDB) {
+            newChanges.set(key, {
+              classId: cls.id,
+              subjectId,
+              department,
+              isCompulsory: false
+            });
+          } else {
+            newChanges.delete(key);
+          }
+        } else {
+          // Remove from changes
+          newChanges.delete(key);
         }
-        setPendingChanges(prev => {
-          const next = new Map(prev);
-          next.delete(key);
-          return next;
-        });
-      }
+      });
+      return newChanges;
     });
-  };
+    
+    setPendingRemovals(prevRemovals => {
+      const newRemovals = new Set(prevRemovals);
+      sssClasses.forEach(cls => {
+        const key = getAssignmentKey(cls.id, subjectId, department);
+        const inDB = existsInDatabase(cls.id, subjectId, department);
+        
+        if (checked) {
+          // Remove from removals when assigning
+          newRemovals.delete(key);
+        } else {
+          // Add to removals only if in DB
+          if (inDB) {
+            newRemovals.add(key);
+          }
+        }
+      });
+      return newRemovals;
+    });
+  }, [sssClasses, existsInDatabase]);
 
-  const areAllJSSAssigned = (subjectId: number): boolean => {
+  const areAllJSSAssigned = useCallback((subjectId: number): boolean => {
     return jssClasses.every(cls => isSubjectAssigned(cls.id, subjectId, null));
-  };
+  }, [jssClasses, isSubjectAssigned]);
 
-  const areAllSSSAssignedForDept = (subjectId: number, department: string): boolean => {
+  const areAllSSSAssignedForDept = useCallback((subjectId: number, department: string): boolean => {
     return sssClasses.every(cls => isSubjectAssigned(cls.id, subjectId, department));
-  };
+  }, [sssClasses, isSubjectAssigned]);
 
   const hasPendingChanges = pendingChanges.size > 0 || pendingRemovals.size > 0;
 
