@@ -141,31 +141,16 @@ export default function UnifiedSubjectAssignment() {
   }, [sssClasses]);
 
   // Check if assignment exists in database (handles null/undefined/empty department)
-  // For SSS classes: also returns true if a NULL-department record exists (legacy data support)
   const existsInDatabase = useCallback((classId: number, subjectId: number, department: string | null | undefined): boolean => {
     const normalizedDept = normalizeDept(department);
     
-    // First check for exact match
-    const exactMatch = currentAssignments.some(a => 
+    // Check for exact match only - no legacy NULL-department fallback
+    return currentAssignments.some(a => 
       a.classId === classId && 
       a.subjectId === subjectId && 
       normalizeDept(a.department) === normalizedDept
     );
-    
-    if (exactMatch) return true;
-    
-    // For SSS classes with a specific department request, also check for NULL-department records
-    // This handles legacy data where SSS assignments were stored without department
-    if (normalizedDept !== null && isSSSClass(classId)) {
-      return currentAssignments.some(a => 
-        a.classId === classId && 
-        a.subjectId === subjectId && 
-        normalizeDept(a.department) === null
-      );
-    }
-    
-    return false;
-  }, [currentAssignments, isSSSClass]);
+  }, [currentAssignments]);
 
   // Check if a NULL-department record exists for this class/subject (for removal handling)
   const hasNullDepartmentRecord = useCallback((classId: number, subjectId: number): boolean => {
