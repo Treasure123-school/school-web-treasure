@@ -14,7 +14,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Search, Users, BookOpen, Plus, Trash2, Loader2, GraduationCap, User, Info } from 'lucide-react';
-import SuperAdminLayout from '@/components/SuperAdminLayout';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 
 export default function AssignSubjectTeachers() {
@@ -271,7 +270,6 @@ export default function AssignSubjectTeachers() {
   }, {});
 
   return (
-    <SuperAdminLayout>
       <div className="space-y-6" data-testid="assign-subject-teachers">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <div>
@@ -556,6 +554,5 @@ export default function AssignSubjectTeachers() {
           </Card>
         </div>
       </div>
-    </SuperAdminLayout>
   );
 }

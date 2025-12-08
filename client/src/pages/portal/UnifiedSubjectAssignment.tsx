@@ -27,8 +27,6 @@ import {
   Wifi,
   WifiOff
 } from 'lucide-react';
-import SuperAdminLayout from '@/components/SuperAdminLayout';
-
 const JSS_CLASSES = ['JSS1', 'JSS2', 'JSS3'];
 const SSS_CLASSES = ['SS1', 'SS2', 'SS3'];
 const DEPARTMENTS = ['science', 'art', 'commercial'] as const;
@@ -447,7 +445,6 @@ export default function UnifiedSubjectAssignment() {
   };
 
   return (
-    <SuperAdminLayout>
       <div className="space-y-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -746,6 +743,5 @@ export default function UnifiedSubjectAssignment() {
           </div>
         )}
       </div>
-    </SuperAdminLayout>
   );
 }

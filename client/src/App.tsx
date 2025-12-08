@@ -10,6 +10,7 @@ import { ROLE_IDS } from "@/lib/roles";
 import { MinimalRouteFallback } from "@/components/ui/skeletons";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import { StudentPortalShell, TeacherPortalShell, AdminPortalShell, ParentPortalShell } from "@/components/layout/PortalShells";
+import SuperAdminLayout from "@/components/SuperAdminLayout";
 
 // Public pages - eagerly loaded for instant navigation
 import Home from "@/pages/Home";
@@ -154,17 +155,23 @@ function Router() {
       {/* Super Admin Subject Manager Routes */}
       <Route path="/portal/superadmin/subject-manager/subjects">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
-          <SubjectsManagement />
+          <SuperAdminLayout>
+            <SubjectsManagement />
+          </SuperAdminLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/portal/superadmin/subject-manager/unified-assignment">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
-          <UnifiedSubjectAssignment />
+          <SuperAdminLayout>
+            <UnifiedSubjectAssignment />
+          </SuperAdminLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/portal/superadmin/subject-manager/assign-teachers">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
-          <AssignSubjectTeachers />
+          <SuperAdminLayout>
+            <AssignSubjectTeachers />
+          </SuperAdminLayout>
         </ProtectedRoute>
       </Route>
 
