@@ -5138,43 +5138,34 @@ export class DatabaseStorage implements IStorage {
             ));
           console.log(`[REPORT-CARD-SYNC] Using ${relevantSubjects.length} subjects from student's personal assignments`);
         } else {
-          // PRIORITY 2: Fall back to class-level subject assignments via teacher_class_assignments
-          const classSubjectAssignments = await db.select({ subjectId: schema.teacherClassAssignments.subjectId })
-            .from(schema.teacherClassAssignments)
-            .where(and(
-              eq(schema.teacherClassAssignments.classId, classId),
-              eq(schema.teacherClassAssignments.isActive, true)
-            ));
+          // PRIORITY 2: Use class_subject_mappings as single source of truth (consistent with student portal)
+          // This uses the same source as /api/my-subjects endpoint
+          relevantSubjects = await this.getSubjectsByClassAndDepartment(classId, studentDepartment);
           
-          const assignedSubjectIds = new Set(classSubjectAssignments.map((a: { subjectId: number }) => a.subjectId));
-          const hasClassAssignedSubjects = assignedSubjectIds.size > 0;
-          
-          // Get all active subjects
-          const allSubjects = await db.select()
-            .from(schema.subjects)
-            .where(eq(schema.subjects.isActive, true));
+          if (relevantSubjects.length > 0) {
+            console.log(`[REPORT-CARD-SYNC] Using ${relevantSubjects.length} subjects from class_subject_mappings (department: ${studentDepartment || 'none'})`);
+          } else {
+            // PRIORITY 3: Fall back to category-based filtering only if no mappings exist
+            const allSubjects = await db.select()
+              .from(schema.subjects)
+              .where(eq(schema.subjects.isActive, true));
 
-          // Filter subjects based on class assignments (if available) and department rules
-          relevantSubjects = allSubjects.filter((subject: any) => {
-            const category = (subject.category || 'general').trim().toLowerCase();
-            
-            // If class has assigned subjects, only include those
-            if (hasClassAssignedSubjects && !assignedSubjectIds.has(subject.id)) {
-              return false;
-            }
-            
-            if (isSeniorSecondary && studentDepartment) {
-              // SS student with department: include general + department subjects
-              return category === 'general' || category === studentDepartment;
-            } else if (isSeniorSecondary && !studentDepartment) {
-              // SS student without department: include only general subjects (awaiting department assignment)
-              return category === 'general';
-            } else {
-              // Non-SS student: include all (assigned) subjects
-              return true;
-            }
-          });
-          console.log(`[REPORT-CARD-SYNC] Using ${relevantSubjects.length} subjects from class-level filtering (${hasClassAssignedSubjects ? 'with teacher assignments' : 'department-only'})`);
+            relevantSubjects = allSubjects.filter((subject: any) => {
+              const category = (subject.category || 'general').trim().toLowerCase();
+              
+              if (isSeniorSecondary && studentDepartment) {
+                // SS student with department: include general + department subjects
+                return category === 'general' || category === studentDepartment;
+              } else if (isSeniorSecondary && !studentDepartment) {
+                // SS student without department: include only general subjects
+                return category === 'general';
+              } else {
+                // Non-SS student (JSS): include only general subjects
+                return category === 'general';
+              }
+            });
+            console.log(`[REPORT-CARD-SYNC] Using ${relevantSubjects.length} subjects from category-based fallback`);
+          }
         }
 
         console.log(`[REPORT-CARD-SYNC] Creating ${relevantSubjects.length} subject items for ${isSeniorSecondary ? `SS ${studentDepartment || 'no-dept'}` : 'non-SS'} student`);
