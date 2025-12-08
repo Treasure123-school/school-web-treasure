@@ -4444,9 +4444,12 @@ export class DatabaseStorage implements IStorage {
         .from(schema.students)
         .where(eq(schema.students.classId, classId));
 
-      // PRIMARY SOURCE: Get class-level subjects from class_subject_mappings table
-      // This is the single source of truth configured via ClassLevelSubjectAssignment page
-      const classMappedSubjects = await this.getSubjectsByClassAndDepartment(classId);
+      // Get class info to determine if this is a Senior Secondary class
+      const classInfo = await this.getClass(classId);
+      const isSeniorSecondary = classInfo && 
+        ['SS1', 'SS2', 'SS3', 'Senior Secondary'].some(level => 
+          classInfo.level?.toLowerCase().includes(level.toLowerCase())
+        );
 
       for (const student of students) {
         try {
@@ -4485,70 +4488,23 @@ export class DatabaseStorage implements IStorage {
           // Get student's department for SS students
           const studentDepartment = (student as any).department;
           
-          // Get student's assigned subjects first (for individual overrides)
-          const studentAssignments = await this.getStudentSubjectAssignments(student.id);
+          // SINGLE SOURCE OF TRUTH: Use class_subject_mappings
+          // For SS students with department, get department-specific subjects
+          // For JSS/other students, get all class subjects (no department filter)
           let subjects: any[];
           
-          if (studentAssignments.length > 0) {
-            // Use student's individual subject assignments (respects department-based assignment)
-            const activeAssignmentIds = studentAssignments
-              .filter(a => a.isActive)
-              .map(a => a.subjectId);
-            
-            subjects = activeAssignmentIds.length > 0 
-              ? await db.select()
-                  .from(schema.subjects)
-                  .where(
-                    and(
-                      inArray(schema.subjects.id, activeAssignmentIds),
-                      eq(schema.subjects.isActive, true)
-                    )
-                  )
-              : [];
+          if (isSeniorSecondary && studentDepartment) {
+            // SS students with department - get department-specific mappings
+            subjects = await this.getSubjectsByClassAndDepartment(classId, studentDepartment);
           } else {
-            // PRIMARY SOURCE: Use class_subject_mappings with student's department
-            // This calls getSubjectsByClassAndDepartment directly with the specific classId
-            const deptMappedSubjects = await this.getSubjectsByClassAndDepartment(classId, studentDepartment);
-            
-            if (deptMappedSubjects.length > 0) {
-              subjects = deptMappedSubjects;
-            } else if (classMappedSubjects.length > 0) {
-              // Use general class mappings (no department filter)
-              subjects = classMappedSubjects;
-            } else {
-              // Final fallback: get subjects by category based on class level
-              const classInfo = await this.getClass(classId);
-              if (classInfo) {
-                const seniorSecondaryLevels = ['SS1', 'SS2', 'SS3'];
-                const isSeniorSecondary = seniorSecondaryLevels.includes(classInfo.level);
-                
-                if (isSeniorSecondary && studentDepartment) {
-                  // For SS students: Get department subjects + general subjects
-                  const categories = ['general', studentDepartment.toLowerCase()];
-                  subjects = await db.select()
-                    .from(schema.subjects)
-                    .where(and(
-                      inArray(schema.subjects.category, categories),
-                      eq(schema.subjects.isActive, true)
-                    ));
-                } else {
-                  // For JSS students: Only general subjects
-                  subjects = await db.select()
-                    .from(schema.subjects)
-                    .where(and(
-                      eq(schema.subjects.category, 'general'),
-                      eq(schema.subjects.isActive, true)
-                    ));
-                }
-              } else {
-                subjects = [];
-              }
-            }
+            // JSS/other students - get all class mappings (no department filter)
+            subjects = await this.getSubjectsByClassAndDepartment(classId);
           }
           
-          // If no valid subjects found after filtering, skip this student
+          // If no subjects assigned for this class/department, log warning and skip
           if (subjects.length === 0) {
-            errors.push(`No active subjects found for student ${student.id}`);
+            console.log(`[REPORT-CARD] No class_subject_mappings found for class ${classId}, department: ${studentDepartment || 'none'}. Admin must assign subjects via Subject Manager.`);
+            errors.push(`No subjects assigned for student ${student.id} (class ${classId}, dept: ${studentDepartment || 'none'}). Admin must configure subjects.`);
             continue;
           }
 
@@ -6858,7 +6814,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSubjectsForClassLevel(classLevel: string, department?: string): Promise<Subject[]> {
-    // PRIMARY SOURCE: Use class_subject_mappings table as single source of truth
+    // SINGLE SOURCE OF TRUTH: Use class_subject_mappings table only
+    // No fallback to category-based logic - admin must assign subjects
     // Find a class with this level and get its mapped subjects
     const classesAtLevel = await this.db
       .select()
@@ -6876,35 +6833,10 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    // FALLBACK: If no mappings exist, use category-based logic
-    // This ensures backwards compatibility during migration
-    const seniorSecondaryLevels = ['SS1', 'SS2', 'SS3'];
-    const isSeniorSecondary = seniorSecondaryLevels.includes(classLevel);
-    
-    if (isSeniorSecondary && department) {
-      // For SS1-SS3: Get department subjects + general subjects
-      const categories = ['general', department.toLowerCase()];
-      return await this.db
-        .select()
-        .from(schema.subjects)
-        .where(
-          and(
-            inArray(schema.subjects.category, categories),
-            eq(schema.subjects.isActive, true)
-          )
-        );
-    } else {
-      // For KG1-JSS3: Only general subjects
-      return await this.db
-        .select()
-        .from(schema.subjects)
-        .where(
-          and(
-            eq(schema.subjects.category, 'general'),
-            eq(schema.subjects.isActive, true)
-          )
-        );
-    }
+    // No fallback - return empty array if no mappings exist
+    // Admin must configure subjects via Subject Manager > Class-Level & Department Assignment
+    console.log(`[SUBJECT-ASSIGNMENT] No class_subject_mappings found for level ${classLevel}, department: ${department || 'none'}. Admin must assign subjects.`);
+    return [];
   }
 
   async autoAssignSubjectsToStudent(
@@ -6923,13 +6855,13 @@ export class DatabaseStorage implements IStorage {
     const termId = currentTerm?.id;
     
     // Get subjects based on class level and department
+    // SINGLE SOURCE OF TRUTH: Only use class_subject_mappings - no fallback
     const subjects = await this.getSubjectsForClassLevel(classInfo.level, department);
     
     if (subjects.length === 0) {
-      // Fallback: get all general subjects if no subjects found
-      const generalSubjects = await this.getSubjectsByCategory('general');
-      const subjectIds = generalSubjects.map(s => s.id);
-      return await this.assignSubjectsToStudent(studentId, classId, subjectIds, termId);
+      // No fallback - admin must configure subjects via Subject Manager
+      console.log(`[AUTO-ASSIGN] No subjects found for class ${classId}, department: ${department || 'none'}. Admin must assign subjects.`);
+      return [];
     }
     
     const subjectIds = subjects.map(s => s.id);

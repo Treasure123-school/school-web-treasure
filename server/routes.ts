@@ -28,6 +28,7 @@ import { uploadFileToStorage, replaceFile, deleteFileFromStorage } from "./uploa
 import teacherAssignmentRoutes from "./teacher-assignment-routes";
 import { validateTeacherCanCreateExam, validateTeacherCanEnterScores, validateTeacherCanViewResults, getTeacherAssignments, validateExamTimeWindow, logExamAccess } from "./teacher-auth-middleware";
 import { getVisibleExamsForStudent, getVisibleExamsForParent, invalidateVisibilityCache, warmVisibilityCache } from "./exam-visibility";
+import { SubjectAssignmentService } from "./services/subject-assignment-service";
 import { performanceCache, PerformanceCache } from "./performance-cache";
 import { enhancedCache, EnhancedCache } from "./enhanced-cache";
 
@@ -10600,6 +10601,7 @@ Treasure-Home School Administration
         // Invalidate visibility cache for all affected classes
         for (const classId of result.affectedClassIds) {
           invalidateVisibilityCache({ classId });
+          SubjectAssignmentService.invalidateClassCache(classId);
         }
 
         // Emit websocket event for real-time propagation to all connected clients

@@ -164,7 +164,8 @@ async function getCachedPublishedExams(): Promise<any[]> {
 
 /**
  * Optimized exam filtering for student context
- * Uses class_subject_mappings as primary source of truth with category fallback
+ * Uses class_subject_mappings as the SINGLE SOURCE OF TRUTH
+ * No fallback to category-based filtering - admin must configure subject assignments
  */
 export function filterExamsForStudentContext(
   exams: any[],
@@ -182,35 +183,14 @@ export function filterExamsForStudentContext(
   
   if (classExams.length === 0) return [];
   
-  // If we have class-subject mappings, use them as primary filter
-  if (mappedSubjectIds && mappedSubjectIds.length > 0) {
-    const validSubjectIds = new Set(mappedSubjectIds);
-    return classExams.filter((exam: any) => validSubjectIds.has(exam.subjectId));
+  // SINGLE SOURCE OF TRUTH: Use class_subject_mappings only
+  // If no mappings exist, no exams are visible (admin must configure subjects)
+  if (!mappedSubjectIds || mappedSubjectIds.length === 0) {
+    console.log(`[EXAM-VISIBILITY] No class_subject_mappings for class ${context.classId}, dept: ${context.department || 'none'}. Student cannot see any exams.`);
+    return [];
   }
   
-  // Fallback to category-based filtering if no mappings configured
-  if (!subjects.length) return [];
-  
-  const isSS = isSeniorSecondaryLevel(context.classLevel);
-  let validSubjectIds: Set<number>;
-  
-  if (isSS && context.department) {
-    // SS students: general + their department subjects
-    validSubjectIds = new Set(
-      subjects
-        .filter(s => s.category === 'general' || s.category === context.department)
-        .map(s => s.id)
-    );
-  } else {
-    // Non-SS students or SS without department: only general subjects
-    validSubjectIds = new Set(
-      subjects
-        .filter(s => s.category === 'general')
-        .map(s => s.id)
-    );
-  }
-  
-  // Filter exams using Set for O(1) lookup
+  const validSubjectIds = new Set(mappedSubjectIds);
   return classExams.filter((exam: any) => validSubjectIds.has(exam.subjectId));
 }
 
