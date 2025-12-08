@@ -10868,6 +10868,7 @@ Treasure-Home School Administration
     });
 
     // Get active exams for current student's subjects (for student portal highlighting)
+    // Uses class_subject_mappings as single source of truth (consistent with /api/my-subjects)
     app.get('/api/my-active-exams', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req: Request, res: Response) => {
       try {
         const userId = req.user!.id;
@@ -10882,13 +10883,30 @@ Treasure-Home School Administration
           return res.json({ activeExams: {}, examCounts: {} });
         }
         
-        // Get assigned subjects - early return if no subjects
-        const assignments = await storage.getStudentSubjectAssignments(student.id);
-        if (assignments.length === 0) {
+        // Get class info to determine if it's JSS or SSS
+        const classInfo = await storage.getClass(student.classId);
+        if (!classInfo) {
           return res.json({ activeExams: {}, examCounts: {} });
         }
         
-        const subjectIds = new Set(assignments.map(a => a.subjectId));
+        // Use class_subject_mappings as single source of truth (consistent with /api/my-subjects)
+        const level = classInfo?.level ?? '';
+        const isSSS = classInfo?.name?.startsWith('SS') || level.includes('Senior Secondary');
+        
+        let mappings;
+        if (isSSS && student.department) {
+          // For SSS students with a department, get mappings for their specific department
+          mappings = await storage.getClassSubjectMappings(student.classId, student.department);
+        } else {
+          // For JSS students or SSS students without department, get mappings with department = null
+          mappings = await storage.getClassSubjectMappings(student.classId);
+        }
+        
+        if (mappings.length === 0) {
+          return res.json({ activeExams: {}, examCounts: {} });
+        }
+        
+        const subjectIds = new Set(mappings.map(m => m.subjectId));
         
         // Get exams scoped to student's class only (efficient database query)
         const classExams = await storage.getExamsByClass(student.classId);
