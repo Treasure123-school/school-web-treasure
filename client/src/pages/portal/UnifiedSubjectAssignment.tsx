@@ -27,8 +27,8 @@ import {
   Wifi,
   WifiOff
 } from 'lucide-react';
-const JSS_CLASSES = ['JSS1', 'JSS2', 'JSS3'];
-const SSS_CLASSES = ['SS1', 'SS2', 'SS3'];
+const JSS_CLASSES = ['JSS1', 'JSS2', 'JSS3', 'JSS 1', 'JSS 2', 'JSS 3'];
+const SSS_CLASSES = ['SS1', 'SS2', 'SS3', 'SS 1', 'SS 2', 'SS 3'];
 const DEPARTMENTS = ['science', 'art', 'commercial'] as const;
 
 const CATEGORY_CONFIG = {
