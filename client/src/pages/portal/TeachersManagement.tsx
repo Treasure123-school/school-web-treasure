@@ -15,9 +15,7 @@ import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { UserPlus, Edit, Search, Mail, Phone, MapPin, GraduationCap, Trash2, Copy, CheckCircle, BookOpen, Plus, X, Briefcase, Palette } from 'lucide-react';
-import PortalLayout from '@/components/layout/PortalLayout';
-import { useAuth } from '@/lib/auth';
+import { UserPlus, Edit, Search, Mail, Phone, GraduationCap, Trash2, Copy, CheckCircle, BookOpen, Plus, X, Briefcase, Palette } from 'lucide-react';
 import { ROLE_IDS } from '@/lib/roles';
 import { isSeniorSecondaryClass } from '@/lib/utils';
 
@@ -25,14 +23,6 @@ const DEPARTMENTS = [
   { value: 'science', label: 'Science', icon: GraduationCap },
   { value: 'art', label: 'Art', icon: Palette },
   { value: 'commercial', label: 'Commercial', icon: Briefcase },
-] as const;
-
-// Subject categories
-const SUBJECT_CATEGORIES = [
-  { value: 'general', label: 'General' },
-  { value: 'science', label: 'Science' },
-  { value: 'art', label: 'Art' },
-  { value: 'commercial', label: 'Commercial' },
 ] as const;
 
 const teacherFormSchema = z.object({
@@ -77,6 +67,11 @@ export default function TeachersManagement() {
   // Create modal assignment state (for creating new teachers with assignments)
   const [createSelectedClassIds, setCreateSelectedClassIds] = useState<number[]>([]);
   const [createSelectedSubjectIds, setCreateSelectedSubjectIds] = useState<number[]>([]);
+  
+  // Edit modal assignment state (for editing existing teachers with assignments)
+  const [editSelectedClassIds, setEditSelectedClassIds] = useState<number[]>([]);
+  const [editSelectedSubjectIds, setEditSelectedSubjectIds] = useState<number[]>([]);
+  const [originalAssignments, setOriginalAssignments] = useState<{classId: number, subjectId: number, assignmentId: number}[]>([]);
 
   const { register, handleSubmit, formState: { errors }, setValue, reset, control } = useForm<TeacherForm>({
     resolver: zodResolver(teacherFormSchema),
@@ -103,7 +98,7 @@ export default function TeachersManagement() {
     },
   });
   
-  // Fetch teacher assignments when a teacher is selected
+  // Fetch teacher assignments when a teacher is selected (for separate assignment dialog)
   const { data: teacherAssignments = [], refetch: refetchAssignments } = useQuery({
     queryKey: ['/api/teacher-assignments', selectedTeacherForAssignment?.id],
     queryFn: async () => {
@@ -112,6 +107,17 @@ export default function TeachersManagement() {
       return await response.json();
     },
     enabled: !!selectedTeacherForAssignment?.id,
+  });
+  
+  // Fetch teacher assignments when editing (for edit modal)
+  const { data: editingTeacherAssignments = [], refetch: refetchEditingAssignments } = useQuery({
+    queryKey: ['/api/teacher-assignments', editingTeacher?.id],
+    queryFn: async () => {
+      if (!editingTeacher?.id) return [];
+      const response = await apiRequest('GET', `/api/teachers/${editingTeacher.id}/assignments`);
+      return await response.json();
+    },
+    enabled: !!editingTeacher?.id,
   });
   
   // Helper to check if a class is a senior class (SS1-SS3)
@@ -175,17 +181,47 @@ export default function TeachersManagement() {
   });
   
   // Real-time subscription for teacher assignments - broad subscription for any assignment changes
-  // This will invalidate the selected teacher's assignments when any assignment changes
   useSocketIORealtime({
     table: 'teacher_class_assignments',
     queryKey: ['/api/teacher-assignments', selectedTeacherForAssignment?.id],
     onEvent: () => {
-      // Also invalidate all teacher assignment queries to keep UI in sync
       if (selectedTeacherForAssignment?.id) {
         refetchAssignments();
       }
+      if (editingTeacher?.id) {
+        refetchEditingAssignments();
+      }
     },
   });
+  
+  // Populate edit assignment state when editing teacher assignments are loaded
+  useEffect(() => {
+    if (editingTeacher) {
+      const classIds = new Set<number>();
+      const subjectIds = new Set<number>();
+      const assignments: {classId: number, subjectId: number, assignmentId: number}[] = [];
+      
+      // Process assignments if any exist
+      if (editingTeacherAssignments && editingTeacherAssignments.length > 0) {
+        editingTeacherAssignments.forEach((assignment: any) => {
+          classIds.add(assignment.classId);
+          assignment.subjects?.forEach((subject: any) => {
+            subjectIds.add(subject.subjectId);
+            assignments.push({
+              classId: assignment.classId,
+              subjectId: subject.subjectId,
+              assignmentId: subject.assignmentId
+            });
+          });
+        });
+      }
+      
+      // Always set state (even if empty) to ensure clean state for each teacher
+      setEditSelectedClassIds(Array.from(classIds));
+      setEditSelectedSubjectIds(Array.from(subjectIds));
+      setOriginalAssignments(assignments);
+    }
+  }, [editingTeacher, editingTeacherAssignments]);
 
   // Create teacher mutation with assignments
   const createTeacherMutation = useMutation({
@@ -302,14 +338,77 @@ export default function TeachersManagement() {
     },
   });
 
-  // Update teacher mutation
+  // Update teacher mutation with assignment handling
   const updateTeacherMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string, data: Partial<TeacherForm> }) => {
+    mutationFn: async ({ id, data, classIds, subjectIds, originalAssignments: origAssign }: { 
+      id: string; 
+      data: Partial<TeacherForm>;
+      classIds?: number[];
+      subjectIds?: number[];
+      originalAssignments?: {classId: number, subjectId: number, assignmentId: number}[];
+    }) => {
+      // Update teacher info
       const response = await apiRequest('PUT', `/api/users/${id}`, data);
       if (!response.ok) throw new Error('Failed to update teacher');
-      return response.json();
+      const updatedTeacher = await response.json();
+      
+      // Handle assignment changes if class/subject IDs are provided
+      if (classIds && subjectIds && origAssign) {
+        // Determine which assignments to add and remove
+        const newAssignmentKeys = new Set<string>();
+        classIds.forEach(classId => {
+          subjectIds.forEach(subjectId => {
+            newAssignmentKeys.add(`${classId}-${subjectId}`);
+          });
+        });
+        
+        const originalAssignmentKeys = new Set(
+          origAssign.map(a => `${a.classId}-${a.subjectId}`)
+        );
+        
+        // Find assignments to add (in new but not in original)
+        const toAdd: {classId: number, subjectId: number}[] = [];
+        classIds.forEach(classId => {
+          subjectIds.forEach(subjectId => {
+            const key = `${classId}-${subjectId}`;
+            if (!originalAssignmentKeys.has(key)) {
+              toAdd.push({ classId, subjectId });
+            }
+          });
+        });
+        
+        // Find assignments to remove (in original but not in new)
+        const toRemove = origAssign.filter(a => {
+          const key = `${a.classId}-${a.subjectId}`;
+          return !newAssignmentKeys.has(key);
+        });
+        
+        // Add new assignments
+        for (const { classId, subjectId } of toAdd) {
+          try {
+            await apiRequest('POST', '/api/teacher-assignments', {
+              teacherId: id,
+              classId,
+              subjectId,
+            });
+          } catch (err) {
+            console.error('Failed to add assignment:', err);
+          }
+        }
+        
+        // Remove old assignments
+        for (const { assignmentId } of toRemove) {
+          try {
+            await apiRequest('DELETE', `/api/teacher-assignments/${assignmentId}`);
+          } catch (err) {
+            console.error('Failed to remove assignment:', err);
+          }
+        }
+      }
+      
+      return updatedTeacher;
     },
-    onMutate: async ({ id, data }: { id: string, data: Partial<TeacherForm> }) => {
+    onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({ queryKey: ['/api/users', 'Teacher'] });
       const previousData = queryClient.getQueryData(['/api/users', 'Teacher']);
       
@@ -320,18 +419,23 @@ export default function TeachersManagement() {
         );
       });
       
-      toast({ title: "Updating...", description: "Saving teacher information" });
+      toast({ title: "Updating...", description: "Saving teacher information and assignments" });
       return { previousData };
     },
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Teacher updated successfully",
+        description: "Teacher and assignments updated successfully",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/users', 'Teacher'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/teacher-assignments'] });
       setIsDialogOpen(false);
       setEditingTeacher(null);
       reset();
+      // Reset edit modal assignment state
+      setEditSelectedClassIds([]);
+      setEditSelectedSubjectIds([]);
+      setOriginalAssignments([]);
     },
     onError: (error: any, variables: any, context: any) => {
       if (context?.previousData) {
@@ -488,7 +592,14 @@ export default function TeachersManagement() {
 
   const onSubmit = (data: TeacherForm) => {
     if (editingTeacher) {
-      updateTeacherMutation.mutate({ id: editingTeacher.id, data });
+      // Include assignment data for editing teachers
+      updateTeacherMutation.mutate({ 
+        id: editingTeacher.id, 
+        data,
+        classIds: editSelectedClassIds,
+        subjectIds: editSelectedSubjectIds,
+        originalAssignments
+      });
     } else {
       // Include assignment data for new teachers
       createTeacherMutation.mutate({
@@ -501,6 +612,11 @@ export default function TeachersManagement() {
 
   const handleEdit = (teacher: any) => {
     setEditingTeacher(teacher);
+    
+    // Reset edit assignment state - will be populated by useEffect when assignments are fetched
+    setEditSelectedClassIds([]);
+    setEditSelectedSubjectIds([]);
+    setOriginalAssignments([]);
     
     // Populate form with teacher data
     setValue('firstName', teacher.firstName);
@@ -526,6 +642,29 @@ export default function TeachersManagement() {
     // Reset create modal assignment state
     setCreateSelectedClassIds([]);
     setCreateSelectedSubjectIds([]);
+    // Reset edit modal assignment state
+    setEditSelectedClassIds([]);
+    setEditSelectedSubjectIds([]);
+    setOriginalAssignments([]);
+  };
+  
+  // Toggle class selection for edit modal
+  const toggleEditClassSelection = (classId: number) => {
+    setEditSelectedClassIds(prev => {
+      const newSelection = prev.includes(classId) 
+        ? prev.filter(id => id !== classId)
+        : [...prev, classId];
+      return newSelection;
+    });
+  };
+  
+  // Toggle subject selection for edit modal
+  const toggleEditSubjectSelection = (subjectId: number) => {
+    setEditSelectedSubjectIds(prev => 
+      prev.includes(subjectId) 
+        ? prev.filter(id => id !== subjectId)
+        : [...prev, subjectId]
+    );
   };
   
   // Toggle class selection for create modal
@@ -849,6 +988,93 @@ export default function TeachersManagement() {
                     {errors.salary && (
                       <p className="text-sm text-red-500 mt-1">{errors.salary.message}</p>
                     )}
+                  </div>
+                  
+                  {/* Teaching Assignment Section for Edit Modal */}
+                  <div className="space-y-4 border-t pt-4 mt-4">
+                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide border-b pb-2">
+                      Teaching Assignment
+                    </h3>
+                    
+                    {/* Assign Classes - Multi-select */}
+                    <div>
+                      <Label>Assign Classes</Label>
+                      <div className="border rounded-lg p-3 mt-2 max-h-40 overflow-y-auto">
+                        {classes.length > 0 ? (
+                          <div className="grid grid-cols-3 gap-2">
+                            {classes.map((classItem: any) => (
+                              <label 
+                                key={classItem.id} 
+                                className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"
+                              >
+                                <Checkbox
+                                  checked={editSelectedClassIds.includes(classItem.id)}
+                                  onCheckedChange={() => toggleEditClassSelection(classItem.id)}
+                                  data-testid={`checkbox-edit-class-${classItem.id}`}
+                                />
+                                <span className="text-sm">{classItem.name}</span>
+                              </label>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground text-center py-2">No classes available</p>
+                        )}
+                      </div>
+                      {editSelectedClassIds.length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Selected: {editSelectedClassIds.map(id => classes.find((c: any) => c.id === id)?.name).join(', ')}
+                        </p>
+                      )}
+                    </div>
+                    
+                    {/* Assign Subjects - Show ALL subjects */}
+                    <div>
+                      <Label>Assign Subjects</Label>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        {editSelectedClassIds.length > 0 
+                          ? `Select subjects to assign to this teacher for the selected class(es)`
+                          : `Select class(es) above first to assign subjects.`
+                        }
+                      </p>
+                      <div className={`border rounded-lg p-3 mt-2 max-h-64 overflow-y-auto ${editSelectedClassIds.length === 0 ? 'opacity-60' : ''}`}>
+                        {createFilteredSubjects.length > 0 ? (
+                          <div className="space-y-1">
+                            {createFilteredSubjects.map((subject: any) => (
+                              <label 
+                                key={subject.id} 
+                                className={`flex items-center gap-2 p-2 rounded ${editSelectedClassIds.length > 0 ? 'hover:bg-muted cursor-pointer' : 'cursor-not-allowed'}`}
+                              >
+                                <Checkbox
+                                  checked={editSelectedSubjectIds.includes(subject.id)}
+                                  onCheckedChange={() => toggleEditSubjectSelection(subject.id)}
+                                  disabled={editSelectedClassIds.length === 0}
+                                  data-testid={`checkbox-edit-subject-${subject.id}`}
+                                />
+                                <span className="text-sm flex-1">{subject.name}</span>
+                                <Badge 
+                                  variant="outline" 
+                                  className={`text-xs ${
+                                    (subject.category || 'general').toLowerCase() === 'science' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800' :
+                                    (subject.category || 'general').toLowerCase() === 'art' ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800' :
+                                    (subject.category || 'general').toLowerCase() === 'commercial' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800' :
+                                    'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
+                                  }`}
+                                >
+                                  {subject.category || 'general'}
+                                </Badge>
+                              </label>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground text-center py-2">No subjects available.</p>
+                        )}
+                      </div>
+                      {editSelectedSubjectIds.length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Selected: {editSelectedSubjectIds.length} subject(s)
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </>
               )}
