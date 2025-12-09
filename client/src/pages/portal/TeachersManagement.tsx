@@ -15,7 +15,7 @@ import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { UserPlus, Edit, Search, Mail, Phone, GraduationCap, Trash2, Copy, CheckCircle, BookOpen, Plus, X, Briefcase, Palette } from 'lucide-react';
+
 import { ROLE_IDS } from '@/lib/roles';
 import { isSeniorSecondaryClass } from '@/lib/utils';
 

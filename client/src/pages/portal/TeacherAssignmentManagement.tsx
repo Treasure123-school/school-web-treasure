@@ -84,11 +84,6 @@ export default function TeacherAssignmentManagement() {
     validUntil: '',
   });
 
-  const userName = user ? `${user.firstName} ${user.lastName}` : 'User';
-  const userInitials = user ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}` : 'U';
-  const userRole = user?.roleId === ROLE_IDS.SUPER_ADMIN ? 'admin' : 
-                   user?.roleId === ROLE_IDS.ADMIN ? 'admin' : 
-                   user?.roleId === ROLE_IDS.TEACHER ? 'teacher' : 'admin';
 
   const { data: assignments = [], isLoading: loadingAssignments } = useQuery<TeacherAssignment[]>({
     queryKey: ['/api/teacher-assignments', showInactive ? 'inactive' : 'active'],
@@ -332,7 +327,7 @@ export default function TeacherAssignmentManagement() {
   }, [assignments]);
 
   return (
-    <>
+
       <div className="p-6 space-y-6" data-testid="teacher-assignment-management">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -921,6 +916,6 @@ export default function TeacherAssignmentManagement() {
           </DialogContent>
         </Dialog>
       </div>
-    </>
+
   );
 }

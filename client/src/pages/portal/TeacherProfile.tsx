@@ -308,37 +308,17 @@ export default function TeacherProfile() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-center">Loading profile...</div>
-        </CardContent>
-      </Card>
+
     );
   }
   if (teacherProfileError) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-center text-destructive">
-            <p className="font-semibold">Error loading profile</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              {teacherProfileError instanceof Error ? teacherProfileError.message : 'Failed to load profile data. Please try again later.'}
-            </p>
-            <Button 
-              variant="outline" 
-              className="mt-4"
-              onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] })}
-            >
-              Retry
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+
     );
   }
 
   return (
-    <>
+
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -968,6 +948,6 @@ export default function TeacherProfile() {
           </CardContent>
         </Card>
       </div>
-    </>
+
   );
 }

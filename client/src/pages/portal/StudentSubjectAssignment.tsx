@@ -38,9 +38,6 @@ export default function StudentSubjectAssignment() {
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedSubjects, setSelectedSubjects] = useState<number[]>([]);
 
-  const userName = user ? `${user.firstName} ${user.lastName}` : 'User';
-  const userInitials = user ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}` : 'U';
-  const userRole = 'admin' as const;
 
   const { data: students = [], isLoading: studentsLoading } = useQuery({
     queryKey: ['/api/students'],
@@ -216,7 +213,6 @@ export default function StudentSubjectAssignment() {
   };
 
   return (
-    <>
       <div className="space-y-6" data-testid="student-subject-assignment">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <div>
@@ -480,6 +476,6 @@ export default function StudentSubjectAssignment() {
           </Card>
         )}
       </div>
-    </>
+
   );
 }

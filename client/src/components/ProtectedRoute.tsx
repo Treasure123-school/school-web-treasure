@@ -2,26 +2,30 @@ import { useAuth } from '@/lib/auth';
 import { useLocation } from 'wouter';
 import { useEffect, useTransition, useState } from 'react';
 import { getPortalByRoleId } from '@/lib/roles';
-import { PageContentSkeleton } from '@/components/ui/skeletons';
+import { PortalLayoutSkeleton, SuperAdminLayoutSkeleton } from '@/components/ui/skeletons';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   allowedRoleIds: number[];
   fallbackPath?: string;
 }
+
 export default function ProtectedRoute({ 
   children, 
   allowedRoleIds, 
   fallbackPath = '/login' 
 }: ProtectedRouteProps) {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const [isPending, startTransition] = useTransition();
   const [isRedirecting, setIsRedirecting] = useState(false);
 
   const isRoleAllowed = (userRoleId: number, allowed: number[]): boolean => {
     return allowed.includes(userRoleId);
   };
+
+  const isSuperAdminRoute = location.startsWith('/portal/superadmin');
+  const LoadingSkeleton = isSuperAdminRoute ? SuperAdminLayoutSkeleton : PortalLayoutSkeleton;
 
   useEffect(() => {
     if (isLoading) return;
@@ -41,15 +45,15 @@ export default function ProtectedRoute({
   }, [isAuthenticated, isLoading, user, allowedRoleIds, navigate, fallbackPath]);
 
   if (isLoading || isPending || isRedirecting) {
-    return <PageContentSkeleton />;
+    return <LoadingSkeleton />;
   }
 
   if (!isAuthenticated || !user) {
-    return <PageContentSkeleton />;
+    return <LoadingSkeleton />;
   }
 
   if (!isRoleAllowed(user.roleId, allowedRoleIds)) {
-    return <PageContentSkeleton />;
+    return <LoadingSkeleton />;
   }
   
   return <>{children}</>;

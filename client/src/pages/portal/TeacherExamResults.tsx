@@ -335,18 +335,7 @@ export default function TeacherExamResults() {
 
   if (!currentExam) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Exam not found</p>
-          <Button asChild className="mt-4" data-testid="button-back">
-            <Link href="/portal/teacher">Back to Dashboard</Link>
-          </Button>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="container mx-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
+
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
             <Button variant="outline" size="sm" asChild data-testid="button-back" className="w-fit">
@@ -704,6 +693,6 @@ export default function TeacherExamResults() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-    </div>
+
   );
 }

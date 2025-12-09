@@ -41,21 +41,6 @@ export default function SubjectsManagement() {
   const [editingSubject, setEditingSubject] = useState<any>(null);
   const [subjectToDelete, setSubjectToDelete] = useState<any>(null);
 
-  const userName = user ? `${user.firstName} ${user.lastName}` : 'User';
-  const userInitials = user ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}` : 'U';
-  // Map roleId to role name - matches ROLE_IDS in lib/roles.ts
-  const getRoleName = (roleId: number): 'admin' | 'teacher' | 'parent' | 'student' => {
-    const roleMap: { [key: number]: 'admin' | 'teacher' | 'parent' | 'student' } = {
-      1: 'admin',     // Super Admin
-      2: 'admin',     // Admin
-      3: 'teacher',   // Teacher
-      4: 'student',   // Student
-      5: 'parent'     // Parent
-    };
-    return roleMap[roleId] || 'admin';
-  };
-  const userRole = user ? getRoleName(user.roleId) : 'admin';
-
   const { register, handleSubmit, formState: { errors }, setValue, reset, control, watch } = useForm<SubjectForm>({
     resolver: zodResolver(subjectFormSchema),
     defaultValues: {
@@ -272,8 +257,7 @@ export default function SubjectsManagement() {
   };
 
   return (
-    <>
-      <div className="space-y-6" data-testid="subjects-management">
+
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Subjects Management</h1>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -558,7 +542,6 @@ export default function SubjectsManagement() {
           </DialogContent>
         </Dialog>
       )}
-      </div>
-    </>
+
   );
 }
