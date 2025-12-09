@@ -29,52 +29,68 @@ function RecentExamResultCard({ exam, index }: { exam: any, index: number }) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center space-x-4 p-3 bg-muted/50 rounded-lg" data-testid={`exam-result-loading-${index}`}>
-        <div className="animate-pulse flex-1">
-          <div className="h-4 bg-gray-300 rounded mb-1"></div>
-          <div className="h-3 bg-gray-300 rounded"></div>
-        </div>
-      </div>
+      <Card className="overflow-visible" data-testid={`exam-result-loading-${index}`}>
+        <CardContent className="p-4">
+          <div className="animate-pulse flex-1">
+            <div className="h-4 bg-muted rounded mb-2"></div>
+            <div className="h-3 bg-muted rounded w-2/3"></div>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
   return (
-    <div 
-      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors"
+    <Card 
+      className="overflow-visible"
       data-testid={`card-exam-result-${index}`}
     >
-      <div className="flex-1 min-w-0">
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1">
-          <h4 className="font-medium text-xs sm:text-sm line-clamp-2 sm:line-clamp-1" data-testid={`text-exam-name-${index}`}>
-            {exam.name}
-          </h4>
-          <Badge variant={totalSubmissions > 0 ? "default" : "secondary"} className="text-[10px] sm:text-xs" data-testid={`badge-submission-count-${index}`}>
-            {totalSubmissions} submissions
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex-1 min-w-0">
+            <h4 className="font-semibold text-sm leading-tight mb-1" data-testid={`text-exam-name-${index}`}>
+              {exam.name}
+            </h4>
+            <p className="text-xs text-muted-foreground" data-testid={`text-exam-details-${index}`}>
+              {exam.subjectName || 'Subject'} • {examDate}
+            </p>
+          </div>
+          <Badge 
+            variant={exam.isPublished ? "default" : "outline"} 
+            className="text-xs flex-shrink-0" 
+            data-testid={`badge-status-${index}`}
+          >
+            {exam.isPublished ? 'Published' : 'Unpublished'}
           </Badge>
         </div>
-        <p className="text-[10px] sm:text-xs text-muted-foreground truncate" data-testid={`text-exam-details-${index}`}>
-          {exam.subjectName || 'Subject'} • {examDate}
-        </p>
-      </div>
-
-      <div className="flex items-center justify-between sm:justify-end gap-2 sm:space-y-0 sm:flex-col sm:items-end sm:gap-1">
-        {totalSubmissions > 0 && (
-          <p className="text-xs sm:text-sm font-medium text-primary" data-testid={`text-exam-average-${index}`}>
-            {averageScore}% avg
-          </p>
-        )}
-        <Button 
-          variant="outline" 
-          size="sm"
-          asChild
-          className="text-xs h-7 sm:h-8"
-          data-testid={`button-view-exam-results-${index}`}
-        >
-          <Link href={`/portal/teacher/results/exam/${exam.id}`}>
-            View Results
-          </Link>
-        </Button>
-      </div>
-    </div>
+        
+        <div className="flex items-center justify-between gap-3 pt-3 border-t">
+          <div className="flex items-center gap-2">
+            <Badge 
+              variant={totalSubmissions > 0 ? "default" : "secondary"} 
+              className="text-xs" 
+              data-testid={`badge-submission-count-${index}`}
+            >
+              {totalSubmissions} submissions
+            </Badge>
+            {totalSubmissions > 0 && (
+              <span className="text-xs text-primary font-medium" data-testid={`text-exam-average-${index}`}>
+                {averageScore}% avg
+              </span>
+            )}
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm"
+            asChild
+            data-testid={`button-view-exam-results-${index}`}
+          >
+            <Link href={`/portal/teacher/results/exam/${exam.id}`}>
+              View Results
+            </Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 export default function TeacherDashboard() {
@@ -239,31 +255,29 @@ export default function TeacherDashboard() {
     <>
       {/* Profile Completion Notice - Shows when profile is not complete (even if exists but empty) */}
       {!statusLoading && profileStatus && !profileStatus.profileCompleted && (
-        <div className="mb-4 sm:mb-6 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4 md:p-5 shadow-sm animate-slide-up" data-testid="profile-incomplete-banner">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-            <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1">
-              <div className="bg-blue-100 dark:bg-blue-900/50 rounded-lg p-2 sm:p-3 flex-shrink-0">
-                <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400" />
+        <div className="mb-4 sm:mb-6 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4 shadow-sm animate-slide-up" data-testid="profile-incomplete-banner">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+            <div className="flex items-start sm:items-center gap-2 sm:gap-3 flex-1">
+              <div className="bg-blue-100 dark:bg-blue-900/50 rounded-lg p-1.5 sm:p-2 flex-shrink-0">
+                <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">
                   Complete Your Profile
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                  Some features are restricted until you complete your teacher profile setup.
-                </p>
-                <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500 mt-1">
-                  Complete your profile to unlock: Creating Exams, Grading, Attendance Management, and more.
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 line-clamp-2 sm:line-clamp-none">
+                  Complete your profile to unlock: Exams, Grading, Attendance, and more.
                 </p>
               </div>
             </div>
             <Button
               onClick={() => navigate('/portal/teacher/profile')}
               variant="outline"
-              className="bg-white dark:bg-gray-800 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 font-medium shadow-sm w-full sm:w-auto text-sm sm:text-base"
+              size="sm"
+              className="bg-white dark:bg-gray-800 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 font-medium shadow-sm w-full sm:w-auto text-xs sm:text-sm"
               data-testid="button-complete-profile"
             >
-              Complete Profile Now
+              Complete Profile
             </Button>
           </div>
         </div>

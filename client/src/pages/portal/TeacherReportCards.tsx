@@ -282,16 +282,66 @@ export default function TeacherReportCards() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onMutate: async (data) => {
+      // Cancel outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ['/api/reports', selectedReportCard?.id, 'full'] });
+      
+      // Snapshot previous data for rollback
+      const previousFullReport = queryClient.getQueryData(['/api/reports', selectedReportCard?.id, 'full']);
+      
+      // Optimistically update the cache immediately
+      queryClient.setQueryData(['/api/reports', selectedReportCard?.id, 'full'], (old: any) => {
+        if (!old || !old.items) return old;
+        return {
+          ...old,
+          items: old.items.map((item: any) => {
+            if (item.id === data.itemId) {
+              const updatedItem = { ...item };
+              if (data.testScore !== undefined) updatedItem.testScore = data.testScore;
+              if (data.testMaxScore !== undefined) updatedItem.testMaxScore = data.testMaxScore;
+              if (data.examScore !== undefined) updatedItem.examScore = data.examScore;
+              if (data.examMaxScore !== undefined) updatedItem.examMaxScore = data.examMaxScore;
+              if (data.teacherRemarks !== undefined) updatedItem.teacherRemarks = data.teacherRemarks;
+              updatedItem.isOverridden = true;
+              updatedItem.overriddenAt = new Date().toISOString();
+              return updatedItem;
+            }
+            return item;
+          })
+        };
+      });
+      
+      // Close dialog immediately for instant feedback
+      setIsOverrideDialogOpen(false);
+      
+      return { previousFullReport };
+    },
+    onSuccess: (serverData) => {
+      // Reconcile item with server data
+      queryClient.setQueryData(['/api/reports', selectedReportCard?.id, 'full'], (old: any) => {
+        if (!old || !old.items) return old;
+        return {
+          ...old,
+          items: old.items.map((item: any) => 
+            item.id === serverData.id ? { ...item, ...serverData } : item
+          )
+        };
+      });
+      
+      // Invalidate queries to refresh aggregate data (averages, totals, positions)
+      queryClient.invalidateQueries({ queryKey: ['/api/reports', selectedReportCard?.id, 'full'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/reports/class-term', selectedClass, selectedTerm] });
+      
       toast({
         title: "Success",
         description: "Score overridden successfully",
       });
-      setIsOverrideDialogOpen(false);
-      refetchFullReport();
-      refetchReportCards();
     },
-    onError: (error: any) => {
+    onError: (error: any, _variables, context: any) => {
+      // Rollback to previous data on error
+      if (context?.previousFullReport) {
+        queryClient.setQueryData(['/api/reports', selectedReportCard?.id, 'full'], context.previousFullReport);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to override score",

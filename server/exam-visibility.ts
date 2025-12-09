@@ -112,6 +112,42 @@ async function getCachedSubjects(): Promise<SubjectInfo[]> {
 }
 
 /**
+ * Get class-subject mappings for a class (cached)
+ * Uses class_subject_mappings as the centralized source of truth
+ */
+async function getCachedClassSubjectMappings(classId: number): Promise<number[]> {
+  const cacheKey = `visibility:class_subject_mappings:${classId}`;
+  
+  return enhancedCache.getOrSet(
+    cacheKey,
+    async () => {
+      const mappings = await storage.getClassSubjectMappings(classId);
+      return mappings.map((m: any) => m.subjectId);
+    },
+    VISIBILITY_CACHE_TTL,
+    'L2'
+  );
+}
+
+/**
+ * Get class-subject mappings for a class and department (cached)
+ * Used for SS classes with department-specific subjects
+ */
+async function getCachedClassSubjectMappingsWithDept(classId: number, department?: string): Promise<number[]> {
+  const cacheKey = `visibility:class_subject_mappings:${classId}:${department || 'all'}`;
+  
+  return enhancedCache.getOrSet(
+    cacheKey,
+    async () => {
+      const mappings = await storage.getClassSubjectMappings(classId, department);
+      return mappings.map((m: any) => m.subjectId);
+    },
+    VISIBILITY_CACHE_TTL,
+    'L2'
+  );
+}
+
+/**
  * Get all published exams (cached)
  */
 async function getCachedPublishedExams(): Promise<any[]> {
@@ -128,17 +164,17 @@ async function getCachedPublishedExams(): Promise<any[]> {
 
 /**
  * Optimized exam filtering for student context
- * Uses pre-computed subject ID sets for O(1) lookups
+ * Uses class_subject_mappings as the SINGLE SOURCE OF TRUTH
+ * No fallback to category-based filtering - admin must configure subject assignments
  */
 export function filterExamsForStudentContext(
   exams: any[],
   context: StudentExamVisibilityContext,
-  subjects: SubjectInfo[]
+  subjects: SubjectInfo[],
+  mappedSubjectIds?: number[]
 ): any[] {
   // Early return for empty inputs
-  if (!exams.length || !subjects.length) return [];
-  
-  const isSS = isSeniorSecondaryLevel(context.classLevel);
+  if (!exams.length) return [];
   
   // Pre-filter by class (most selective filter first)
   const classExams = exams.filter((exam: any) => 
@@ -147,26 +183,14 @@ export function filterExamsForStudentContext(
   
   if (classExams.length === 0) return [];
   
-  // Build subject ID sets for O(1) lookup (more efficient than .includes())
-  let validSubjectIds: Set<number>;
-  
-  if (isSS && context.department) {
-    // SS students: general + their department subjects
-    validSubjectIds = new Set(
-      subjects
-        .filter(s => s.category === 'general' || s.category === context.department)
-        .map(s => s.id)
-    );
-  } else {
-    // Non-SS students or SS without department: only general subjects
-    validSubjectIds = new Set(
-      subjects
-        .filter(s => s.category === 'general')
-        .map(s => s.id)
-    );
+  // SINGLE SOURCE OF TRUTH: Use class_subject_mappings only
+  // If no mappings exist, no exams are visible (admin must configure subjects)
+  if (!mappedSubjectIds || mappedSubjectIds.length === 0) {
+    console.log(`[EXAM-VISIBILITY] No class_subject_mappings for class ${context.classId}, dept: ${context.department || 'none'}. Student cannot see any exams.`);
+    return [];
   }
   
-  // Filter exams using Set for O(1) lookup
+  const validSubjectIds = new Set(mappedSubjectIds);
   return classExams.filter((exam: any) => validSubjectIds.has(exam.subjectId));
 }
 
@@ -180,6 +204,10 @@ export function filterExamsForStudentContext(
  * 
  * Security: Cache key includes 'student_exams' prefix for role isolation.
  * Parent caches use different prefix 'parent_exams' to prevent data leakage.
+ * 
+ * Filter Logic:
+ * 1. Primary: Use class_subject_mappings if configured (centralized source of truth)
+ * 2. Fallback: Category-based filtering (general + department for SS students)
  */
 export async function getVisibleExamsForStudent(studentId: string): Promise<any[]> {
   // Cache key format: visibility:{role}_exams:{userId}
@@ -191,23 +219,30 @@ export async function getVisibleExamsForStudent(studentId: string): Promise<any[
     async () => {
       const startTime = Date.now();
       
-      // Fetch context, subjects, and exams in parallel
-      const [context, subjects, publishedExams] = await Promise.all([
-        getStudentExamVisibilityContext(studentId),
-        getCachedSubjects(),
-        getCachedPublishedExams()
-      ]);
+      // First fetch context to get classId
+      const context = await getStudentExamVisibilityContext(studentId);
       
       if (!context) {
         console.log(`[EXAM-VISIBILITY] No student context found for studentId: ${studentId}`);
         return [];
       }
       
-      const visibleExams = filterExamsForStudentContext(publishedExams, context, subjects);
+      // Fetch class-subject mappings, subjects, and exams in parallel
+      const isSS = isSeniorSecondaryLevel(context.classLevel);
+      const [mappedSubjectIds, subjects, publishedExams] = await Promise.all([
+        // For SS students with department, get department-specific mappings
+        isSS && context.department 
+          ? getCachedClassSubjectMappingsWithDept(context.classId, context.department)
+          : getCachedClassSubjectMappings(context.classId),
+        getCachedSubjects(),
+        getCachedPublishedExams()
+      ]);
+      
+      const visibleExams = filterExamsForStudentContext(publishedExams, context, subjects, mappedSubjectIds);
       
       const duration = Date.now() - startTime;
       if (duration > 50) {
-        console.log(`[EXAM-VISIBILITY] Student ${studentId}: ${visibleExams.length}/${publishedExams.length} exams, ${duration}ms`);
+        console.log(`[EXAM-VISIBILITY] Student ${studentId}: ${visibleExams.length}/${publishedExams.length} exams (mappings: ${mappedSubjectIds.length}), ${duration}ms`);
       }
       
       return visibleExams;
@@ -249,7 +284,7 @@ export async function getVisibleExamsForParent(parentId: string): Promise<any[]>
         return [];
       }
       
-      // Fetch subjects and exams (cached)
+      // Fetch subjects, exams, and class-subject mappings for each child
       const [subjects, publishedExams] = await Promise.all([
         getCachedSubjects(),
         getCachedPublishedExams()
@@ -258,8 +293,14 @@ export async function getVisibleExamsForParent(parentId: string): Promise<any[]>
       // Use Map for deduplication (more efficient than Set with objects)
       const examMap = new Map<number, any>();
       
+      // Process each child with their class-subject mappings
       for (const context of validContexts) {
-        const childExams = filterExamsForStudentContext(publishedExams, context, subjects);
+        const isSS = isSeniorSecondaryLevel(context.classLevel);
+        const mappedSubjectIds = await (isSS && context.department 
+          ? getCachedClassSubjectMappingsWithDept(context.classId, context.department)
+          : getCachedClassSubjectMappings(context.classId));
+        
+        const childExams = filterExamsForStudentContext(publishedExams, context, subjects, mappedSubjectIds);
         for (const exam of childExams) {
           if (!examMap.has(exam.id)) {
             examMap.set(exam.id, exam);
@@ -340,6 +381,7 @@ export async function getStudentsForTeacherExam(
  * - Exam is published/unpublished
  * - Student class assignment changes
  * - Student department changes
+ * - Class-subject mappings change
  */
 export function invalidateVisibilityCache(options?: {
   studentId?: string;
@@ -363,6 +405,11 @@ export function invalidateVisibilityCache(options?: {
   if (options?.classId) {
     // Invalidate all student exams for this class (pattern match)
     invalidated += enhancedCache.invalidate(/^visibility:exam_students:/);
+    // Invalidate class-subject mappings cache for this class
+    invalidated += enhancedCache.invalidate(new RegExp(`^visibility:class_subject_mappings:${options.classId}`));
+    // Also invalidate all student/parent visibility since mappings changed
+    invalidated += enhancedCache.invalidate(/^visibility:student_exams:/);
+    invalidated += enhancedCache.invalidate(/^visibility:parent_exams:/);
   }
   
   if (options?.examId) {

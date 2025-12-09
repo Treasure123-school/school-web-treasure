@@ -28,6 +28,7 @@ import { uploadFileToStorage, replaceFile, deleteFileFromStorage } from "./uploa
 import teacherAssignmentRoutes from "./teacher-assignment-routes";
 import { validateTeacherCanCreateExam, validateTeacherCanEnterScores, validateTeacherCanViewResults, getTeacherAssignments, validateExamTimeWindow, logExamAccess } from "./teacher-auth-middleware";
 import { getVisibleExamsForStudent, getVisibleExamsForParent, invalidateVisibilityCache, warmVisibilityCache } from "./exam-visibility";
+import { SubjectAssignmentService } from "./services/subject-assignment-service";
 import { performanceCache, PerformanceCache } from "./performance-cache";
 import { enhancedCache, EnhancedCache } from "./enhanced-cache";
 
@@ -8745,14 +8746,38 @@ Treasure-Home School Administration
         const term = await storage.getAcademicTerm(Number(termId));
         const exams = await storage.getExamsByClassAndTerm(student.classId, Number(termId));
         
-        // Get subjects that have exams for this class/term (represents class curriculum)
-        const classSubjectIds = new Set(exams.map(e => e.subjectId));
-        const allSubjects = await storage.getSubjects();
-        const classSubjects = allSubjects.filter(s => classSubjectIds.has(s.id));
+        // PRIMARY SOURCE: Use class_subject_mappings as the single source of truth for report card subjects
+        // This ensures report cards show the same subjects as the admin configured
+        const classLevel = studentClass?.level ?? '';
+        const isSSS = studentClass?.name?.startsWith('SS') || classLevel.includes('Senior Secondary');
+        
+        let mappings;
+        if (isSSS && student.department) {
+          mappings = await storage.getClassSubjectMappings(student.classId, student.department);
+        } else {
+          mappings = await storage.getClassSubjectMappings(student.classId);
+        }
+        
+        // Get subject details for each mapping
+        const classSubjects: any[] = [];
+        for (const mapping of mappings) {
+          const subject = await storage.getSubject(mapping.subjectId);
+          if (subject && subject.isActive) {
+            classSubjects.push(subject);
+          }
+        }
+        
+        // Fallback to exam-based subjects if no mappings exist (backwards compatibility)
+        if (classSubjects.length === 0) {
+          console.log(`[REPORT-CARD] No class-subject mappings for ${studentClass?.name}, falling back to exam-based subjects`);
+          const classSubjectIds = new Set(exams.map(e => e.subjectId));
+          const allSubjects = await storage.getSubjects();
+          classSubjects.push(...allSubjects.filter(s => classSubjectIds.has(s.id)));
+        }
 
         const subjectScores: Record<number, { testScores: number[], testMax: number[], examScores: number[], examMax: number[], subjectName: string, hasData: boolean }> = {};
 
-        // Initialize with all class subjects
+        // Initialize with all class subjects from mappings
         for (const subject of classSubjects) {
           subjectScores[subject.id] = {
             testScores: [],
@@ -10452,6 +10477,21 @@ Treasure-Home School Administration
           isCompulsory: isCompulsory || false
         });
         
+        // Invalidate visibility cache for this class (affects exam visibility)
+        invalidateVisibilityCache({ classId });
+        
+        // Emit websocket event for real-time propagation
+        const socketIO = realtimeService.getIO();
+        if (socketIO) {
+          socketIO.emit('subject-assignments-updated', {
+            eventType: 'subject-assignments-updated',
+            affectedClassIds: [classId],
+            added: 1,
+            removed: 0,
+            timestamp: new Date().toISOString()
+          });
+        }
+        
         res.status(201).json(mapping);
       } catch (error: any) {
         console.error('Error creating class-subject mapping:', error);
@@ -10493,16 +10533,150 @@ Treasure-Home School Administration
       try {
         const { id } = req.params;
         
+        // Get the mapping first to know the classId for cache invalidation
+        const mappingToDelete = await storage.getClassSubjectMappingById(Number(id));
+        
+        if (!mappingToDelete) {
+          return res.status(404).json({ message: 'Mapping not found' });
+        }
+        
         const success = await storage.deleteClassSubjectMapping(Number(id));
         
         if (!success) {
-          return res.status(404).json({ message: 'Mapping not found' });
+          return res.status(500).json({ message: 'Failed to delete mapping' });
+        }
+        
+        // Invalidate visibility cache for this class (affects exam visibility)
+        invalidateVisibilityCache({ classId: mappingToDelete.classId });
+        
+        // Emit websocket event for real-time propagation
+        const socketIO = realtimeService.getIO();
+        if (socketIO) {
+          socketIO.emit('subject-assignments-updated', {
+            eventType: 'subject-assignments-updated',
+            affectedClassIds: [mappingToDelete.classId],
+            added: 0,
+            removed: 1,
+            timestamp: new Date().toISOString()
+          });
         }
         
         res.json({ message: 'Mapping deleted successfully' });
       } catch (error: any) {
         console.error('Error deleting class-subject mapping:', error);
         res.status(500).json({ message: error.message || 'Failed to delete mapping' });
+      }
+    });
+
+    // ==================== UNIFIED SUBJECT ASSIGNMENT ROUTES ====================
+    // Single source of truth for all subject visibility across the system
+
+    // Get all subject assignments (for the unified configuration page)
+    app.get('/api/unified-subject-assignments', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const allMappings = await storage.getAllClassSubjectMappings();
+        res.json(allMappings);
+      } catch (error: any) {
+        console.error('Error fetching unified subject assignments:', error);
+        res.status(500).json({ message: error.message || 'Failed to fetch subject assignments' });
+      }
+    });
+
+    // Bulk update subject assignments (additions and removals)
+    app.put('/api/unified-subject-assignments', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { additions, removals } = req.body;
+        
+        // Validate input
+        if (!Array.isArray(additions) && !Array.isArray(removals)) {
+          return res.status(400).json({ message: 'additions and/or removals arrays are required' });
+        }
+
+        // Use the bulk update method for atomic operation
+        const result = await storage.bulkUpdateClassSubjectMappings(
+          additions || [],
+          removals || []
+        );
+
+        // Invalidate visibility cache for all affected classes
+        for (const classId of result.affectedClassIds) {
+          invalidateVisibilityCache({ classId });
+          SubjectAssignmentService.invalidateClassCache(classId);
+        }
+
+        // CRITICAL: Sync all students in affected classes with the new mappings
+        // This ensures student_subject_assignments match class_subject_mappings
+        let totalSynced = 0;
+        const syncErrors: string[] = [];
+        for (const classId of result.affectedClassIds) {
+          const syncResult = await storage.syncStudentsWithClassMappings(classId);
+          totalSynced += syncResult.synced;
+          syncErrors.push(...syncResult.errors);
+        }
+        console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Synced ${totalSynced} students with new mappings`);
+
+        // CRITICAL: Cleanup report cards for ONLY affected classes (not all students)
+        const cleanupResult = await storage.cleanupReportCardsForClasses(result.affectedClassIds);
+        console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Cleaned up ${cleanupResult.itemsRemoved} report card items from ${cleanupResult.studentsProcessed} students in ${result.affectedClassIds.length} affected classes`);
+
+        // Emit websocket event for real-time propagation to all connected clients
+        const socketIO = realtimeService.getIO();
+        if (socketIO && result.affectedClassIds.length > 0) {
+          socketIO.emit('subject-assignments-updated', {
+            eventType: 'subject-assignments-updated',
+            affectedClassIds: result.affectedClassIds,
+            added: result.added,
+            removed: result.removed,
+            studentsSynced: totalSynced,
+            timestamp: new Date().toISOString()
+          });
+          console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Emitted websocket event to all clients`);
+        }
+
+        console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Updated: ${result.added} added, ${result.removed} removed, ${result.affectedClassIds.length} classes affected, ${totalSynced} students synced`);
+
+        res.json({ 
+          message: 'Subject assignments updated successfully',
+          added: result.added,
+          removed: result.removed,
+          affectedClasses: result.affectedClassIds.length,
+          studentsSynced: totalSynced,
+          reportCardItemsRemoved: cleanupResult.itemsRemoved,
+          syncErrors: syncErrors.length > 0 ? syncErrors : undefined
+        });
+      } catch (error: any) {
+        console.error('Error updating unified subject assignments:', error);
+        res.status(500).json({ message: error.message || 'Failed to update subject assignments' });
+      }
+    });
+
+    // Get subject visibility for a specific class (used by exam creation, report cards, etc.)
+    app.get('/api/subject-visibility/:classId', authenticateUser, async (req: Request, res: Response) => {
+      try {
+        const { classId } = req.params;
+        const { department } = req.query;
+        
+        const mappings = await storage.getClassSubjectMappings(
+          Number(classId),
+          department as string | undefined
+        );
+        
+        // Get full subject details for each mapping
+        const subjectIds = mappings.map(m => m.subjectId);
+        const subjects = await Promise.all(
+          subjectIds.map(id => storage.getSubject(id))
+        );
+        
+        const visibleSubjects = subjects.filter(Boolean).map((subject, index) => ({
+          ...subject,
+          isCompulsory: mappings[index]?.isCompulsory || false,
+          department: mappings[index]?.department
+        }));
+        
+        res.json(visibleSubjects);
+      } catch (error: any) {
+        console.error('Error fetching subject visibility:', error);
+        res.status(500).json({ message: error.message || 'Failed to fetch subject visibility' });
       }
     });
 
@@ -10517,6 +10691,59 @@ Treasure-Home School Administration
       } catch (error: any) {
         console.error('Error fetching subjects by category:', error);
         res.status(500).json({ message: error.message || 'Failed to fetch subjects' });
+      }
+    });
+
+    // ADMIN: Sync all students with class_subject_mappings
+    // Use this to fix existing students who have incorrect subject assignments
+    app.post('/api/admin/sync-all-student-subjects', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        console.log('[ADMIN-SYNC] Starting full sync of all students with class_subject_mappings...');
+        
+        const result = await storage.syncAllStudentsWithMappings();
+        
+        // Also cleanup report cards after syncing
+        const cleanupResult = await storage.cleanupAllReportCards();
+        
+        // Invalidate all visibility caches
+        invalidateVisibilityCache({ all: true });
+        SubjectAssignmentService.invalidateAllCaches();
+        
+        console.log(`[ADMIN-SYNC] Completed: ${result.synced} students synced, ${cleanupResult.itemsRemoved} report card items removed, ${result.errors.length} errors`);
+        
+        res.json({
+          message: 'Student subject sync completed',
+          studentsSynced: result.synced,
+          reportCardItemsRemoved: cleanupResult.itemsRemoved,
+          errors: result.errors.length > 0 ? result.errors.slice(0, 20) : undefined,
+          totalErrors: result.errors.length
+        });
+      } catch (error: any) {
+        console.error('[ADMIN-SYNC] Error syncing students:', error);
+        res.status(500).json({ message: error.message || 'Failed to sync students' });
+      }
+    });
+
+    // ADMIN: Cleanup report cards - remove items for subjects no longer in class_subject_mappings
+    // Use this to fix existing report cards that have extra subjects
+    app.post('/api/admin/cleanup-report-cards', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        console.log('[ADMIN-CLEANUP] Starting report card cleanup...');
+        
+        const result = await storage.cleanupAllReportCards();
+        
+        console.log(`[ADMIN-CLEANUP] Completed: ${result.itemsRemoved} items removed from ${result.studentsProcessed} students`);
+        
+        res.json({
+          message: 'Report card cleanup completed',
+          studentsProcessed: result.studentsProcessed,
+          itemsRemoved: result.itemsRemoved,
+          errors: result.errors.length > 0 ? result.errors.slice(0, 20) : undefined,
+          totalErrors: result.errors.length
+        });
+      } catch (error: any) {
+        console.error('[ADMIN-CLEANUP] Error:', error);
+        res.status(500).json({ message: error.message || 'Failed to cleanup report cards' });
       }
     });
 
@@ -10584,6 +10811,7 @@ Treasure-Home School Administration
     });
 
     // Get current student's assigned subjects (for student portal)
+    // Uses class_subject_mappings as the single source of truth
     app.get('/api/my-subjects', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req: Request, res: Response) => {
       try {
         const userId = req.user!.id;
@@ -10594,22 +10822,58 @@ Treasure-Home School Administration
           return res.status(404).json({ message: 'Student profile not found' });
         }
         
-        // Get assigned subjects
-        const assignments = await storage.getStudentSubjectAssignments(student.id);
+        if (!student.classId) {
+          return res.json([]);
+        }
+        
+        // Get class info to determine if it's JSS or SSS
+        const classInfo = await storage.getClass(student.classId);
+        if (!classInfo) {
+          return res.json([]);
+        }
+        
+        // PRIMARY SOURCE: Use class_subject_mappings as the single source of truth
+        // For JSS: get all mappings with department = null
+        // For SSS: get mappings with department matching student's department OR null (general subjects shared with that dept)
+        const level = classInfo?.level ?? '';
+        const isSSS = classInfo?.name?.startsWith('SS') || level.includes('Senior Secondary');
+        
+        let mappings;
+        if (isSSS && student.department) {
+          // For SSS students with a department, get mappings for their specific department
+          mappings = await storage.getClassSubjectMappings(student.classId, student.department);
+        } else {
+          // For JSS students or SSS students without department, get mappings with department = null
+          mappings = await storage.getClassSubjectMappings(student.classId);
+        }
+        
+        // If no mappings exist yet for this class, return empty array
+        // This ensures admin must configure subjects first
+        if (mappings.length === 0) {
+          console.log(`[MY-SUBJECTS] No class-subject mappings found for class ${classInfo.name}${student.department ? ` (${student.department})` : ''}`);
+          return res.json([]);
+        }
         
         // Enrich with subject details
-        const enrichedAssignments = await Promise.all(assignments.map(async (assignment) => {
-          const subject = await storage.getSubject(assignment.subjectId);
+        const enrichedSubjects = await Promise.all(mappings.map(async (mapping) => {
+          const subject = await storage.getSubject(mapping.subjectId);
           return {
-            id: assignment.id,
-            subjectId: assignment.subjectId,
+            id: mapping.id, // Use mapping ID for consistency
+            subjectId: mapping.subjectId,
             subjectName: subject?.name,
             subjectCode: subject?.code,
-            category: subject?.category || 'general'
+            category: subject?.category || 'general',
+            isCompulsory: mapping.isCompulsory,
+            department: mapping.department
           };
         }));
         
-        res.json(enrichedAssignments);
+        // Filter out any entries where subject wasn't found
+        const validSubjects = enrichedSubjects.filter(s => s.subjectName);
+        
+        console.log(`[MY-SUBJECTS] Returned ${validSubjects.length} subjects for student in ${classInfo.name}${student.department ? ` (${student.department})` : ''}`);
+        
+        res.json(validSubjects);
       } catch (error: any) {
         console.error('Error fetching my subjects:', error);
         res.status(500).json({ message: error.message || 'Failed to fetch subjects' });
@@ -10617,6 +10881,7 @@ Treasure-Home School Administration
     });
 
     // Get teachers for current student's subjects (for student portal)
+    // Uses class_subject_mappings as the single source of truth
     app.get('/api/my-subject-teachers', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req: Request, res: Response) => {
       try {
         const userId = req.user!.id;
@@ -10631,18 +10896,32 @@ Treasure-Home School Administration
           return res.json({});
         }
         
-        // Get assigned subjects
-        const assignments = await storage.getStudentSubjectAssignments(student.id);
+        // Get class info to determine if it's JSS or SSS
+        const classInfo = await storage.getClass(student.classId);
+        if (!classInfo) {
+          return res.json({});
+        }
         
-        // Get teachers for each subject in the student's class
+        // Use class_subject_mappings as the single source of truth
+        const level = classInfo?.level ?? '';
+        const isSSS = classInfo?.name?.startsWith('SS') || level.includes('Senior Secondary');
+        
+        let mappings;
+        if (isSSS && student.department) {
+          mappings = await storage.getClassSubjectMappings(student.classId, student.department);
+        } else {
+          mappings = await storage.getClassSubjectMappings(student.classId);
+        }
+        
+        // Get teachers for each mapped subject
         const teacherMap: Record<number, any> = {};
         
-        for (const assignment of assignments) {
+        for (const mapping of mappings) {
           try {
-            const teachers = await storage.getTeachersForClassSubject(student.classId, assignment.subjectId);
+            const teachers = await storage.getTeachersForClassSubject(student.classId, mapping.subjectId);
             if (teachers && teachers.length > 0) {
               const teacher = teachers[0];
-              teacherMap[assignment.subjectId] = {
+              teacherMap[mapping.subjectId] = {
                 id: teacher.id,
                 firstName: teacher.firstName,
                 lastName: teacher.lastName,
@@ -10663,6 +10942,7 @@ Treasure-Home School Administration
     });
 
     // Get active exams for current student's subjects (for student portal highlighting)
+    // Uses class_subject_mappings as single source of truth (consistent with /api/my-subjects)
     app.get('/api/my-active-exams', authenticateUser, authorizeRoles(ROLES.STUDENT), async (req: Request, res: Response) => {
       try {
         const userId = req.user!.id;
@@ -10677,13 +10957,30 @@ Treasure-Home School Administration
           return res.json({ activeExams: {}, examCounts: {} });
         }
         
-        // Get assigned subjects - early return if no subjects
-        const assignments = await storage.getStudentSubjectAssignments(student.id);
-        if (assignments.length === 0) {
+        // Get class info to determine if it's JSS or SSS
+        const classInfo = await storage.getClass(student.classId);
+        if (!classInfo) {
           return res.json({ activeExams: {}, examCounts: {} });
         }
         
-        const subjectIds = new Set(assignments.map(a => a.subjectId));
+        // Use class_subject_mappings as single source of truth (consistent with /api/my-subjects)
+        const level = classInfo?.level ?? '';
+        const isSSS = classInfo?.name?.startsWith('SS') || level.includes('Senior Secondary');
+        
+        let mappings;
+        if (isSSS && student.department) {
+          // For SSS students with a department, get mappings for their specific department
+          mappings = await storage.getClassSubjectMappings(student.classId, student.department);
+        } else {
+          // For JSS students or SSS students without department, get mappings with department = null
+          mappings = await storage.getClassSubjectMappings(student.classId);
+        }
+        
+        if (mappings.length === 0) {
+          return res.json({ activeExams: {}, examCounts: {} });
+        }
+        
+        const subjectIds = new Set(mappings.map(m => m.subjectId));
         
         // Get exams scoped to student's class only (efficient database query)
         const classExams = await storage.getExamsByClass(student.classId);
@@ -10737,6 +11034,64 @@ Treasure-Home School Administration
     });
 
     // ==================== END STUDENT SUBJECT ASSIGNMENT ROUTES ====================
+
+    // ==================== SETTINGS API ROUTES ====================
+    // Settings API endpoints (for report card subject rules, etc.)
+    app.get('/api/settings', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { key } = req.query;
+        if (key) {
+          const setting = await storage.getSetting(key as string);
+          if (!setting) {
+            return res.status(404).json({ message: 'Setting not found' });
+          }
+          return res.json(setting);
+        }
+        const settings = await storage.getAllSettings();
+        res.json(settings);
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+        res.status(500).json({ message: 'Failed to fetch settings' });
+      }
+    });
+
+    app.put('/api/settings', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { key, value, description, dataType } = req.body;
+        
+        // Validate required fields
+        if (!key || typeof key !== 'string' || key.trim().length === 0) {
+          return res.status(400).json({ message: 'Setting key is required and must be a non-empty string' });
+        }
+        if (value === undefined || value === null) {
+          return res.status(400).json({ message: 'Setting value is required' });
+        }
+        
+        const userId = (req.user as AuthenticatedUser).id;
+        const trimmedKey = key.trim();
+        const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
+        
+        const existing = await storage.getSetting(trimmedKey);
+        
+        if (existing) {
+          const updated = await storage.updateSetting(trimmedKey, stringValue, userId);
+          return res.json(updated);
+        } else {
+          const created = await storage.createSetting({
+            key: trimmedKey,
+            value: stringValue,
+            description: description || '',
+            dataType: dataType || 'string',
+            updatedBy: userId
+          });
+          return res.json(created);
+        }
+      } catch (error) {
+        console.error('Error saving setting:', error);
+        res.status(500).json({ message: 'Failed to save setting' });
+      }
+    });
+    // ==================== END SETTINGS API ROUTES ====================
 
     // ==================== END MODULE 1 ROUTES ====================
 

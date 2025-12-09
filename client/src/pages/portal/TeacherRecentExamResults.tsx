@@ -453,55 +453,56 @@ function ExamResultCardMobile({
     : null;
 
   return (
-    <div 
-      className="border rounded-lg p-3 bg-muted/30"
+    <Card 
+      className="overflow-visible"
       data-testid={`card-exam-mobile-${index}`}
     >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex-1 min-w-0">
-          <h4 className="font-medium text-sm line-clamp-2" data-testid={`text-exam-name-mobile-${index}`}>
-            {exam.name}
-          </h4>
-          <p className="text-xs text-muted-foreground truncate">
-            {getSubjectName(exam.subjectId)} • {exam.date ? format(new Date(exam.date), 'dd/MM/yyyy') : 'N/A'}
-          </p>
-        </div>
-        <Badge 
-          variant={exam.isPublished ? "default" : "outline"}
-          className="text-[10px] sm:text-xs flex-shrink-0"
-          data-testid={`badge-status-mobile-${index}`}
-        >
-          {exam.isPublished ? 'Published' : 'Unpublished'}
-        </Badge>
-      </div>
-      
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex-1 min-w-0">
+            <h4 className="font-semibold text-sm leading-tight mb-1" data-testid={`text-exam-name-mobile-${index}`}>
+              {exam.name}
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              {getSubjectName(exam.subjectId)} • {exam.date ? format(new Date(exam.date), 'dd/MM/yyyy') : 'N/A'}
+            </p>
+          </div>
           <Badge 
-            variant={totalSubmissions > 0 ? "default" : "secondary"} 
-            className="text-[10px] sm:text-xs"
-            data-testid={`badge-submissions-mobile-${index}`}
+            variant={exam.isPublished ? "default" : "outline"}
+            className="text-xs flex-shrink-0"
+            data-testid={`badge-status-mobile-${index}`}
           >
-            {isLoading ? '...' : `${totalSubmissions} submissions`}
+            {exam.isPublished ? 'Published' : 'Unpublished'}
           </Badge>
-          {averageScore !== null && (
-            <span className="text-[10px] sm:text-xs text-primary font-medium" data-testid={`text-average-mobile-${index}`}>
-              {averageScore}% avg
-            </span>
-          )}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          asChild
-          className="text-xs h-7 sm:h-8"
-          data-testid={`button-view-results-mobile-${index}`}
-        >
-          <Link href={`/portal/teacher/results/exam/${exam.id}`}>
-            View Results
-          </Link>
-        </Button>
-      </div>
-    </div>
+        
+        <div className="flex items-center justify-between gap-3 pt-3 border-t">
+          <div className="flex items-center gap-2">
+            <Badge 
+              variant={totalSubmissions > 0 ? "default" : "secondary"} 
+              className="text-xs"
+              data-testid={`badge-submissions-mobile-${index}`}
+            >
+              {isLoading ? '...' : `${totalSubmissions} submissions`}
+            </Badge>
+            {averageScore !== null && (
+              <span className="text-xs text-primary font-medium" data-testid={`text-average-mobile-${index}`}>
+                {averageScore}% avg
+              </span>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            data-testid={`button-view-results-mobile-${index}`}
+          >
+            <Link href={`/portal/teacher/results/exam/${exam.id}`}>
+              View Results
+            </Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

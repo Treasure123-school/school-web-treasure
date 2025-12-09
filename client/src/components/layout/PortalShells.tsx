@@ -52,6 +52,8 @@ const SettingsManagement = lazy(() => import('@/pages/portal/SettingsManagement'
 const AdminRecoveryTools = lazy(() => import('@/pages/portal/AdminRecoveryTools'));
 const AdminExamOverview = lazy(() => import('@/pages/portal/AdminExamOverview'));
 const ExamSessions = lazy(() => import('@/pages/portal/ExamSessions'));
+const UnifiedSubjectAssignment = lazy(() => import('@/pages/portal/UnifiedSubjectAssignment'));
+const AssignSubjectTeachers = lazy(() => import('@/pages/portal/AssignSubjectTeachers'));
 
 const ParentDashboard = lazy(() => import('@/pages/portal/ParentDashboard'));
 const ParentReportCards = lazy(() => import('@/pages/portal/ParentReportCards'));
@@ -80,7 +82,7 @@ export function StudentPortalShell() {
           <Route path="/portal/student/gallery" component={PortalGallery} />
           <Route path="/portal/student/study-resources" component={StudentStudyResources} />
           <Route path="/portal/student/subjects" component={StudentSubjects} />
-          <Route path="/portal/student/:rest*" component={PortalComingSoon} />
+          <Route path="/portal/student/*" component={PortalComingSoon} />
         </Switch>
       </Suspense>
     </PortalLayout>
@@ -112,7 +114,7 @@ export function TeacherPortalShell() {
           <Route path="/portal/teacher/exam-analytics" component={TeacherExamAnalytics} />
           <Route path="/portal/teacher/report-cards" component={TeacherReportCards} />
           <Route path="/portal/teacher/recent-exam-results" component={TeacherRecentExamResults} />
-          <Route path="/portal/teacher/:rest*" component={PortalComingSoon} />
+          <Route path="/portal/teacher/*" component={PortalComingSoon} />
         </Switch>
       </Suspense>
     </PortalLayout>
@@ -154,7 +156,17 @@ export function AdminPortalShell() {
           <Route path="/portal/admin/exams" component={AdminExamOverview} />
           <Route path="/portal/exam-sessions" component={ExamSessions} />
           <Route path="/portal/exam-reports" component={ExamReports} />
-          <Route path="/portal/admin/:rest*" component={PortalComingSoon} />
+          <Route path="/portal/admin/subject-manager/subjects" component={SubjectsManagement} />
+          <Route path="/portal/admin/subject-manager/unified-assignment" component={UnifiedSubjectAssignment} />
+          <Route path="/portal/admin/subject-manager/assign-teachers" component={AssignSubjectTeachers} />
+          <Route path="/portal/admin/results/exams" component={PortalComingSoon} />
+          <Route path="/portal/admin/results/ca" component={PortalComingSoon} />
+          <Route path="/portal/admin/results/grades" component={PortalComingSoon} />
+          <Route path="/portal/admin/results/processing" component={PortalComingSoon} />
+          <Route path="/portal/admin/results/publishing" component={PortalComingSoon} />
+          <Route path="/portal/admin/academics/timetable" component={PortalComingSoon} />
+          <Route path="/portal/admin/academics/curriculum" component={PortalComingSoon} />
+          <Route path="/portal/admin/*" component={PortalComingSoon} />
         </Switch>
       </Suspense>
     </PortalLayout>
@@ -175,7 +187,7 @@ export function ParentPortalShell() {
         <Switch>
           <Route path="/portal/parent" component={ParentDashboard} />
           <Route path="/portal/parent/reports" component={ParentReportCards} />
-          <Route path="/portal/parent/:rest*" component={PortalComingSoon} />
+          <Route path="/portal/parent/*" component={PortalComingSoon} />
         </Switch>
       </Suspense>
     </PortalLayout>

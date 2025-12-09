@@ -5,6 +5,7 @@ import { calculateGrade, calculateWeightedScore, getGradingConfig, getOverallGra
 import { deleteFile } from "./cloudinary-service";
 import { DeletionService, DeletionResult, formatDeletionLog } from "./services/deletion-service";
 import { SmartDeletionManager, cleanupOrphanRecords, bulkDeleteUsers, SmartDeletionResult } from "./services/smart-deletion-manager";
+import { realtimeService } from "./realtime-service";
 import type {
   User, InsertUser, Student, InsertStudent, Class, InsertClass,
   Subject, InsertSubject, Attendance, InsertAttendance, Exam, InsertExam,
@@ -498,15 +499,27 @@ export interface IStorage {
   
   // Class subject mappings
   createClassSubjectMapping(mapping: InsertClassSubjectMapping): Promise<ClassSubjectMapping>;
+  getClassSubjectMappingById(id: number): Promise<ClassSubjectMapping | undefined>;
   getClassSubjectMappings(classId: number, department?: string): Promise<ClassSubjectMapping[]>;
+  getAllClassSubjectMappings(): Promise<ClassSubjectMapping[]>;
   getSubjectsByClassAndDepartment(classId: number, department?: string): Promise<Subject[]>;
   deleteClassSubjectMapping(id: number): Promise<boolean>;
   deleteClassSubjectMappingsByClass(classId: number): Promise<boolean>;
+  bulkUpdateClassSubjectMappings(additions: Array<{classId: number; subjectId: number; department: string | null; isCompulsory?: boolean}>, removals: Array<{classId: number; subjectId: number; department: string | null}>): Promise<{added: number; removed: number; affectedClassIds: number[]}>;
 
   // Department-based subject logic
   getSubjectsByCategory(category: string): Promise<Subject[]>;
   getSubjectsForClassLevel(classLevel: string, department?: string): Promise<Subject[]>;
   autoAssignSubjectsToStudent(studentId: string, classId: number, department?: string): Promise<StudentSubjectAssignment[]>;
+  
+  // Sync students with class_subject_mappings (single source of truth)
+  syncStudentsWithClassMappings(classId: number, department?: string): Promise<{synced: number; errors: string[]}>;
+  syncAllStudentsWithMappings(): Promise<{synced: number; errors: string[]}>;
+  
+  // Cleanup and sync report cards with class_subject_mappings
+  cleanupReportCardItems(studentId: string): Promise<{removed: number; kept: number}>;
+  cleanupReportCardsForClasses(classIds: number[]): Promise<{studentsProcessed: number; itemsRemoved: number; errors: string[]}>;
+  cleanupAllReportCards(): Promise<{studentsProcessed: number; itemsRemoved: number; errors: string[]}>;
 
   // Smart deletion methods
   validateDeletion(userId: string): Promise<{
@@ -4441,10 +4454,12 @@ export class DatabaseStorage implements IStorage {
         .from(schema.students)
         .where(eq(schema.students.classId, classId));
 
-      // Get class-level subjects as fallback
-      const classSubjects = await db.select()
-        .from(schema.subjects)
-        .where(eq(schema.subjects.classId, classId));
+      // Get class info to determine if this is a Senior Secondary class
+      const classInfo = await this.getClass(classId);
+      const isSeniorSecondary = classInfo && 
+        ['SS1', 'SS2', 'SS3', 'Senior Secondary'].some(level => 
+          classInfo.level?.toLowerCase().includes(level.toLowerCase())
+        );
 
       for (const student of students) {
         try {
@@ -4480,40 +4495,47 @@ export class DatabaseStorage implements IStorage {
             updated++;
           }
 
-          // Get student's assigned subjects, falling back to class subjects if none assigned
-          const studentAssignments = await this.getStudentSubjectAssignments(student.id);
-          let subjectIds: number[];
+          // Get student's department for SS students
+          const studentDepartment = (student as any).department;
           
-          if (studentAssignments.length > 0) {
-            // Use student's assigned subjects (respects department-based assignment)
-            // Only include active assignments
-            subjectIds = studentAssignments
-              .filter(a => a.isActive)
-              .map(a => a.subjectId);
+          // SINGLE SOURCE OF TRUTH: Use class_subject_mappings
+          // For SS students with department, get department-specific subjects
+          // For JSS/other students, get all class subjects (no department filter)
+          let subjects: any[];
+          
+          if (isSeniorSecondary && studentDepartment) {
+            // SS students with department - get department-specific mappings
+            subjects = await this.getSubjectsByClassAndDepartment(classId, studentDepartment);
           } else {
-            // Fallback to class-level subjects
-            subjectIds = classSubjects.map((s: { id: number }) => s.id);
+            // JSS/other students - get all class mappings (no department filter)
+            subjects = await this.getSubjectsByClassAndDepartment(classId);
           }
-
-          // Get the actual subject objects for the IDs - only include active subjects
-          let subjects = subjectIds.length > 0 
-            ? await db.select()
-                .from(schema.subjects)
-                .where(
-                  and(
-                    inArray(schema.subjects.id, subjectIds),
-                    eq(schema.subjects.isActive, true)
-                  )
-                )
-            : classSubjects.filter((s: any) => s.isActive !== false);
           
-          // If no valid subjects found after filtering, skip this student
+          // If no subjects assigned for this class/department, log warning and skip
           if (subjects.length === 0) {
-            errors.push(`No active subjects found for student ${student.id}`);
+            console.log(`[REPORT-CARD] No class_subject_mappings found for class ${classId}, department: ${studentDepartment || 'none'}. Admin must assign subjects via Subject Manager.`);
+            errors.push(`No subjects assigned for student ${student.id} (class ${classId}, dept: ${studentDepartment || 'none'}). Admin must configure subjects.`);
             continue;
           }
 
-          // Create or update report card items for each subject
+          // Get the set of valid subject IDs from class_subject_mappings
+          const validSubjectIds = new Set(subjects.map(s => s.id));
+
+          // CLEANUP: Remove report card items that are NOT in class_subject_mappings
+          // This ensures only the admin-assigned subjects appear on report cards
+          const existingItems = await db.select()
+            .from(schema.reportCardItems)
+            .where(eq(schema.reportCardItems.reportCardId, reportCardId));
+          
+          for (const item of existingItems) {
+            if (!validSubjectIds.has(item.subjectId)) {
+              await db.delete(schema.reportCardItems)
+                .where(eq(schema.reportCardItems.id, item.id));
+              console.log(`[REPORT-CARD] Removed invalid subject ${item.subjectId} from report card ${reportCardId}`);
+            }
+          }
+
+          // Create or update report card items for each valid subject
           for (const subject of subjects) {
             const existingItem = await db.select()
               .from(schema.reportCardItems)
@@ -4702,6 +4724,7 @@ export class DatabaseStorage implements IStorage {
       if (!reportCard) return undefined;
 
       const gradingScale = (reportCard as any).gradingScale || 'standard';
+      const gradingConfig = getGradingConfig(gradingScale);
 
       // Calculate new weighted score
       const testScore = data.testScore !== undefined ? data.testScore : item[0].testScore;
@@ -4709,7 +4732,7 @@ export class DatabaseStorage implements IStorage {
       const examScore = data.examScore !== undefined ? data.examScore : item[0].examScore;
       const examMaxScore = data.examMaxScore !== undefined ? data.examMaxScore : item[0].examMaxScore;
 
-      const weighted = calculateWeightedScore(testScore, testMaxScore, examScore, examMaxScore, gradingScale);
+      const weighted = calculateWeightedScore(testScore, testMaxScore, examScore, examMaxScore, gradingConfig);
       const gradeInfo = calculateGrade(weighted.percentage, gradingScale);
 
       const result = await db.update(schema.reportCardItems)
@@ -4983,10 +5006,95 @@ export class DatabaseStorage implements IStorage {
   }
 
   private async recalculateClassPositions(classId: number, termId: number): Promise<void> {
-    // Position calculation has been removed per user request
-    // Report cards now only track grades and percentages, not rankings
-    // This function is kept for backward compatibility but does nothing
-    console.log(`[REPORT-CARD] Position calculation skipped for class ${classId}, term ${termId} (feature disabled)`);
+    try {
+      console.log(`[REPORT-CARD] Calculating class positions for class ${classId}, term ${termId}`);
+      
+      // Step 1: Get all report cards for this class and term with their total scores
+      const reportCards = await db.select({
+        id: schema.reportCards.id,
+        studentId: schema.reportCards.studentId,
+        totalScore: schema.reportCards.totalScore,
+        averageScore: schema.reportCards.averageScore
+      })
+        .from(schema.reportCards)
+        .where(and(
+          eq(schema.reportCards.classId, classId),
+          eq(schema.reportCards.termId, termId)
+        ));
+      
+      if (reportCards.length === 0) {
+        console.log(`[REPORT-CARD] No report cards found for class ${classId}, term ${termId}`);
+        return;
+      }
+      
+      const totalStudentsInClass = reportCards.length;
+      
+      // Step 2: Sort by total score descending (higher score = better position)
+      // Use totalScore for ranking, fallback to averageScore if totalScore is null
+      const sortedCards = [...reportCards].sort((a, b) => {
+        const scoreA = a.totalScore ?? a.averageScore ?? 0;
+        const scoreB = b.totalScore ?? b.averageScore ?? 0;
+        return scoreB - scoreA; // Descending order
+      });
+      
+      // Step 3: Calculate positions with proper tie handling
+      // Students with same score share same position, next position skips appropriately
+      // e.g., if two students are 1st, the next student is 3rd (not 2nd)
+      const positionMap = new Map<number, number>(); // reportCardId -> position
+      
+      let lastAssignedPosition = 1;
+      let previousScore: number | null = null;
+      
+      for (let i = 0; i < sortedCards.length; i++) {
+        const card = sortedCards[i];
+        const score = card.totalScore ?? card.averageScore ?? 0;
+        
+        if (i === 0) {
+          // First student always gets position 1
+          lastAssignedPosition = 1;
+        } else if (score !== previousScore) {
+          // Different score from previous - position = current index + 1 (0-indexed to 1-indexed)
+          // This correctly skips positions for ties (e.g., after two 1st places, next is 3rd)
+          lastAssignedPosition = i + 1;
+        }
+        // If score equals previousScore, keep lastAssignedPosition (ties share same position)
+        
+        positionMap.set(card.id, lastAssignedPosition);
+        previousScore = score;
+      }
+      
+      // Step 4: Update all report cards with calculated positions
+      for (const card of reportCards) {
+        const position = positionMap.get(card.id) ?? reportCards.length;
+        
+        await db.update(schema.reportCards)
+          .set({
+            position: position,
+            totalStudentsInClass: totalStudentsInClass,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.reportCards.id, card.id));
+      }
+      
+      console.log(`[REPORT-CARD] Successfully calculated positions for ${totalStudentsInClass} students in class ${classId}, term ${termId}`);
+      
+      // Emit WebSocket event for real-time position updates
+      try {
+        realtimeService.emitTableChange('report_cards', 'UPDATE', {
+          event: 'positions_updated',
+          classId,
+          termId,
+          totalStudents: totalStudentsInClass,
+          reportCardIds: reportCards.map((rc: { id: number }) => rc.id),
+          positions: Array.from(positionMap.entries()).map(([id, pos]) => ({ reportCardId: id, position: pos }))
+        });
+      } catch (emitError) {
+        console.warn(`[REPORT-CARD] Failed to emit position update WebSocket event:`, emitError);
+      }
+      
+    } catch (error) {
+      console.error(`[REPORT-CARD] Error calculating class positions for class ${classId}, term ${termId}:`, error);
+    }
   }
 
   // Auto-sync exam score to report card (called immediately after exam submission)
@@ -5099,43 +5207,17 @@ export class DatabaseStorage implements IStorage {
             ));
           console.log(`[REPORT-CARD-SYNC] Using ${relevantSubjects.length} subjects from student's personal assignments`);
         } else {
-          // PRIORITY 2: Fall back to class-level subject assignments via teacher_class_assignments
-          const classSubjectAssignments = await db.select({ subjectId: schema.teacherClassAssignments.subjectId })
-            .from(schema.teacherClassAssignments)
-            .where(and(
-              eq(schema.teacherClassAssignments.classId, classId),
-              eq(schema.teacherClassAssignments.isActive, true)
-            ));
+          // PRIORITY 2: Use class_subject_mappings as SINGLE SOURCE OF TRUTH
+          // NO FALLBACK - Admin must configure subjects via Subject Manager
+          relevantSubjects = await this.getSubjectsByClassAndDepartment(classId, studentDepartment);
           
-          const assignedSubjectIds = new Set(classSubjectAssignments.map((a: { subjectId: number }) => a.subjectId));
-          const hasClassAssignedSubjects = assignedSubjectIds.size > 0;
-          
-          // Get all active subjects
-          const allSubjects = await db.select()
-            .from(schema.subjects)
-            .where(eq(schema.subjects.isActive, true));
-
-          // Filter subjects based on class assignments (if available) and department rules
-          relevantSubjects = allSubjects.filter((subject: any) => {
-            const category = (subject.category || 'general').trim().toLowerCase();
-            
-            // If class has assigned subjects, only include those
-            if (hasClassAssignedSubjects && !assignedSubjectIds.has(subject.id)) {
-              return false;
-            }
-            
-            if (isSeniorSecondary && studentDepartment) {
-              // SS student with department: include general + department subjects
-              return category === 'general' || category === studentDepartment;
-            } else if (isSeniorSecondary && !studentDepartment) {
-              // SS student without department: include only general subjects (awaiting department assignment)
-              return category === 'general';
-            } else {
-              // Non-SS student: include all (assigned) subjects
-              return true;
-            }
-          });
-          console.log(`[REPORT-CARD-SYNC] Using ${relevantSubjects.length} subjects from class-level filtering (${hasClassAssignedSubjects ? 'with teacher assignments' : 'department-only'})`);
+          if (relevantSubjects.length > 0) {
+            console.log(`[REPORT-CARD-SYNC] Using ${relevantSubjects.length} subjects from class_subject_mappings (department: ${studentDepartment || 'none'})`);
+          } else {
+            // No fallback - if no mappings exist, create empty report card
+            // Admin must assign subjects via the Subject Manager
+            console.log(`[REPORT-CARD-SYNC] No subjects found in class_subject_mappings for class ${classId}, department: ${studentDepartment || 'none'}. Admin must assign subjects.`);
+          }
         }
 
         console.log(`[REPORT-CARD-SYNC] Creating ${relevantSubjects.length} subject items for ${isSeniorSecondary ? `SS ${studentDepartment || 'no-dept'}` : 'non-SS'} student`);
@@ -6670,6 +6752,15 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  async getClassSubjectMappingById(id: number): Promise<ClassSubjectMapping | undefined> {
+    const result = await this.db
+      .select()
+      .from(schema.classSubjectMappings)
+      .where(eq(schema.classSubjectMappings.id, id))
+      .limit(1);
+    return result[0];
+  }
+
   async getClassSubjectMappings(classId: number, department?: string): Promise<ClassSubjectMapping[]> {
     if (department) {
       return await this.db
@@ -6689,6 +6780,12 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(schema.classSubjectMappings)
       .where(eq(schema.classSubjectMappings.classId, classId));
+  }
+
+  async getAllClassSubjectMappings(): Promise<ClassSubjectMapping[]> {
+    return await this.db
+      .select()
+      .from(schema.classSubjectMappings);
   }
 
   async getSubjectsByClassAndDepartment(classId: number, department?: string): Promise<Subject[]> {
@@ -6722,6 +6819,83 @@ export class DatabaseStorage implements IStorage {
     return true;
   }
 
+  async bulkUpdateClassSubjectMappings(
+    additions: Array<{classId: number; subjectId: number; department: string | null; isCompulsory?: boolean}>,
+    removals: Array<{classId: number; subjectId: number; department: string | null}>
+  ): Promise<{added: number; removed: number; affectedClassIds: number[]}> {
+    // Use transaction for atomic updates - all changes commit or rollback together
+    return await this.db.transaction(async (tx: any) => {
+      const affectedClassIds = new Set<number>();
+      let addedCount = 0;
+      let removedCount = 0;
+
+      // Process removals first (within transaction)
+      for (const removal of removals) {
+        const { classId, subjectId, department } = removal;
+        if (!classId || !subjectId) continue;
+        
+        affectedClassIds.add(classId);
+        
+        // Delete matching mapping
+        if (department === null) {
+          const result = await tx
+            .delete(schema.classSubjectMappings)
+            .where(
+              and(
+                eq(schema.classSubjectMappings.classId, classId),
+                eq(schema.classSubjectMappings.subjectId, subjectId),
+                sql`${schema.classSubjectMappings.department} IS NULL`
+              )
+            )
+            .returning();
+          removedCount += result.length;
+        } else {
+          const result = await tx
+            .delete(schema.classSubjectMappings)
+            .where(
+              and(
+                eq(schema.classSubjectMappings.classId, classId),
+                eq(schema.classSubjectMappings.subjectId, subjectId),
+                eq(schema.classSubjectMappings.department, department)
+              )
+            )
+            .returning();
+          removedCount += result.length;
+        }
+      }
+
+      // Process additions (within transaction)
+      for (const addition of additions) {
+        const { classId, subjectId, department, isCompulsory } = addition;
+        if (!classId || !subjectId) continue;
+        
+        affectedClassIds.add(classId);
+        
+        // Use upsert to handle potential conflicts
+        const result = await tx
+          .insert(schema.classSubjectMappings)
+          .values({
+            classId,
+            subjectId,
+            department: department || null,
+            isCompulsory: isCompulsory || false
+          })
+          .onConflictDoNothing()
+          .returning();
+        
+        if (result.length > 0) {
+          addedCount++;
+        }
+      }
+
+      return {
+        added: addedCount,
+        removed: removedCount,
+        affectedClassIds: Array.from(affectedClassIds)
+      };
+    });
+  }
+
   // Department-based subject logic implementations
   async getSubjectsByCategory(category: string): Promise<Subject[]> {
     return await this.db
@@ -6736,37 +6910,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSubjectsForClassLevel(classLevel: string, department?: string): Promise<Subject[]> {
-    // Class levels: KG1-KG3, Primary1-6, JSS1-JSS3, SS1-SS3
-    // For KG1-JSS3: Only general subjects
-    // For SS1-SS3: Department-specific subjects + general subjects
+    // SINGLE SOURCE OF TRUTH: Use class_subject_mappings table only
+    // No fallback to category-based logic - admin must assign subjects
+    // Find a class with this level and get its mapped subjects
+    const classesAtLevel = await this.db
+      .select()
+      .from(schema.classes)
+      .where(eq(schema.classes.level, classLevel))
+      .limit(1);
     
-    const seniorSecondaryLevels = ['SS1', 'SS2', 'SS3'];
-    const isSeniorSecondary = seniorSecondaryLevels.includes(classLevel);
-    
-    if (isSeniorSecondary && department) {
-      // For SS1-SS3: Get department subjects + general subjects
-      const categories = ['general', department.toLowerCase()];
-      return await this.db
-        .select()
-        .from(schema.subjects)
-        .where(
-          and(
-            inArray(schema.subjects.category, categories),
-            eq(schema.subjects.isActive, true)
-          )
-        );
-    } else {
-      // For KG1-JSS3: Only general subjects
-      return await this.db
-        .select()
-        .from(schema.subjects)
-        .where(
-          and(
-            eq(schema.subjects.category, 'general'),
-            eq(schema.subjects.isActive, true)
-          )
-        );
+    if (classesAtLevel.length > 0) {
+      const classId = classesAtLevel[0].id;
+      // Use class_subject_mappings through getSubjectsByClassAndDepartment
+      const mappedSubjects = await this.getSubjectsByClassAndDepartment(classId, department);
+      
+      if (mappedSubjects.length > 0) {
+        return mappedSubjects;
+      }
     }
+    
+    // No fallback - return empty array if no mappings exist
+    // Admin must configure subjects via Subject Manager > Class-Level & Department Assignment
+    console.log(`[SUBJECT-ASSIGNMENT] No class_subject_mappings found for level ${classLevel}, department: ${department || 'none'}. Admin must assign subjects.`);
+    return [];
   }
 
   async autoAssignSubjectsToStudent(
@@ -6785,17 +6951,221 @@ export class DatabaseStorage implements IStorage {
     const termId = currentTerm?.id;
     
     // Get subjects based on class level and department
+    // SINGLE SOURCE OF TRUTH: Only use class_subject_mappings - no fallback
     const subjects = await this.getSubjectsForClassLevel(classInfo.level, department);
     
     if (subjects.length === 0) {
-      // Fallback: get all general subjects if no subjects found
-      const generalSubjects = await this.getSubjectsByCategory('general');
-      const subjectIds = generalSubjects.map(s => s.id);
-      return await this.assignSubjectsToStudent(studentId, classId, subjectIds, termId);
+      // No fallback - admin must configure subjects via Subject Manager
+      console.log(`[AUTO-ASSIGN] No subjects found for class ${classId}, department: ${department || 'none'}. Admin must assign subjects.`);
+      return [];
     }
     
     const subjectIds = subjects.map(s => s.id);
     return await this.assignSubjectsToStudent(studentId, classId, subjectIds, termId);
+  }
+
+  async syncStudentsWithClassMappings(classId: number, department?: string): Promise<{synced: number; errors: string[]}> {
+    const errors: string[] = [];
+    let synced = 0;
+    
+    try {
+      const classInfo = await this.getClass(classId);
+      if (!classInfo) {
+        return { synced: 0, errors: ['Class not found'] };
+      }
+      
+      const isSeniorSecondary = classInfo.level && 
+        ['SS1', 'SS2', 'SS3', 'Senior Secondary'].some(level => 
+          classInfo.level?.toLowerCase().includes(level.toLowerCase())
+        );
+      
+      const students = await this.getStudentsByClass(classId);
+      
+      for (const student of students) {
+        try {
+          const studentDept = (student as any).department?.toLowerCase()?.trim() || undefined;
+          
+          if (department && studentDept !== department.toLowerCase().trim()) {
+            continue;
+          }
+          
+          const effectiveDept = isSeniorSecondary ? studentDept : undefined;
+          const mappedSubjects = await this.getSubjectsByClassAndDepartment(classId, effectiveDept);
+          
+          if (mappedSubjects.length === 0) {
+            errors.push(`No subjects mapped for student ${student.id} (class ${classId}, dept: ${effectiveDept || 'none'})`);
+            continue;
+          }
+          
+          await db.delete(schema.studentSubjectAssignments)
+            .where(eq(schema.studentSubjectAssignments.studentId, student.id));
+          
+          const currentTerm = await this.getCurrentTerm();
+          for (const subject of mappedSubjects) {
+            await db.insert(schema.studentSubjectAssignments)
+              .values({
+                studentId: student.id,
+                classId: classId,
+                subjectId: subject.id,
+                termId: currentTerm?.id || null,
+                isActive: true
+              })
+              .onConflictDoNothing();
+          }
+          
+          synced++;
+        } catch (studentError: any) {
+          errors.push(`Failed to sync student ${student.id}: ${studentError.message}`);
+        }
+      }
+      
+      console.log(`[SYNC] Synced ${synced} students in class ${classId}${department ? ` (${department})` : ''}`);
+      return { synced, errors };
+    } catch (error: any) {
+      console.error('[SYNC] Error syncing students with class mappings:', error);
+      return { synced: 0, errors: [error.message] };
+    }
+  }
+
+  async syncAllStudentsWithMappings(): Promise<{synced: number; errors: string[]}> {
+    let totalSynced = 0;
+    const allErrors: string[] = [];
+    
+    try {
+      const classes = await this.getClasses();
+      
+      for (const classInfo of classes) {
+        const result = await this.syncStudentsWithClassMappings(classInfo.id);
+        totalSynced += result.synced;
+        allErrors.push(...result.errors);
+      }
+      
+      console.log(`[SYNC] Total synced: ${totalSynced} students across ${classes.length} classes`);
+      return { synced: totalSynced, errors: allErrors };
+    } catch (error: any) {
+      console.error('[SYNC] Error syncing all students:', error);
+      return { synced: 0, errors: [error.message] };
+    }
+  }
+
+  async cleanupReportCardItems(studentId: string): Promise<{removed: number; kept: number}> {
+    try {
+      const student = await this.getStudent(studentId);
+      if (!student || !student.classId) {
+        return { removed: 0, kept: 0 };
+      }
+
+      const classInfo = await this.getClass(student.classId);
+      if (!classInfo) {
+        return { removed: 0, kept: 0 };
+      }
+
+      const isSeniorSecondary = classInfo.level && 
+        ['SS1', 'SS2', 'SS3', 'Senior Secondary'].some(level => 
+          classInfo.level?.toLowerCase().includes(level.toLowerCase()) ||
+          classInfo.name?.toLowerCase().includes(level.toLowerCase())
+        );
+      
+      const studentDept = (student as any).department?.toLowerCase()?.trim() || undefined;
+      const effectiveDept = isSeniorSecondary ? studentDept : undefined;
+      
+      const allowedSubjects = await this.getSubjectsByClassAndDepartment(student.classId, effectiveDept);
+      const allowedSubjectIds = new Set(allowedSubjects.map(s => s.id));
+      
+      // If no allowed subjects, we should delete ALL report card items for this student
+      // This handles the case where a class lost all its subject mappings
+
+      const reportCards = await db.select()
+        .from(schema.reportCards)
+        .where(eq(schema.reportCards.studentId, studentId));
+      
+      let totalRemoved = 0;
+      let totalKept = 0;
+
+      for (const reportCard of reportCards) {
+        const items = await db.select()
+          .from(schema.reportCardItems)
+          .where(eq(schema.reportCardItems.reportCardId, reportCard.id));
+        
+        for (const item of items) {
+          if (!allowedSubjectIds.has(item.subjectId)) {
+            await db.delete(schema.reportCardItems)
+              .where(eq(schema.reportCardItems.id, item.id));
+            totalRemoved++;
+          } else {
+            totalKept++;
+          }
+        }
+      }
+
+      console.log(`[CLEANUP] Student ${studentId}: removed ${totalRemoved} items, kept ${totalKept}`);
+      return { removed: totalRemoved, kept: totalKept };
+    } catch (error: any) {
+      console.error(`[CLEANUP] Error cleaning up report card for student ${studentId}:`, error);
+      return { removed: 0, kept: 0 };
+    }
+  }
+
+  async cleanupReportCardsForClasses(classIds: number[]): Promise<{studentsProcessed: number; itemsRemoved: number; errors: string[]}> {
+    let studentsProcessed = 0;
+    let totalItemsRemoved = 0;
+    const errors: string[] = [];
+    
+    if (!classIds || classIds.length === 0) {
+      return { studentsProcessed: 0, itemsRemoved: 0, errors: [] };
+    }
+    
+    try {
+      // Get only students in the affected classes
+      const students = await db.select({ id: schema.students.id })
+        .from(schema.students)
+        .where(inArray(schema.students.classId, classIds));
+      
+      console.log(`[CLEANUP] Processing ${students.length} students from ${classIds.length} affected classes`);
+      
+      for (const student of students) {
+        try {
+          const result = await this.cleanupReportCardItems(student.id);
+          totalItemsRemoved += result.removed;
+          studentsProcessed++;
+        } catch (error: any) {
+          errors.push(`Failed to cleanup student ${student.id}: ${error.message}`);
+        }
+      }
+      
+      console.log(`[CLEANUP] Processed ${studentsProcessed} students in affected classes, removed ${totalItemsRemoved} report card items`);
+      return { studentsProcessed, itemsRemoved: totalItemsRemoved, errors };
+    } catch (error: any) {
+      console.error('[CLEANUP] Error cleaning up report cards for classes:', error);
+      return { studentsProcessed: 0, itemsRemoved: 0, errors: [error.message] };
+    }
+  }
+
+  async cleanupAllReportCards(): Promise<{studentsProcessed: number; itemsRemoved: number; errors: string[]}> {
+    let studentsProcessed = 0;
+    let totalItemsRemoved = 0;
+    const errors: string[] = [];
+    
+    try {
+      const students = await db.select({ id: schema.students.id })
+        .from(schema.students);
+      
+      for (const student of students) {
+        try {
+          const result = await this.cleanupReportCardItems(student.id);
+          totalItemsRemoved += result.removed;
+          studentsProcessed++;
+        } catch (error: any) {
+          errors.push(`Failed to cleanup student ${student.id}: ${error.message}`);
+        }
+      }
+      
+      console.log(`[CLEANUP] Processed ${studentsProcessed} students, removed ${totalItemsRemoved} report card items`);
+      return { studentsProcessed, itemsRemoved: totalItemsRemoved, errors };
+    } catch (error: any) {
+      console.error('[CLEANUP] Error cleaning up all report cards:', error);
+      return { studentsProcessed: 0, itemsRemoved: 0, errors: [error.message] };
+    }
   }
 }
 // Initialize storage - PostgreSQL database only

@@ -10,6 +10,7 @@ import { ROLE_IDS } from "@/lib/roles";
 import { MinimalRouteFallback } from "@/components/ui/skeletons";
 import { SyncIndicator } from "@/components/SyncIndicator";
 import { StudentPortalShell, TeacherPortalShell, AdminPortalShell, ParentPortalShell } from "@/components/layout/PortalShells";
+import SuperAdminLayout from "@/components/SuperAdminLayout";
 
 // Public pages - eagerly loaded for instant navigation
 import Home from "@/pages/Home";
@@ -35,10 +36,8 @@ const SuperAdminPlaceholder = lazy(() => import("@/pages/portal/SuperAdminPlaceh
 
 // Super Admin Subject Manager pages (used in Super Admin routes)
 const SubjectsManagement = lazy(() => import("@/pages/portal/SubjectsManagement"));
-const ClassSubjectMapping = lazy(() => import("@/pages/portal/ClassSubjectMapping"));
-const DepartmentSubjectMapping = lazy(() => import("@/pages/portal/DepartmentSubjectMapping"));
+const UnifiedSubjectAssignment = lazy(() => import("@/pages/portal/UnifiedSubjectAssignment"));
 const AssignSubjectTeachers = lazy(() => import("@/pages/portal/AssignSubjectTeachers"));
-const ReportCardSubjectRules = lazy(() => import("@/pages/portal/ReportCardSubjectRules"));
 
 // Profile Onboarding (used for all authenticated users)
 const ProfileOnboarding = lazy(() => import("@/pages/ProfileOnboarding"));
@@ -156,27 +155,23 @@ function Router() {
       {/* Super Admin Subject Manager Routes */}
       <Route path="/portal/superadmin/subject-manager/subjects">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
-          <SubjectsManagement />
+          <SuperAdminLayout>
+            <SubjectsManagement />
+          </SuperAdminLayout>
         </ProtectedRoute>
       </Route>
-      <Route path="/portal/superadmin/subject-manager/class-mapping">
+      <Route path="/portal/superadmin/subject-manager/unified-assignment">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
-          <ClassSubjectMapping />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/superadmin/subject-manager/department-mapping">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
-          <DepartmentSubjectMapping />
+          <SuperAdminLayout>
+            <UnifiedSubjectAssignment />
+          </SuperAdminLayout>
         </ProtectedRoute>
       </Route>
       <Route path="/portal/superadmin/subject-manager/assign-teachers">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
-          <AssignSubjectTeachers />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/portal/superadmin/subject-manager/report-rules">
-        <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
-          <ReportCardSubjectRules />
+          <SuperAdminLayout>
+            <AssignSubjectTeachers />
+          </SuperAdminLayout>
         </ProtectedRoute>
       </Route>
 
@@ -418,7 +413,7 @@ function Router() {
       </Route>
 
       {/* Student Portal - Persistent Layout Shell */}
-      <Route path="/portal/student/:rest*">
+      <Route path="/portal/student/*">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.STUDENT]}>
           <StudentPortalShell />
         </ProtectedRoute>
@@ -430,7 +425,7 @@ function Router() {
       </Route>
 
       {/* Teacher Portal - Persistent Layout Shell */}
-      <Route path="/portal/teacher/:rest*">
+      <Route path="/portal/teacher/*">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.TEACHER]}>
           <TeacherPortalShell />
         </ProtectedRoute>
@@ -442,7 +437,7 @@ function Router() {
       </Route>
 
       {/* Admin Portal - Persistent Layout Shell */}
-      <Route path="/portal/admin/:rest*">
+      <Route path="/portal/admin/*">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.ADMIN]}>
           <AdminPortalShell />
         </ProtectedRoute>
@@ -454,7 +449,7 @@ function Router() {
       </Route>
 
       {/* Parent Portal - Persistent Layout Shell */}
-      <Route path="/portal/parent/:rest*">
+      <Route path="/portal/parent/*">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.PARENT]}>
           <ParentPortalShell />
         </ProtectedRoute>

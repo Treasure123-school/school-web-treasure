@@ -2517,6 +2517,847 @@ var init_smart_deletion_manager = __esm({
   }
 });
 
+// server/realtime-service.ts
+var realtime_service_exports = {};
+__export(realtime_service_exports, {
+  realtimeService: () => realtimeService
+});
+import { Server as SocketIOServer } from "socket.io";
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
+var JWT_SECRET, RealtimeService, realtimeService;
+var init_realtime_service = __esm({
+  "server/realtime-service.ts"() {
+    "use strict";
+    JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === "development" ? "dev-secret-key-change-in-production" : void 0);
+    RealtimeService = class {
+      constructor() {
+        this.io = null;
+        this.connectedClients = /* @__PURE__ */ new Map();
+        this.authenticatedSockets = /* @__PURE__ */ new Map();
+        this.recentEventIds = /* @__PURE__ */ new Set();
+        this.eventIdCleanupInterval = null;
+        // Duplicate session detection: Map<sessionId, ActiveExamSession>
+        this.activeExamSessions = /* @__PURE__ */ new Map();
+        // Track socket to session mapping for cleanup
+        this.socketToSession = /* @__PURE__ */ new Map();
+        this.heartbeatInterval = null;
+      }
+      initialize(httpServer) {
+        const allowedOrigins2 = [];
+        if (process.env.NODE_ENV === "development") {
+          allowedOrigins2.push(
+            "http://localhost:5173",
+            "http://localhost:5000",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:5000"
+          );
+        }
+        if (process.env.FRONTEND_URL) {
+          allowedOrigins2.push(process.env.FRONTEND_URL);
+        }
+        if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
+          allowedOrigins2.push(`https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
+        }
+        if (process.env.REPLIT_DEV_DOMAIN) {
+          allowedOrigins2.push(`https://${process.env.REPLIT_DEV_DOMAIN}`);
+        }
+        this.io = new SocketIOServer(httpServer, {
+          cors: {
+            origin: (origin, callback) => {
+              if (!origin) return callback(null, true);
+              if (allowedOrigins2.some((allowed) => origin.startsWith(allowed) || origin.includes(".repl.co") || origin.includes(".replit.dev"))) {
+                return callback(null, true);
+              }
+              if (process.env.NODE_ENV === "development") {
+                return callback(null, true);
+              }
+              console.warn(`\u26A0\uFE0F  Socket.IO CORS blocked origin: ${origin}`);
+              callback(new Error("CORS not allowed"));
+            },
+            credentials: true,
+            methods: ["GET", "POST"]
+          },
+          path: "/socket.io/",
+          transports: ["websocket", "polling"],
+          // Production optimizations
+          pingTimeout: 6e4,
+          pingInterval: 25e3,
+          upgradeTimeout: 3e4,
+          maxHttpBufferSize: 1e6,
+          // 1MB
+          connectTimeout: 45e3
+        });
+        this.setupMiddleware();
+        this.setupEventHandlers();
+        this.startEventIdCleanup();
+        this.startHeartbeatCheck();
+        console.log("\u2705 Socket.IO Realtime Service initialized");
+        console.log(`   \u2192 CORS origins: ${allowedOrigins2.length > 0 ? allowedOrigins2.join(", ") : "dynamic (Replit)"}`);
+        console.log(`   \u2192 Environment: ${process.env.NODE_ENV || "development"}`);
+      }
+      setupMiddleware() {
+        if (!this.io) return;
+        this.io.use((socket, next) => {
+          const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.replace("Bearer ", "");
+          if (!token) {
+            console.log(`\u{1F4E1} Connection rejected: No authentication token provided (${socket.id})`);
+            return next(new Error("Authentication required"));
+          }
+          try {
+            if (!JWT_SECRET) {
+              console.warn("\u26A0\uFE0F  JWT_SECRET not configured - rejecting connection");
+              return next(new Error("Server configuration error"));
+            }
+            const decoded = jwt.verify(token, JWT_SECRET);
+            const role = decoded.roleName || decoded.role || "unknown";
+            this.authenticatedSockets.set(socket.id, {
+              id: socket.id,
+              userId: decoded.userId,
+              role,
+              authorizedClasses: decoded.authorizedClasses || [],
+              authorizedStudentIds: decoded.authorizedStudentIds || []
+            });
+            console.log(`\u{1F4E1} Authenticated socket: ${socket.id} (User: ${decoded.userId}, Role: ${role}, Classes: ${(decoded.authorizedClasses || []).length})`);
+            next();
+          } catch (error) {
+            console.warn(`\u26A0\uFE0F  Invalid token for socket ${socket.id}:`, error instanceof Error ? error.message : "Unknown error");
+            return next(new Error("Invalid or expired token"));
+          }
+        });
+      }
+      setupEventHandlers() {
+        if (!this.io) return;
+        this.io.on("connection", (socket) => {
+          const user = this.authenticatedSockets.get(socket.id);
+          console.log(`\u{1F4E1} Client connected: ${socket.id}${user ? ` (User: ${user.userId})` : " (Anonymous)"}`);
+          if (user) {
+            socket.join(`user:${user.userId}`);
+            socket.join(`role:${user.role}`);
+            console.log(`   \u2192 Auto-joined rooms: user:${user.userId}, role:${user.role}`);
+          }
+          socket.on("subscribe", (data) => {
+            this.handleSubscribe(socket, data);
+          });
+          socket.on("subscribe:table", (data) => {
+            this.handleTableSubscribe(socket, data.table);
+          });
+          socket.on("subscribe:class", (data) => {
+            this.handleClassSubscribe(socket, data.classId);
+          });
+          socket.on("subscribe:exam", (data) => {
+            this.handleExamSubscribe(socket, data.examId);
+          });
+          socket.on("subscribe:reportcard", (data) => {
+            this.handleReportCardSubscribe(socket, data.reportCardId);
+          });
+          socket.on("unsubscribe", (data) => {
+            this.handleUnsubscribe(socket, data);
+          });
+          socket.on("disconnect", () => {
+            this.handleDisconnect(socket);
+          });
+          socket.on("ping", () => {
+            socket.emit("pong", { timestamp: Date.now() });
+          });
+          socket.on("get:subscriptions", () => {
+            const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id);
+            socket.emit("subscriptions", { rooms });
+          });
+          socket.on("exam:register_session", (data) => {
+            this.handleExamSessionRegister(socket, data);
+          });
+          socket.on("exam:session_heartbeat", (data) => {
+            this.handleExamSessionHeartbeat(socket, data);
+          });
+          socket.on("exam:unregister_session", (data) => {
+            this.handleExamSessionUnregister(socket, data);
+          });
+        });
+      }
+      // EXAM SECURITY: Handle exam session registration for duplicate detection
+      handleExamSessionRegister(socket, data) {
+        const user = this.authenticatedSockets.get(socket.id);
+        if (!user) {
+          socket.emit("exam:session_error", { error: "Authentication required" });
+          return;
+        }
+        const { sessionId, examId } = data;
+        const now = /* @__PURE__ */ new Date();
+        const existingSession = this.activeExamSessions.get(sessionId);
+        if (existingSession && existingSession.socketId !== socket.id) {
+          const timeSinceLastPing = now.getTime() - existingSession.lastPing.getTime();
+          if (timeSinceLastPing < 1e4) {
+            console.log(`\u26A0\uFE0F  DUPLICATE EXAM SESSION DETECTED: Session ${sessionId}, User ${user.userId}`);
+            console.log(`   \u2192 Existing socket: ${existingSession.socketId}, New socket: ${socket.id}`);
+            socket.emit("exam:duplicate_session", {
+              sessionId,
+              examId,
+              message: "This exam session is already open in another tab or device",
+              existingSocketId: existingSession.socketId
+            });
+            this.io?.to(existingSession.socketId).emit("exam:duplicate_session", {
+              sessionId,
+              examId,
+              message: "This exam session was opened in another tab or device",
+              newSocketId: socket.id
+            });
+            return;
+          }
+          console.log(`   \u2192 Cleaning up stale exam session: ${sessionId} (socket: ${existingSession.socketId})`);
+          this.socketToSession.delete(existingSession.socketId);
+        }
+        this.activeExamSessions.set(sessionId, {
+          socketId: socket.id,
+          sessionId,
+          userId: user.userId,
+          examId,
+          registeredAt: now,
+          lastPing: now
+        });
+        this.socketToSession.set(socket.id, sessionId);
+        socket.join(`exam_session:${sessionId}`);
+        console.log(`\u{1F4CB} Exam session registered: Session ${sessionId}, User ${user.userId}, Socket ${socket.id}`);
+        socket.emit("exam:session_registered", { sessionId, examId });
+      }
+      // EXAM SECURITY: Handle session heartbeat to keep session alive
+      handleExamSessionHeartbeat(socket, data) {
+        const session2 = this.activeExamSessions.get(data.sessionId);
+        if (session2 && session2.socketId === socket.id) {
+          session2.lastPing = /* @__PURE__ */ new Date();
+          socket.emit("exam:heartbeat_ack", { sessionId: data.sessionId, timestamp: Date.now() });
+        }
+      }
+      // EXAM SECURITY: Handle session unregistration when exam ends
+      handleExamSessionUnregister(socket, data) {
+        const session2 = this.activeExamSessions.get(data.sessionId);
+        if (session2 && session2.socketId === socket.id) {
+          this.activeExamSessions.delete(data.sessionId);
+          this.socketToSession.delete(socket.id);
+          socket.leave(`exam_session:${data.sessionId}`);
+          console.log(`\u{1F4CB} Exam session unregistered: Session ${data.sessionId}, Socket ${socket.id}`);
+        }
+      }
+      handleSubscribe(socket, data) {
+        if (data.table) {
+          this.handleTableSubscribe(socket, data.table);
+        }
+        if (data.channel) {
+          socket.join(data.channel);
+          console.log(`   \u2192 Client ${socket.id} joined channel: ${data.channel}`);
+          socket.emit("subscribed", { channel: data.channel });
+        }
+        if (data.classId) {
+          this.handleClassSubscribe(socket, data.classId);
+        }
+        if (data.examId) {
+          this.handleExamSubscribe(socket, data.examId);
+        }
+        if (data.reportCardId) {
+          this.handleReportCardSubscribe(socket, data.reportCardId);
+        }
+      }
+      handleTableSubscribe(socket, table) {
+        const user = this.authenticatedSockets.get(socket.id);
+        if (!user) {
+          socket.emit("subscription_error", { type: "table", table, error: "Authentication required" });
+          return;
+        }
+        const role = this.normalizeRole(user.role);
+        const adminOnlyTables = ["users", "students", "teacher_profiles", "admin_profiles", "parent_profiles"];
+        const academicTables = ["report_cards", "report_card_items", "exam_results", "exam_sessions", "exams"];
+        const fullAccessRoles = ["super_admin", "admin"];
+        const academicRoles = ["super_admin", "admin", "teacher"];
+        if (adminOnlyTables.includes(table) && !fullAccessRoles.includes(role)) {
+          socket.emit("subscription_error", { type: "table", table, error: "Insufficient permissions for this table" });
+          console.log(`   \u26A0\uFE0F  Unauthorized table subscription attempt by ${user.userId} (role: ${role}) for table: ${table}`);
+          return;
+        }
+        if (academicTables.includes(table) && !academicRoles.includes(role)) {
+          socket.emit("subscription_error", { type: "table", table, error: "Insufficient permissions for academic table" });
+          console.log(`   \u26A0\uFE0F  Unauthorized academic table subscription attempt by ${user.userId} (role: ${role}) for table: ${table}`);
+          return;
+        }
+        const channel = `table:${table}`;
+        socket.join(channel);
+        if (!this.connectedClients.has(table)) {
+          this.connectedClients.set(table, /* @__PURE__ */ new Set());
+        }
+        this.connectedClients.get(table).add(socket.id);
+        console.log(`   \u2192 Client ${socket.id} subscribed to table: ${table}`);
+        socket.emit("subscribed", { table, channel });
+      }
+      handleClassSubscribe(socket, classId) {
+        const user = this.authenticatedSockets.get(socket.id);
+        if (!user) {
+          socket.emit("subscription_error", { type: "class", classId, error: "Authentication required" });
+          return;
+        }
+        const role = this.normalizeRole(user.role);
+        const fullAccessRoles = ["super_admin", "admin"];
+        if (fullAccessRoles.includes(role)) {
+          const channel2 = `class:${classId}`;
+          socket.join(channel2);
+          console.log(`   \u2192 Client ${socket.id} (${role}) subscribed to class: ${classId}`);
+          socket.emit("subscribed", { type: "class", classId, channel: channel2 });
+          return;
+        }
+        const authorizedClasses = user.authorizedClasses || [];
+        if (!authorizedClasses.includes(classId) && !authorizedClasses.includes(classId.toString())) {
+          socket.emit("subscription_error", {
+            type: "class",
+            classId,
+            error: "Access denied: You are not authorized for this class"
+          });
+          console.log(`   \u26A0\uFE0F  Unauthorized class subscription: ${user.userId} (role: ${role}) attempted to access class ${classId}`);
+          return;
+        }
+        const channel = `class:${classId}`;
+        socket.join(channel);
+        console.log(`   \u2192 Client ${socket.id} subscribed to class: ${classId}`);
+        socket.emit("subscribed", { type: "class", classId, channel });
+      }
+      handleExamSubscribe(socket, examId) {
+        const user = this.authenticatedSockets.get(socket.id);
+        if (!user) {
+          socket.emit("subscription_error", { type: "exam", examId, error: "Authentication required" });
+          return;
+        }
+        const role = this.normalizeRole(user.role);
+        const fullAccessRoles = ["super_admin", "admin"];
+        if (fullAccessRoles.includes(role)) {
+          const channel = `exam:${examId}`;
+          socket.join(channel);
+          console.log(`   \u2192 Client ${socket.id} (${role}) subscribed to exam: ${examId}`);
+          socket.emit("subscribed", { type: "exam", examId, channel });
+          return;
+        }
+        if (role === "teacher") {
+          const channel = `exam:${examId}`;
+          socket.join(channel);
+          console.log(`   \u2192 Client ${socket.id} (teacher) subscribed to exam: ${examId}`);
+          socket.emit("subscribed", { type: "exam", examId, channel });
+          return;
+        }
+        if (role === "student" && user.authorizedStudentIds && user.authorizedStudentIds.length > 0) {
+          const channel = `exam:${examId}`;
+          socket.join(channel);
+          console.log(`   \u2192 Client ${socket.id} (student) subscribed to exam: ${examId}`);
+          socket.emit("subscribed", { type: "exam", examId, channel });
+          return;
+        }
+        socket.emit("subscription_error", { type: "exam", examId, error: "Access denied: insufficient permissions" });
+        console.log(`   \u26A0\uFE0F  Unauthorized exam subscription: ${user.userId} (role: ${role})`);
+      }
+      handleReportCardSubscribe(socket, reportCardId) {
+        const user = this.authenticatedSockets.get(socket.id);
+        if (!user) {
+          socket.emit("subscription_error", { type: "reportcard", reportCardId, error: "Authentication required" });
+          return;
+        }
+        const role = this.normalizeRole(user.role);
+        const fullAccessRoles = ["super_admin", "admin"];
+        if (fullAccessRoles.includes(role)) {
+          const channel = `reportcard:${reportCardId}`;
+          socket.join(channel);
+          console.log(`   \u2192 Client ${socket.id} (${role}) subscribed to report card: ${reportCardId}`);
+          socket.emit("subscribed", { type: "reportcard", reportCardId, channel });
+          return;
+        }
+        if (role === "teacher") {
+          const channel = `reportcard:${reportCardId}`;
+          socket.join(channel);
+          console.log(`   \u2192 Client ${socket.id} (teacher) subscribed to report card: ${reportCardId}`);
+          socket.emit("subscribed", { type: "reportcard", reportCardId, channel });
+          return;
+        }
+        if (role === "student" && user.authorizedStudentIds && user.authorizedStudentIds.length > 0) {
+          const channel = `reportcard:${reportCardId}`;
+          socket.join(channel);
+          console.log(`   \u2192 Client ${socket.id} (student) subscribed to report card: ${reportCardId}`);
+          socket.emit("subscribed", { type: "reportcard", reportCardId, channel });
+          return;
+        }
+        if (role === "parent" && user.authorizedStudentIds && user.authorizedStudentIds.length > 0) {
+          const channel = `reportcard:${reportCardId}`;
+          socket.join(channel);
+          console.log(`   \u2192 Client ${socket.id} (parent) subscribed to report card: ${reportCardId}`);
+          socket.emit("subscribed", { type: "reportcard", reportCardId, channel });
+          return;
+        }
+        socket.emit("subscription_error", { type: "reportcard", reportCardId, error: "Access denied: insufficient permissions" });
+        console.log(`   \u26A0\uFE0F  Unauthorized report card subscription: ${user.userId} (role: ${role})`);
+      }
+      // Normalize role names to canonical lowercase slugs
+      normalizeRole(role) {
+        const roleMap = {
+          "super admin": "super_admin",
+          "superadmin": "super_admin",
+          "super_admin": "super_admin",
+          "admin": "admin",
+          "administrator": "admin",
+          "teacher": "teacher",
+          "student": "student",
+          "parent": "parent"
+        };
+        return roleMap[role.toLowerCase()] || role.toLowerCase();
+      }
+      handleUnsubscribe(socket, data) {
+        if (data.table) {
+          const channel = `table:${data.table}`;
+          socket.leave(channel);
+          if (this.connectedClients.has(data.table)) {
+            this.connectedClients.get(data.table).delete(socket.id);
+            if (this.connectedClients.get(data.table).size === 0) {
+              this.connectedClients.delete(data.table);
+            }
+          }
+          console.log(`   \u2192 Client ${socket.id} unsubscribed from table: ${data.table}`);
+          socket.emit("unsubscribed", { table: data.table });
+        }
+        if (data.channel) {
+          socket.leave(data.channel);
+          console.log(`   \u2192 Client ${socket.id} left channel: ${data.channel}`);
+          socket.emit("unsubscribed", { channel: data.channel });
+        }
+        if (data.classId) {
+          socket.leave(`class:${data.classId}`);
+          socket.emit("unsubscribed", { type: "class", classId: data.classId });
+        }
+        if (data.examId) {
+          socket.leave(`exam:${data.examId}`);
+          socket.emit("unsubscribed", { type: "exam", examId: data.examId });
+        }
+        if (data.reportCardId) {
+          socket.leave(`reportcard:${data.reportCardId}`);
+          socket.emit("unsubscribed", { type: "reportcard", reportCardId: data.reportCardId });
+        }
+      }
+      handleDisconnect(socket) {
+        const user = this.authenticatedSockets.get(socket.id);
+        console.log(`\u{1F4E1} Client disconnected: ${socket.id}${user ? ` (User: ${user.userId})` : ""}`);
+        const sessionId = this.socketToSession.get(socket.id);
+        if (sessionId) {
+          const session2 = this.activeExamSessions.get(sessionId);
+          if (session2 && session2.socketId === socket.id) {
+            this.activeExamSessions.delete(sessionId);
+            console.log(`   \u2192 Cleaned up exam session ${sessionId} on disconnect`);
+          }
+          this.socketToSession.delete(socket.id);
+        }
+        this.connectedClients.forEach((clients, table) => {
+          clients.delete(socket.id);
+          if (clients.size === 0) {
+            this.connectedClients.delete(table);
+          }
+        });
+        this.authenticatedSockets.delete(socket.id);
+      }
+      generateEventId() {
+        return crypto.randomUUID();
+      }
+      startEventIdCleanup() {
+        this.eventIdCleanupInterval = setInterval(() => {
+          this.recentEventIds.clear();
+        }, 6e4);
+      }
+      startHeartbeatCheck() {
+        this.heartbeatInterval = setInterval(() => {
+          if (!this.io) return;
+          const now = Date.now();
+          this.authenticatedSockets.forEach((user, socketId) => {
+            const socket = this.io?.sockets.sockets.get(socketId);
+            if (!socket || socket.disconnected) {
+              this.authenticatedSockets.delete(socketId);
+              this.connectedClients.forEach((clients) => {
+                clients.delete(socketId);
+              });
+            }
+          });
+        }, 3e4);
+      }
+      emitTableChange(table, operation, data, oldData, userId) {
+        if (!this.io) {
+          console.warn("\u26A0\uFE0F  Socket.IO not initialized, cannot emit event");
+          return;
+        }
+        const eventId = this.generateEventId();
+        this.recentEventIds.add(eventId);
+        const channel = `table:${table}`;
+        const payload = {
+          eventId,
+          eventType: `${table}.${operation.toLowerCase()}`,
+          table,
+          operation,
+          data,
+          oldData,
+          timestamp: Date.now(),
+          userId
+        };
+        this.io.to(channel).emit("table_change", payload);
+        const subscriberCount = this.connectedClients.get(table)?.size || 0;
+        if (subscriberCount > 0) {
+          console.log(`\u{1F4E4} Emitted ${operation} event for table ${table} to ${subscriberCount} clients (eventId: ${eventId.slice(0, 8)}...)`);
+        }
+        return eventId;
+      }
+      emitEvent(eventType, data, rooms) {
+        if (!this.io) {
+          console.warn("\u26A0\uFE0F  Socket.IO not initialized, cannot emit event");
+          return;
+        }
+        const eventId = this.generateEventId();
+        const payload = {
+          eventId,
+          eventType,
+          data,
+          timestamp: Date.now()
+        };
+        if (rooms) {
+          const roomList = Array.isArray(rooms) ? rooms : [rooms];
+          roomList.forEach((room) => {
+            this.io.to(room).emit(eventType, payload);
+          });
+          console.log(`\u{1F4E4} Emitted ${eventType} to rooms: ${roomList.join(", ")}`);
+        } else {
+          this.io.emit(eventType, payload);
+          console.log(`\u{1F4E4} Broadcast event: ${eventType}`);
+        }
+        return eventId;
+      }
+      emitToUser(userId, eventType, data) {
+        return this.emitEvent(eventType, data, `user:${userId}`);
+      }
+      emitToRole(role, eventType, data) {
+        return this.emitEvent(eventType, data, `role:${role}`);
+      }
+      emitToClass(classId, eventType, data) {
+        return this.emitEvent(eventType, data, `class:${classId}`);
+      }
+      emitToExam(examId, eventType, data) {
+        return this.emitEvent(eventType, data, `exam:${examId}`);
+      }
+      emitToReportCard(reportCardId, eventType, data) {
+        return this.emitEvent(eventType, data, `reportcard:${reportCardId}`);
+      }
+      emitToAll(event, data) {
+        if (!this.io) {
+          console.warn("\u26A0\uFE0F  Socket.IO not initialized, cannot emit event");
+          return;
+        }
+        this.io.emit(event, data);
+        console.log(`\u{1F4E4} Broadcast event: ${event}`);
+      }
+      emitToRoom(room, event, data) {
+        if (!this.io) {
+          console.warn("\u26A0\uFE0F  Socket.IO not initialized, cannot emit event");
+          return;
+        }
+        this.io.to(room).emit(event, data);
+      }
+      emitExamEvent(examId, eventType, data) {
+        const fullEventType = `exam.${eventType}`;
+        this.emitToExam(examId, fullEventType, { ...data, examId });
+        if (data.classId) {
+          this.emitToClass(data.classId, fullEventType, { ...data, examId });
+        }
+      }
+      // Dedicated method for exam publish/unpublish events
+      emitExamPublishEvent(examId, isPublished, data, userId) {
+        const eventType = isPublished ? "exam.published" : "exam.unpublished";
+        const operation = "UPDATE";
+        this.emitTableChange("exams", operation, { ...data, id: examId, isPublished }, void 0, userId);
+        this.emitToExam(examId, eventType, { ...data, examId, isPublished });
+        this.emitToRole("teacher", eventType, { ...data, examId, isPublished });
+        this.emitToRole("admin", eventType, { ...data, examId, isPublished });
+        this.emitToRole("super_admin", eventType, { ...data, examId, isPublished });
+        if (isPublished && data.classId) {
+          this.emitToClass(data.classId.toString(), eventType, { ...data, examId, isPublished });
+        }
+        console.log(`\u{1F4E4} Emitted ${eventType} for exam ${examId}`);
+      }
+      emitReportCardEvent(reportCardId, eventType, data, userId) {
+        const fullEventType = `reportcard.${eventType}`;
+        const operation = eventType === "created" ? "INSERT" : "UPDATE";
+        this.emitTableChange("report_cards", operation, { ...data, id: reportCardId }, void 0, userId);
+        this.emitToReportCard(reportCardId, fullEventType, data);
+        this.emitToRole("teacher", fullEventType, { ...data, reportCardId });
+        this.emitToRole("admin", fullEventType, { ...data, reportCardId });
+        this.emitToRole("super_admin", fullEventType, { ...data, reportCardId });
+        if (data.studentId) {
+          this.emitToUser(data.studentId, fullEventType, data);
+        }
+        if (data.classId) {
+          this.emitToClass(data.classId.toString(), fullEventType, data);
+        }
+        if (eventType === "published" && data.studentId && data.parentIds) {
+          const parentIds = Array.isArray(data.parentIds) ? data.parentIds : [data.parentIds];
+          parentIds.forEach((parentId) => {
+            this.emitToUser(parentId, fullEventType, {
+              ...data,
+              message: "A new report card has been published for your child"
+            });
+          });
+        }
+        console.log(`\u{1F4E4} Emitted reportcard.${eventType} for report card ${reportCardId} (student: ${data.studentId || "unknown"})`);
+      }
+      // Bulk emit for status changes affecting multiple report cards
+      emitBulkReportCardStatusChange(reportCardIds, newStatus, classId, termId, userId) {
+        const eventType = newStatus === "published" ? "bulk_published" : newStatus === "finalized" ? "bulk_finalized" : "bulk_reverted";
+        const fullEventType = `reportcard.${eventType}`;
+        const data = {
+          reportCardIds,
+          newStatus,
+          classId,
+          termId,
+          count: reportCardIds.length,
+          timestamp: Date.now()
+        };
+        this.emitToRole("teacher", fullEventType, data);
+        this.emitToRole("admin", fullEventType, data);
+        this.emitToRole("super_admin", fullEventType, data);
+        this.emitToClass(classId.toString(), fullEventType, data);
+        this.emitTableChange("report_cards", "UPDATE", data, void 0, userId);
+        console.log(`\u{1F4E4} Emitted ${fullEventType} for ${reportCardIds.length} report cards in class ${classId}`);
+      }
+      emitUserEvent(userId, eventType, data, role) {
+        const fullEventType = `user.${eventType}`;
+        this.emitTableChange("users", eventType.toUpperCase(), data, void 0, userId);
+        if (role) {
+          this.emitToRole("admin", fullEventType, data);
+          this.emitToRole("super_admin", fullEventType, data);
+        }
+      }
+      emitAttendanceEvent(classId, eventType, data) {
+        const fullEventType = `attendance.${eventType}`;
+        this.emitToClass(classId, fullEventType, data);
+        this.emitTableChange("attendance", eventType === "marked" ? "INSERT" : "UPDATE", data);
+      }
+      emitNotification(userId, notification) {
+        this.emitToUser(userId, "notification", notification);
+      }
+      emitUploadProgress(userId, uploadId, progress, status, url) {
+        this.emitToUser(userId, "upload.progress", {
+          uploadId,
+          progress,
+          status,
+          url
+        });
+      }
+      // Enhanced helper methods for consistent event emission across all modules
+      emitClassEvent(classId, eventType, data, userId) {
+        const fullEventType = `class.${eventType}`;
+        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
+        this.emitTableChange("classes", operation, data, void 0, userId);
+        this.emitToRole("admin", fullEventType, data);
+        this.emitToRole("teacher", fullEventType, data);
+        if (classId) {
+          this.emitToClass(classId, fullEventType, data);
+        }
+      }
+      emitSubjectEvent(eventType, data, userId) {
+        const fullEventType = `subject.${eventType}`;
+        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
+        this.emitTableChange("subjects", operation, data, void 0, userId);
+        this.emitToRole("admin", fullEventType, data);
+        this.emitToRole("teacher", fullEventType, data);
+      }
+      emitAnnouncementEvent(eventType, data, userId) {
+        const fullEventType = `announcement.${eventType}`;
+        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
+        this.emitTableChange("announcements", operation, data, void 0, userId);
+        const VALID_ROLE_ROOMS = {
+          "student": "student",
+          "teacher": "teacher",
+          "parent": "parent",
+          "admin": "admin",
+          "superadmin": "superadmin",
+          // Case variations for safety
+          "Student": "student",
+          "Teacher": "teacher",
+          "Parent": "parent",
+          "Admin": "admin",
+          "SuperAdmin": "superadmin"
+        };
+        const ALL_AUTHENTICATED_ROLES = ["admin", "superadmin", "teacher", "student", "parent"];
+        if (data.targetRole && typeof data.targetRole === "string") {
+          const targetRoom = VALID_ROLE_ROOMS[data.targetRole];
+          if (targetRoom) {
+            this.emitToRole(targetRoom, fullEventType, data);
+            this.emitToRole("admin", fullEventType, data);
+            this.emitToRole("superadmin", fullEventType, data);
+          }
+        } else {
+          ALL_AUTHENTICATED_ROLES.forEach((role) => {
+            this.emitToRole(role, fullEventType, data);
+          });
+        }
+      }
+      emitStudentEvent(classId, eventType, data, userId) {
+        const fullEventType = `student.${eventType}`;
+        const operation = eventType === "created" || eventType === "enrolled" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
+        this.emitTableChange("students", operation, data, void 0, userId);
+        this.emitToRole("admin", fullEventType, data);
+        if (classId) {
+          this.emitToClass(classId, fullEventType, data);
+        }
+      }
+      emitGradingEvent(examId, eventType, data, userId) {
+        const fullEventType = `grading.${eventType}`;
+        this.emitTableChange("student_answers", "UPDATE", data, void 0, userId);
+        this.emitToExam(examId, fullEventType, data);
+        if (data.classId) {
+          this.emitToClass(data.classId.toString(), fullEventType, data);
+        }
+      }
+      emitMessageEvent(senderId, recipientId, eventType, data) {
+        const fullEventType = `message.${eventType}`;
+        this.emitTableChange("messages", eventType === "sent" ? "INSERT" : "UPDATE", data, void 0, senderId);
+        this.emitToUser(recipientId, fullEventType, data);
+        this.emitToUser(senderId, `message.${eventType === "sent" ? "delivered" : "read_confirmation"}`, data);
+      }
+      emitHomepageContentEvent(eventType, data, userId) {
+        const fullEventType = `homepage.${eventType}`;
+        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
+        this.emitTableChange("homepage_content", operation, data, void 0, userId);
+        this.emitToRole("admin", fullEventType, data);
+        this.emitEvent(fullEventType, { id: data.id, contentType: data.contentType });
+      }
+      emitStudyResourceEvent(classId, eventType, data, userId) {
+        const fullEventType = `study_resource.${eventType}`;
+        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
+        this.emitTableChange("study_resources", operation, data, void 0, userId);
+        this.emitToRole("teacher", fullEventType, data);
+        if (classId) {
+          this.emitToClass(classId, fullEventType, data);
+        }
+      }
+      emitGalleryEvent(eventType, data, userId) {
+        const fullEventType = `gallery.${eventType}`;
+        const operation = eventType === "created" ? "INSERT" : "DELETE";
+        this.emitTableChange("gallery", operation, data, void 0, userId);
+        this.emitToRole("admin", fullEventType, data);
+        this.emitEvent(fullEventType, { id: data.id });
+      }
+      emitExamSessionEvent(examId, sessionId, eventType, data, userId) {
+        const fullEventType = `examSession.${eventType}`;
+        this.emitTableChange("exam_sessions", eventType === "started" ? "INSERT" : "UPDATE", data, void 0, userId);
+        this.emitToExam(examId, fullEventType, { sessionId, ...data });
+        if (data.classId) {
+          this.emitToClass(data.classId.toString(), fullEventType, { sessionId, ...data });
+        }
+      }
+      emitExamResultEvent(examId, eventType, data, userId) {
+        const fullEventType = `examResult.${eventType}`;
+        const operation = eventType === "created" ? "INSERT" : "UPDATE";
+        this.emitTableChange("exam_results", operation, data, void 0, userId);
+        this.emitToExam(examId, fullEventType, data);
+        if (data.studentId) {
+          this.emitToUser(data.studentId.toString(), fullEventType, data);
+        }
+        if (data.classId) {
+          this.emitToClass(data.classId.toString(), fullEventType, data);
+        }
+      }
+      emitTeacherAssignmentEvent(eventType, data, userId) {
+        const fullEventType = `teacherAssignment.${eventType}`;
+        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
+        this.emitTableChange("teacher_assignments", operation, data, void 0, userId);
+        this.emitToRole("admin", fullEventType, data);
+        if (data.teacherId) {
+          this.emitToUser(data.teacherId.toString(), fullEventType, data);
+        }
+        if (data.classId) {
+          this.emitToClass(data.classId.toString(), fullEventType, data);
+        }
+      }
+      emitParentLinkEvent(parentId, studentId, eventType, data, userId) {
+        const fullEventType = `parentLink.${eventType}`;
+        const operation = eventType === "linked" ? "INSERT" : "DELETE";
+        this.emitTableChange("parent_student_links", operation, data, void 0, userId);
+        this.emitToUser(parentId, fullEventType, data);
+        this.emitToUser(studentId, fullEventType, data);
+        this.emitToRole("admin", fullEventType, data);
+      }
+      emitSystemSettingEvent(eventType, data, userId) {
+        const fullEventType = `system.settings_${eventType}`;
+        this.emitTableChange("system_settings", "UPDATE", data, void 0, userId);
+        this.emitToRole("super_admin", fullEventType, data);
+        this.emitToRole("admin", fullEventType, data);
+        if (data.key && ["schoolName", "schoolLogo", "primaryColor", "secondaryColor"].includes(data.key)) {
+          this.emitEvent(`system.branding_${eventType}`, { key: data.key, value: data.value });
+        }
+      }
+      // Dashboard stats emission for real-time dashboard updates
+      emitDashboardStats(role, stats) {
+        this.emitToRole(role, "dashboard.stats_updated", stats);
+      }
+      // Grading settings event for real-time config updates
+      emitGradingSettingsEvent(eventType, data, userId) {
+        const fullEventType = `grading_settings.${eventType}`;
+        this.emitToRole("admin", fullEventType, data);
+        this.emitToRole("super_admin", fullEventType, data);
+        this.emitToRole("teacher", fullEventType, data);
+        this.emitEvent("grading_settings.changed", {
+          testWeight: data.testWeight,
+          examWeight: data.examWeight,
+          gradingScale: data.gradingScale,
+          timestamp: Date.now()
+        });
+        console.log(`\u{1F4E4} Emitted ${fullEventType} - Test: ${data.testWeight}%, Exam: ${data.examWeight}%`);
+      }
+      // Enhanced student-specific report card subscription
+      emitStudentReportCardUpdate(studentId, reportCardId, eventType, data) {
+        const fullEventType = `reportcard.${eventType}`;
+        this.emitToUser(studentId, fullEventType, data);
+        this.emitToReportCard(reportCardId, fullEventType, data);
+        if (data.parentId) {
+          this.emitToUser(data.parentId, fullEventType, data);
+        }
+        console.log(`\u{1F4E4} Emitted student report card update for student ${studentId}`);
+      }
+      getIO() {
+        return this.io;
+      }
+      getSubscriberCount(table) {
+        return this.connectedClients.get(table)?.size || 0;
+      }
+      getActiveSubscriptions() {
+        return Array.from(this.connectedClients.keys());
+      }
+      getConnectedUserCount() {
+        return this.authenticatedSockets.size;
+      }
+      getRoomSubscriberCount(room) {
+        if (!this.io) return 0;
+        const roomObj = this.io.sockets.adapter.rooms.get(room);
+        return roomObj ? roomObj.size : 0;
+      }
+      getStats() {
+        return {
+          totalConnections: this.io?.sockets.sockets.size || 0,
+          authenticatedUsers: this.authenticatedSockets.size,
+          tableSubscriptions: Object.fromEntries(this.connectedClients),
+          activeRooms: this.io ? Array.from(this.io.sockets.adapter.rooms.keys()).filter((r) => !this.io.sockets.sockets.has(r)) : []
+        };
+      }
+      shutdown() {
+        if (this.eventIdCleanupInterval) {
+          clearInterval(this.eventIdCleanupInterval);
+        }
+        if (this.heartbeatInterval) {
+          clearInterval(this.heartbeatInterval);
+        }
+        if (this.io) {
+          this.io.close();
+        }
+        console.log("\u{1F6D1} Socket.IO Realtime Service shut down");
+      }
+    };
+    realtimeService = new RealtimeService();
+  }
+});
+
 // server/storage.ts
 var storage_exports = {};
 __export(storage_exports, {
@@ -2573,6 +3414,7 @@ var init_storage = __esm({
     init_cloudinary_service();
     init_deletion_service();
     init_smart_deletion_manager();
+    init_realtime_service();
     db2 = getDatabase();
     schema = getSchema();
     DatabaseStorage = class {
@@ -5436,7 +6278,10 @@ var init_storage = __esm({
           let created = 0;
           let updated = 0;
           const students3 = await db2.select().from(schema.students).where(eq2(schema.students.classId, classId));
-          const classSubjects = await db2.select().from(schema.subjects).where(eq2(schema.subjects.classId, classId));
+          const classInfo = await this.getClass(classId);
+          const isSeniorSecondary = classInfo && ["SS1", "SS2", "SS3", "Senior Secondary"].some(
+            (level) => classInfo.level?.toLowerCase().includes(level.toLowerCase())
+          );
           for (const student of students3) {
             try {
               const existingReportCard = await db2.select().from(schema.reportCards).where(and2(
@@ -5461,22 +6306,25 @@ var init_storage = __esm({
                 reportCardId = existingReportCard[0].id;
                 updated++;
               }
-              const studentAssignments = await this.getStudentSubjectAssignments(student.id);
-              let subjectIds;
-              if (studentAssignments.length > 0) {
-                subjectIds = studentAssignments.filter((a) => a.isActive).map((a) => a.subjectId);
+              const studentDepartment = student.department;
+              let subjects3;
+              if (isSeniorSecondary && studentDepartment) {
+                subjects3 = await this.getSubjectsByClassAndDepartment(classId, studentDepartment);
               } else {
-                subjectIds = classSubjects.map((s) => s.id);
+                subjects3 = await this.getSubjectsByClassAndDepartment(classId);
               }
-              let subjects3 = subjectIds.length > 0 ? await db2.select().from(schema.subjects).where(
-                and2(
-                  inArray2(schema.subjects.id, subjectIds),
-                  eq2(schema.subjects.isActive, true)
-                )
-              ) : classSubjects.filter((s) => s.isActive !== false);
               if (subjects3.length === 0) {
-                errors.push(`No active subjects found for student ${student.id}`);
+                console.log(`[REPORT-CARD] No class_subject_mappings found for class ${classId}, department: ${studentDepartment || "none"}. Admin must assign subjects via Subject Manager.`);
+                errors.push(`No subjects assigned for student ${student.id} (class ${classId}, dept: ${studentDepartment || "none"}). Admin must configure subjects.`);
                 continue;
+              }
+              const validSubjectIds = new Set(subjects3.map((s) => s.id));
+              const existingItems = await db2.select().from(schema.reportCardItems).where(eq2(schema.reportCardItems.reportCardId, reportCardId));
+              for (const item of existingItems) {
+                if (!validSubjectIds.has(item.subjectId)) {
+                  await db2.delete(schema.reportCardItems).where(eq2(schema.reportCardItems.id, item.id));
+                  console.log(`[REPORT-CARD] Removed invalid subject ${item.subjectId} from report card ${reportCardId}`);
+                }
               }
               for (const subject of subjects3) {
                 const existingItem = await db2.select().from(schema.reportCardItems).where(and2(
@@ -5601,11 +6449,12 @@ var init_storage = __esm({
           const reportCard = await this.getReportCard(item[0].reportCardId);
           if (!reportCard) return void 0;
           const gradingScale = reportCard.gradingScale || "standard";
+          const gradingConfig = getGradingConfig(gradingScale);
           const testScore = data.testScore !== void 0 ? data.testScore : item[0].testScore;
           const testMaxScore = data.testMaxScore !== void 0 ? data.testMaxScore : item[0].testMaxScore;
           const examScore = data.examScore !== void 0 ? data.examScore : item[0].examScore;
           const examMaxScore = data.examMaxScore !== void 0 ? data.examMaxScore : item[0].examMaxScore;
-          const weighted = calculateWeightedScore(testScore, testMaxScore, examScore, examMaxScore, gradingScale);
+          const weighted = calculateWeightedScore(testScore, testMaxScore, examScore, examMaxScore, gradingConfig);
           const gradeInfo = calculateGradeFromPercentage(weighted.percentage, gradingScale);
           const result = await db2.update(schema.reportCardItems).set({
             testScore,
@@ -5800,7 +6649,65 @@ var init_storage = __esm({
         }
       }
       async recalculateClassPositions(classId, termId) {
-        console.log(`[REPORT-CARD] Position calculation skipped for class ${classId}, term ${termId} (feature disabled)`);
+        try {
+          console.log(`[REPORT-CARD] Calculating class positions for class ${classId}, term ${termId}`);
+          const reportCards3 = await db2.select({
+            id: schema.reportCards.id,
+            studentId: schema.reportCards.studentId,
+            totalScore: schema.reportCards.totalScore,
+            averageScore: schema.reportCards.averageScore
+          }).from(schema.reportCards).where(and2(
+            eq2(schema.reportCards.classId, classId),
+            eq2(schema.reportCards.termId, termId)
+          ));
+          if (reportCards3.length === 0) {
+            console.log(`[REPORT-CARD] No report cards found for class ${classId}, term ${termId}`);
+            return;
+          }
+          const totalStudentsInClass = reportCards3.length;
+          const sortedCards = [...reportCards3].sort((a, b) => {
+            const scoreA = a.totalScore ?? a.averageScore ?? 0;
+            const scoreB = b.totalScore ?? b.averageScore ?? 0;
+            return scoreB - scoreA;
+          });
+          const positionMap = /* @__PURE__ */ new Map();
+          let lastAssignedPosition = 1;
+          let previousScore = null;
+          for (let i = 0; i < sortedCards.length; i++) {
+            const card = sortedCards[i];
+            const score = card.totalScore ?? card.averageScore ?? 0;
+            if (i === 0) {
+              lastAssignedPosition = 1;
+            } else if (score !== previousScore) {
+              lastAssignedPosition = i + 1;
+            }
+            positionMap.set(card.id, lastAssignedPosition);
+            previousScore = score;
+          }
+          for (const card of reportCards3) {
+            const position = positionMap.get(card.id) ?? reportCards3.length;
+            await db2.update(schema.reportCards).set({
+              position,
+              totalStudentsInClass,
+              updatedAt: /* @__PURE__ */ new Date()
+            }).where(eq2(schema.reportCards.id, card.id));
+          }
+          console.log(`[REPORT-CARD] Successfully calculated positions for ${totalStudentsInClass} students in class ${classId}, term ${termId}`);
+          try {
+            realtimeService.emitTableChange("report_cards", "UPDATE", {
+              event: "positions_updated",
+              classId,
+              termId,
+              totalStudents: totalStudentsInClass,
+              reportCardIds: reportCards3.map((rc) => rc.id),
+              positions: Array.from(positionMap.entries()).map(([id, pos]) => ({ reportCardId: id, position: pos }))
+            });
+          } catch (emitError) {
+            console.warn(`[REPORT-CARD] Failed to emit position update WebSocket event:`, emitError);
+          }
+        } catch (error) {
+          console.error(`[REPORT-CARD] Error calculating class positions for class ${classId}, term ${termId}:`, error);
+        }
       }
       // Auto-sync exam score to report card (called immediately after exam submission)
       async syncExamScoreToReportCard(studentId, examId, score, maxScore) {
@@ -5862,27 +6769,12 @@ var init_storage = __esm({
               ));
               console.log(`[REPORT-CARD-SYNC] Using ${relevantSubjects.length} subjects from student's personal assignments`);
             } else {
-              const classSubjectAssignments = await db2.select({ subjectId: schema.teacherClassAssignments.subjectId }).from(schema.teacherClassAssignments).where(and2(
-                eq2(schema.teacherClassAssignments.classId, classId),
-                eq2(schema.teacherClassAssignments.isActive, true)
-              ));
-              const assignedSubjectIds = new Set(classSubjectAssignments.map((a) => a.subjectId));
-              const hasClassAssignedSubjects = assignedSubjectIds.size > 0;
-              const allSubjects = await db2.select().from(schema.subjects).where(eq2(schema.subjects.isActive, true));
-              relevantSubjects = allSubjects.filter((subject) => {
-                const category = (subject.category || "general").trim().toLowerCase();
-                if (hasClassAssignedSubjects && !assignedSubjectIds.has(subject.id)) {
-                  return false;
-                }
-                if (isSeniorSecondary && studentDepartment) {
-                  return category === "general" || category === studentDepartment;
-                } else if (isSeniorSecondary && !studentDepartment) {
-                  return category === "general";
-                } else {
-                  return true;
-                }
-              });
-              console.log(`[REPORT-CARD-SYNC] Using ${relevantSubjects.length} subjects from class-level filtering (${hasClassAssignedSubjects ? "with teacher assignments" : "department-only"})`);
+              relevantSubjects = await this.getSubjectsByClassAndDepartment(classId, studentDepartment);
+              if (relevantSubjects.length > 0) {
+                console.log(`[REPORT-CARD-SYNC] Using ${relevantSubjects.length} subjects from class_subject_mappings (department: ${studentDepartment || "none"})`);
+              } else {
+                console.log(`[REPORT-CARD-SYNC] No subjects found in class_subject_mappings for class ${classId}, department: ${studentDepartment || "none"}. Admin must assign subjects.`);
+              }
             }
             console.log(`[REPORT-CARD-SYNC] Creating ${relevantSubjects.length} subject items for ${isSeniorSecondary ? `SS ${studentDepartment || "no-dept"}` : "non-SS"} student`);
             for (const subject of relevantSubjects) {
@@ -7001,6 +7893,10 @@ var init_storage = __esm({
         }
         return result[0];
       }
+      async getClassSubjectMappingById(id) {
+        const result = await this.db.select().from(schema.classSubjectMappings).where(eq2(schema.classSubjectMappings.id, id)).limit(1);
+        return result[0];
+      }
       async getClassSubjectMappings(classId, department) {
         if (department) {
           return await this.db.select().from(schema.classSubjectMappings).where(
@@ -7014,6 +7910,9 @@ var init_storage = __esm({
           );
         }
         return await this.db.select().from(schema.classSubjectMappings).where(eq2(schema.classSubjectMappings.classId, classId));
+      }
+      async getAllClassSubjectMappings() {
+        return await this.db.select().from(schema.classSubjectMappings);
       }
       async getSubjectsByClassAndDepartment(classId, department) {
         const mappings = await this.getClassSubjectMappings(classId, department);
@@ -7034,6 +7933,56 @@ var init_storage = __esm({
         await this.db.delete(schema.classSubjectMappings).where(eq2(schema.classSubjectMappings.classId, classId));
         return true;
       }
+      async bulkUpdateClassSubjectMappings(additions, removals) {
+        return await this.db.transaction(async (tx) => {
+          const affectedClassIds = /* @__PURE__ */ new Set();
+          let addedCount = 0;
+          let removedCount = 0;
+          for (const removal of removals) {
+            const { classId, subjectId, department } = removal;
+            if (!classId || !subjectId) continue;
+            affectedClassIds.add(classId);
+            if (department === null) {
+              const result = await tx.delete(schema.classSubjectMappings).where(
+                and2(
+                  eq2(schema.classSubjectMappings.classId, classId),
+                  eq2(schema.classSubjectMappings.subjectId, subjectId),
+                  sql`${schema.classSubjectMappings.department} IS NULL`
+                )
+              ).returning();
+              removedCount += result.length;
+            } else {
+              const result = await tx.delete(schema.classSubjectMappings).where(
+                and2(
+                  eq2(schema.classSubjectMappings.classId, classId),
+                  eq2(schema.classSubjectMappings.subjectId, subjectId),
+                  eq2(schema.classSubjectMappings.department, department)
+                )
+              ).returning();
+              removedCount += result.length;
+            }
+          }
+          for (const addition of additions) {
+            const { classId, subjectId, department, isCompulsory } = addition;
+            if (!classId || !subjectId) continue;
+            affectedClassIds.add(classId);
+            const result = await tx.insert(schema.classSubjectMappings).values({
+              classId,
+              subjectId,
+              department: department || null,
+              isCompulsory: isCompulsory || false
+            }).onConflictDoNothing().returning();
+            if (result.length > 0) {
+              addedCount++;
+            }
+          }
+          return {
+            added: addedCount,
+            removed: removedCount,
+            affectedClassIds: Array.from(affectedClassIds)
+          };
+        });
+      }
       // Department-based subject logic implementations
       async getSubjectsByCategory(category) {
         return await this.db.select().from(schema.subjects).where(
@@ -7044,24 +7993,16 @@ var init_storage = __esm({
         );
       }
       async getSubjectsForClassLevel(classLevel, department) {
-        const seniorSecondaryLevels = ["SS1", "SS2", "SS3"];
-        const isSeniorSecondary = seniorSecondaryLevels.includes(classLevel);
-        if (isSeniorSecondary && department) {
-          const categories = ["general", department.toLowerCase()];
-          return await this.db.select().from(schema.subjects).where(
-            and2(
-              inArray2(schema.subjects.category, categories),
-              eq2(schema.subjects.isActive, true)
-            )
-          );
-        } else {
-          return await this.db.select().from(schema.subjects).where(
-            and2(
-              eq2(schema.subjects.category, "general"),
-              eq2(schema.subjects.isActive, true)
-            )
-          );
+        const classesAtLevel = await this.db.select().from(schema.classes).where(eq2(schema.classes.level, classLevel)).limit(1);
+        if (classesAtLevel.length > 0) {
+          const classId = classesAtLevel[0].id;
+          const mappedSubjects = await this.getSubjectsByClassAndDepartment(classId, department);
+          if (mappedSubjects.length > 0) {
+            return mappedSubjects;
+          }
         }
+        console.log(`[SUBJECT-ASSIGNMENT] No class_subject_mappings found for level ${classLevel}, department: ${department || "none"}. Admin must assign subjects.`);
+        return [];
       }
       async autoAssignSubjectsToStudent(studentId, classId, department) {
         const classInfo = await this.getClass(classId);
@@ -7072,12 +8013,161 @@ var init_storage = __esm({
         const termId = currentTerm?.id;
         const subjects3 = await this.getSubjectsForClassLevel(classInfo.level, department);
         if (subjects3.length === 0) {
-          const generalSubjects = await this.getSubjectsByCategory("general");
-          const subjectIds2 = generalSubjects.map((s) => s.id);
-          return await this.assignSubjectsToStudent(studentId, classId, subjectIds2, termId);
+          console.log(`[AUTO-ASSIGN] No subjects found for class ${classId}, department: ${department || "none"}. Admin must assign subjects.`);
+          return [];
         }
         const subjectIds = subjects3.map((s) => s.id);
         return await this.assignSubjectsToStudent(studentId, classId, subjectIds, termId);
+      }
+      async syncStudentsWithClassMappings(classId, department) {
+        const errors = [];
+        let synced = 0;
+        try {
+          const classInfo = await this.getClass(classId);
+          if (!classInfo) {
+            return { synced: 0, errors: ["Class not found"] };
+          }
+          const isSeniorSecondary = classInfo.level && ["SS1", "SS2", "SS3", "Senior Secondary"].some(
+            (level) => classInfo.level?.toLowerCase().includes(level.toLowerCase())
+          );
+          const students3 = await this.getStudentsByClass(classId);
+          for (const student of students3) {
+            try {
+              const studentDept = student.department?.toLowerCase()?.trim() || void 0;
+              if (department && studentDept !== department.toLowerCase().trim()) {
+                continue;
+              }
+              const effectiveDept = isSeniorSecondary ? studentDept : void 0;
+              const mappedSubjects = await this.getSubjectsByClassAndDepartment(classId, effectiveDept);
+              if (mappedSubjects.length === 0) {
+                errors.push(`No subjects mapped for student ${student.id} (class ${classId}, dept: ${effectiveDept || "none"})`);
+                continue;
+              }
+              await db2.delete(schema.studentSubjectAssignments).where(eq2(schema.studentSubjectAssignments.studentId, student.id));
+              const currentTerm = await this.getCurrentTerm();
+              for (const subject of mappedSubjects) {
+                await db2.insert(schema.studentSubjectAssignments).values({
+                  studentId: student.id,
+                  classId,
+                  subjectId: subject.id,
+                  termId: currentTerm?.id || null,
+                  isActive: true
+                }).onConflictDoNothing();
+              }
+              synced++;
+            } catch (studentError) {
+              errors.push(`Failed to sync student ${student.id}: ${studentError.message}`);
+            }
+          }
+          console.log(`[SYNC] Synced ${synced} students in class ${classId}${department ? ` (${department})` : ""}`);
+          return { synced, errors };
+        } catch (error) {
+          console.error("[SYNC] Error syncing students with class mappings:", error);
+          return { synced: 0, errors: [error.message] };
+        }
+      }
+      async syncAllStudentsWithMappings() {
+        let totalSynced = 0;
+        const allErrors = [];
+        try {
+          const classes3 = await this.getClasses();
+          for (const classInfo of classes3) {
+            const result = await this.syncStudentsWithClassMappings(classInfo.id);
+            totalSynced += result.synced;
+            allErrors.push(...result.errors);
+          }
+          console.log(`[SYNC] Total synced: ${totalSynced} students across ${classes3.length} classes`);
+          return { synced: totalSynced, errors: allErrors };
+        } catch (error) {
+          console.error("[SYNC] Error syncing all students:", error);
+          return { synced: 0, errors: [error.message] };
+        }
+      }
+      async cleanupReportCardItems(studentId) {
+        try {
+          const student = await this.getStudent(studentId);
+          if (!student || !student.classId) {
+            return { removed: 0, kept: 0 };
+          }
+          const classInfo = await this.getClass(student.classId);
+          if (!classInfo) {
+            return { removed: 0, kept: 0 };
+          }
+          const isSeniorSecondary = classInfo.level && ["SS1", "SS2", "SS3", "Senior Secondary"].some(
+            (level) => classInfo.level?.toLowerCase().includes(level.toLowerCase()) || classInfo.name?.toLowerCase().includes(level.toLowerCase())
+          );
+          const studentDept = student.department?.toLowerCase()?.trim() || void 0;
+          const effectiveDept = isSeniorSecondary ? studentDept : void 0;
+          const allowedSubjects = await this.getSubjectsByClassAndDepartment(student.classId, effectiveDept);
+          const allowedSubjectIds = new Set(allowedSubjects.map((s) => s.id));
+          const reportCards3 = await db2.select().from(schema.reportCards).where(eq2(schema.reportCards.studentId, studentId));
+          let totalRemoved = 0;
+          let totalKept = 0;
+          for (const reportCard of reportCards3) {
+            const items = await db2.select().from(schema.reportCardItems).where(eq2(schema.reportCardItems.reportCardId, reportCard.id));
+            for (const item of items) {
+              if (!allowedSubjectIds.has(item.subjectId)) {
+                await db2.delete(schema.reportCardItems).where(eq2(schema.reportCardItems.id, item.id));
+                totalRemoved++;
+              } else {
+                totalKept++;
+              }
+            }
+          }
+          console.log(`[CLEANUP] Student ${studentId}: removed ${totalRemoved} items, kept ${totalKept}`);
+          return { removed: totalRemoved, kept: totalKept };
+        } catch (error) {
+          console.error(`[CLEANUP] Error cleaning up report card for student ${studentId}:`, error);
+          return { removed: 0, kept: 0 };
+        }
+      }
+      async cleanupReportCardsForClasses(classIds) {
+        let studentsProcessed = 0;
+        let totalItemsRemoved = 0;
+        const errors = [];
+        if (!classIds || classIds.length === 0) {
+          return { studentsProcessed: 0, itemsRemoved: 0, errors: [] };
+        }
+        try {
+          const students3 = await db2.select({ id: schema.students.id }).from(schema.students).where(inArray2(schema.students.classId, classIds));
+          console.log(`[CLEANUP] Processing ${students3.length} students from ${classIds.length} affected classes`);
+          for (const student of students3) {
+            try {
+              const result = await this.cleanupReportCardItems(student.id);
+              totalItemsRemoved += result.removed;
+              studentsProcessed++;
+            } catch (error) {
+              errors.push(`Failed to cleanup student ${student.id}: ${error.message}`);
+            }
+          }
+          console.log(`[CLEANUP] Processed ${studentsProcessed} students in affected classes, removed ${totalItemsRemoved} report card items`);
+          return { studentsProcessed, itemsRemoved: totalItemsRemoved, errors };
+        } catch (error) {
+          console.error("[CLEANUP] Error cleaning up report cards for classes:", error);
+          return { studentsProcessed: 0, itemsRemoved: 0, errors: [error.message] };
+        }
+      }
+      async cleanupAllReportCards() {
+        let studentsProcessed = 0;
+        let totalItemsRemoved = 0;
+        const errors = [];
+        try {
+          const students3 = await db2.select({ id: schema.students.id }).from(schema.students);
+          for (const student of students3) {
+            try {
+              const result = await this.cleanupReportCardItems(student.id);
+              totalItemsRemoved += result.removed;
+              studentsProcessed++;
+            } catch (error) {
+              errors.push(`Failed to cleanup student ${student.id}: ${error.message}`);
+            }
+          }
+          console.log(`[CLEANUP] Processed ${studentsProcessed} students, removed ${totalItemsRemoved} report card items`);
+          return { studentsProcessed, itemsRemoved: totalItemsRemoved, errors };
+        } catch (error) {
+          console.error("[CLEANUP] Error cleaning up all report cards:", error);
+          return { studentsProcessed: 0, itemsRemoved: 0, errors: [error.message] };
+        }
       }
     };
     storage = initializeStorageSync();
@@ -8196,10 +9286,10 @@ __export(auth_utils_exports, {
   isValidThsUsername: () => isValidThsUsername,
   parseUsername: () => parseUsername
 });
-import crypto from "crypto";
+import crypto2 from "crypto";
 function generateRandomString(length) {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%&*";
-  const bytes = crypto.randomBytes(length);
+  const bytes = crypto2.randomBytes(length);
   let result = "";
   for (let i = 0; i < length; i++) {
     result += chars[bytes[i] % chars.length];
@@ -8219,7 +9309,7 @@ function generateStudentUsername(nextNumber) {
   return `THS-STU-${String(nextNumber).padStart(3, "0")}`;
 }
 function generateStudentPassword(currentYear = (/* @__PURE__ */ new Date()).getFullYear().toString()) {
-  const randomHex = crypto.randomBytes(2).toString("hex").toUpperCase();
+  const randomHex = crypto2.randomBytes(2).toString("hex").toUpperCase();
   return `THS@${currentYear}#${randomHex}`;
 }
 function parseUsername(username) {
@@ -8447,844 +9537,371 @@ var init_username_generator = __esm({
   }
 });
 
-// server/realtime-service.ts
-var realtime_service_exports = {};
-__export(realtime_service_exports, {
-  realtimeService: () => realtimeService
+// server/enhanced-cache.ts
+var enhanced_cache_exports = {};
+__export(enhanced_cache_exports, {
+  EnhancedCache: () => EnhancedCache,
+  enhancedCache: () => enhancedCache
 });
-import { Server as SocketIOServer } from "socket.io";
-import jwt from "jsonwebtoken";
-import crypto2 from "crypto";
-var JWT_SECRET, RealtimeService, realtimeService;
-var init_realtime_service = __esm({
-  "server/realtime-service.ts"() {
+var EnhancedCache, enhancedCache;
+var init_enhanced_cache = __esm({
+  "server/enhanced-cache.ts"() {
     "use strict";
-    JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === "development" ? "dev-secret-key-change-in-production" : void 0);
-    RealtimeService = class {
-      constructor() {
-        this.io = null;
-        this.connectedClients = /* @__PURE__ */ new Map();
-        this.authenticatedSockets = /* @__PURE__ */ new Map();
-        this.recentEventIds = /* @__PURE__ */ new Set();
-        this.eventIdCleanupInterval = null;
-        // Duplicate session detection: Map<sessionId, ActiveExamSession>
-        this.activeExamSessions = /* @__PURE__ */ new Map();
-        // Track socket to session mapping for cleanup
-        this.socketToSession = /* @__PURE__ */ new Map();
-        this.heartbeatInterval = null;
+    EnhancedCache = class {
+      constructor(config) {
+        this.l1Cache = /* @__PURE__ */ new Map();
+        this.l2Cache = /* @__PURE__ */ new Map();
+        this.pendingRequests = /* @__PURE__ */ new Map();
+        this.l1Hits = 0;
+        this.l2Hits = 0;
+        this.misses = 0;
+        this.evictions = 0;
+        this.responseTimes = [];
+        this.config = {
+          maxL1Size: 100,
+          maxL2Size: 500,
+          defaultTTL: 5 * 60 * 1e3,
+          // 5 minutes
+          enableStats: true
+        };
+        this.cleanupInterval = null;
+        this.eventListeners = /* @__PURE__ */ new Map();
+        if (config) {
+          this.config = { ...this.config, ...config };
+        }
+        this.startCleanup();
       }
-      initialize(httpServer) {
-        const allowedOrigins2 = [];
-        if (process.env.NODE_ENV === "development") {
-          allowedOrigins2.push(
-            "http://localhost:5173",
-            "http://localhost:5000",
-            "http://127.0.0.1:5173",
-            "http://127.0.0.1:5000"
-          );
-        }
-        if (process.env.FRONTEND_URL) {
-          allowedOrigins2.push(process.env.FRONTEND_URL);
-        }
-        if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
-          allowedOrigins2.push(`https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
-        }
-        if (process.env.REPLIT_DEV_DOMAIN) {
-          allowedOrigins2.push(`https://${process.env.REPLIT_DEV_DOMAIN}`);
-        }
-        this.io = new SocketIOServer(httpServer, {
-          cors: {
-            origin: (origin, callback) => {
-              if (!origin) return callback(null, true);
-              if (allowedOrigins2.some((allowed) => origin.startsWith(allowed) || origin.includes(".repl.co") || origin.includes(".replit.dev"))) {
-                return callback(null, true);
-              }
-              if (process.env.NODE_ENV === "development") {
-                return callback(null, true);
-              }
-              console.warn(`\u26A0\uFE0F  Socket.IO CORS blocked origin: ${origin}`);
-              callback(new Error("CORS not allowed"));
-            },
-            credentials: true,
-            methods: ["GET", "POST"]
-          },
-          path: "/socket.io/",
-          transports: ["websocket", "polling"],
-          // Production optimizations
-          pingTimeout: 6e4,
-          pingInterval: 25e3,
-          upgradeTimeout: 3e4,
-          maxHttpBufferSize: 1e6,
-          // 1MB
-          connectTimeout: 45e3
-        });
-        this.setupMiddleware();
-        this.setupEventHandlers();
-        this.startEventIdCleanup();
-        this.startHeartbeatCheck();
-        console.log("\u2705 Socket.IO Realtime Service initialized");
-        console.log(`   \u2192 CORS origins: ${allowedOrigins2.length > 0 ? allowedOrigins2.join(", ") : "dynamic (Replit)"}`);
-        console.log(`   \u2192 Environment: ${process.env.NODE_ENV || "development"}`);
+      static {
+        // TTL Presets (in milliseconds)
+        this.TTL = {
+          INSTANT: 10 * 1e3,
+          // 10 seconds - for rapidly changing data
+          SHORT: 30 * 1e3,
+          // 30 seconds - for dynamic data
+          MEDIUM: 5 * 60 * 1e3,
+          // 5 minutes - for semi-static data
+          LONG: 30 * 60 * 1e3,
+          // 30 minutes - for static data
+          HOUR: 60 * 60 * 1e3,
+          // 1 hour
+          DAY: 24 * 60 * 60 * 1e3
+          // 24 hours
+        };
       }
-      setupMiddleware() {
-        if (!this.io) return;
-        this.io.use((socket, next) => {
-          const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.replace("Bearer ", "");
-          if (!token) {
-            console.log(`\u{1F4E1} Connection rejected: No authentication token provided (${socket.id})`);
-            return next(new Error("Authentication required"));
+      /**
+       * Get or set with request coalescing (prevents thundering herd)
+       */
+      async getOrSet(key, fetchFn, ttlMs = this.config.defaultTTL, tier = "L2") {
+        const startTime = Date.now();
+        const l1Entry = this.l1Cache.get(key);
+        if (l1Entry && l1Entry.expiresAt > Date.now()) {
+          this.l1Hits++;
+          l1Entry.hits++;
+          this.recordResponseTime(startTime);
+          this.emit("hit", { key, tier: "L1" });
+          return l1Entry.data;
+        }
+        const l2Entry = this.l2Cache.get(key);
+        if (l2Entry && l2Entry.expiresAt > Date.now()) {
+          this.l2Hits++;
+          l2Entry.hits++;
+          if (l2Entry.hits >= 3) {
+            this.promoteToL1(key, l2Entry);
           }
+          this.recordResponseTime(startTime);
+          this.emit("hit", { key, tier: "L2" });
+          return l2Entry.data;
+        }
+        const pending = this.pendingRequests.get(key);
+        if (pending) {
+          this.l1Hits++;
+          return pending;
+        }
+        this.misses++;
+        this.emit("miss", { key });
+        const fetchPromise = fetchFn().then((data) => {
+          this.set(key, data, ttlMs, tier);
+          this.pendingRequests.delete(key);
+          this.recordResponseTime(startTime);
+          return data;
+        }).catch((error) => {
+          this.pendingRequests.delete(key);
+          throw error;
+        });
+        this.pendingRequests.set(key, fetchPromise);
+        return fetchPromise;
+      }
+      /**
+       * Direct set with tier specification
+       */
+      set(key, data, ttlMs = this.config.defaultTTL, tier = "L2") {
+        const entry = {
+          data,
+          expiresAt: Date.now() + ttlMs,
+          hits: 0,
+          size: this.estimateSize(data),
+          tier,
+          createdAt: Date.now()
+        };
+        if (tier === "L1") {
+          this.ensureL1Capacity();
+          this.l1Cache.set(key, entry);
+        } else {
+          this.ensureL2Capacity();
+          this.l2Cache.set(key, entry);
+        }
+        this.emit("set", { key, tier });
+      }
+      /**
+       * Get without fetching
+       */
+      get(key) {
+        const l1Entry = this.l1Cache.get(key);
+        if (l1Entry && l1Entry.expiresAt > Date.now()) {
+          this.l1Hits++;
+          l1Entry.hits++;
+          return l1Entry.data;
+        }
+        const l2Entry = this.l2Cache.get(key);
+        if (l2Entry && l2Entry.expiresAt > Date.now()) {
+          this.l2Hits++;
+          l2Entry.hits++;
+          return l2Entry.data;
+        }
+        this.misses++;
+        return null;
+      }
+      /**
+       * Invalidate by key or pattern
+       */
+      invalidate(keyOrPattern) {
+        let count = 0;
+        const invalidateFromMap = (cache) => {
+          if (typeof keyOrPattern === "string") {
+            if (cache.delete(keyOrPattern)) count++;
+          } else {
+            for (const key of cache.keys()) {
+              if (keyOrPattern.test(key)) {
+                cache.delete(key);
+                count++;
+              }
+            }
+          }
+        };
+        invalidateFromMap(this.l1Cache);
+        invalidateFromMap(this.l2Cache);
+        if (count > 0) {
+          this.emit("invalidate", { pattern: keyOrPattern.toString(), count });
+        }
+        return count;
+      }
+      /**
+       * Invalidate all cache entries for a table
+       */
+      invalidateTable(tableName) {
+        return this.invalidate(new RegExp(`^${tableName}:`));
+      }
+      /**
+       * Pre-warm cache with critical data
+       */
+      async warmCache(warmers) {
+        const promises = warmers.map(async ({ key, fetchFn, ttl, tier }) => {
           try {
-            if (!JWT_SECRET) {
-              console.warn("\u26A0\uFE0F  JWT_SECRET not configured - rejecting connection");
-              return next(new Error("Server configuration error"));
-            }
-            const decoded = jwt.verify(token, JWT_SECRET);
-            const role = decoded.roleName || decoded.role || "unknown";
-            this.authenticatedSockets.set(socket.id, {
-              id: socket.id,
-              userId: decoded.userId,
-              role,
-              authorizedClasses: decoded.authorizedClasses || [],
-              authorizedStudentIds: decoded.authorizedStudentIds || []
-            });
-            console.log(`\u{1F4E1} Authenticated socket: ${socket.id} (User: ${decoded.userId}, Role: ${role}, Classes: ${(decoded.authorizedClasses || []).length})`);
-            next();
+            const data = await fetchFn();
+            this.set(key, data, ttl || this.config.defaultTTL, tier || "L2");
+            return { key, success: true };
           } catch (error) {
-            console.warn(`\u26A0\uFE0F  Invalid token for socket ${socket.id}:`, error instanceof Error ? error.message : "Unknown error");
-            return next(new Error("Invalid or expired token"));
+            console.warn(`Cache warm failed for ${key}:`, error);
+            return { key, success: false };
           }
         });
+        const results = await Promise.all(promises);
+        const successful = results.filter((r) => r.success).length;
+        console.log(`\u2705 Cache warmed: ${successful}/${warmers.length} entries`);
       }
-      setupEventHandlers() {
-        if (!this.io) return;
-        this.io.on("connection", (socket) => {
-          const user = this.authenticatedSockets.get(socket.id);
-          console.log(`\u{1F4E1} Client connected: ${socket.id}${user ? ` (User: ${user.userId})` : " (Anonymous)"}`);
-          if (user) {
-            socket.join(`user:${user.userId}`);
-            socket.join(`role:${user.role}`);
-            console.log(`   \u2192 Auto-joined rooms: user:${user.userId}, role:${user.role}`);
-          }
-          socket.on("subscribe", (data) => {
-            this.handleSubscribe(socket, data);
-          });
-          socket.on("subscribe:table", (data) => {
-            this.handleTableSubscribe(socket, data.table);
-          });
-          socket.on("subscribe:class", (data) => {
-            this.handleClassSubscribe(socket, data.classId);
-          });
-          socket.on("subscribe:exam", (data) => {
-            this.handleExamSubscribe(socket, data.examId);
-          });
-          socket.on("subscribe:reportcard", (data) => {
-            this.handleReportCardSubscribe(socket, data.reportCardId);
-          });
-          socket.on("unsubscribe", (data) => {
-            this.handleUnsubscribe(socket, data);
-          });
-          socket.on("disconnect", () => {
-            this.handleDisconnect(socket);
-          });
-          socket.on("ping", () => {
-            socket.emit("pong", { timestamp: Date.now() });
-          });
-          socket.on("get:subscriptions", () => {
-            const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id);
-            socket.emit("subscriptions", { rooms });
-          });
-          socket.on("exam:register_session", (data) => {
-            this.handleExamSessionRegister(socket, data);
-          });
-          socket.on("exam:session_heartbeat", (data) => {
-            this.handleExamSessionHeartbeat(socket, data);
-          });
-          socket.on("exam:unregister_session", (data) => {
-            this.handleExamSessionUnregister(socket, data);
-          });
-        });
-      }
-      // EXAM SECURITY: Handle exam session registration for duplicate detection
-      handleExamSessionRegister(socket, data) {
-        const user = this.authenticatedSockets.get(socket.id);
-        if (!user) {
-          socket.emit("exam:session_error", { error: "Authentication required" });
-          return;
-        }
-        const { sessionId, examId } = data;
-        const now = /* @__PURE__ */ new Date();
-        const existingSession = this.activeExamSessions.get(sessionId);
-        if (existingSession && existingSession.socketId !== socket.id) {
-          const timeSinceLastPing = now.getTime() - existingSession.lastPing.getTime();
-          if (timeSinceLastPing < 1e4) {
-            console.log(`\u26A0\uFE0F  DUPLICATE EXAM SESSION DETECTED: Session ${sessionId}, User ${user.userId}`);
-            console.log(`   \u2192 Existing socket: ${existingSession.socketId}, New socket: ${socket.id}`);
-            socket.emit("exam:duplicate_session", {
-              sessionId,
-              examId,
-              message: "This exam session is already open in another tab or device",
-              existingSocketId: existingSession.socketId
-            });
-            this.io?.to(existingSession.socketId).emit("exam:duplicate_session", {
-              sessionId,
-              examId,
-              message: "This exam session was opened in another tab or device",
-              newSocketId: socket.id
-            });
-            return;
-          }
-          console.log(`   \u2192 Cleaning up stale exam session: ${sessionId} (socket: ${existingSession.socketId})`);
-          this.socketToSession.delete(existingSession.socketId);
-        }
-        this.activeExamSessions.set(sessionId, {
-          socketId: socket.id,
-          sessionId,
-          userId: user.userId,
-          examId,
-          registeredAt: now,
-          lastPing: now
-        });
-        this.socketToSession.set(socket.id, sessionId);
-        socket.join(`exam_session:${sessionId}`);
-        console.log(`\u{1F4CB} Exam session registered: Session ${sessionId}, User ${user.userId}, Socket ${socket.id}`);
-        socket.emit("exam:session_registered", { sessionId, examId });
-      }
-      // EXAM SECURITY: Handle session heartbeat to keep session alive
-      handleExamSessionHeartbeat(socket, data) {
-        const session2 = this.activeExamSessions.get(data.sessionId);
-        if (session2 && session2.socketId === socket.id) {
-          session2.lastPing = /* @__PURE__ */ new Date();
-          socket.emit("exam:heartbeat_ack", { sessionId: data.sessionId, timestamp: Date.now() });
-        }
-      }
-      // EXAM SECURITY: Handle session unregistration when exam ends
-      handleExamSessionUnregister(socket, data) {
-        const session2 = this.activeExamSessions.get(data.sessionId);
-        if (session2 && session2.socketId === socket.id) {
-          this.activeExamSessions.delete(data.sessionId);
-          this.socketToSession.delete(socket.id);
-          socket.leave(`exam_session:${data.sessionId}`);
-          console.log(`\u{1F4CB} Exam session unregistered: Session ${data.sessionId}, Socket ${socket.id}`);
-        }
-      }
-      handleSubscribe(socket, data) {
-        if (data.table) {
-          this.handleTableSubscribe(socket, data.table);
-        }
-        if (data.channel) {
-          socket.join(data.channel);
-          console.log(`   \u2192 Client ${socket.id} joined channel: ${data.channel}`);
-          socket.emit("subscribed", { channel: data.channel });
-        }
-        if (data.classId) {
-          this.handleClassSubscribe(socket, data.classId);
-        }
-        if (data.examId) {
-          this.handleExamSubscribe(socket, data.examId);
-        }
-        if (data.reportCardId) {
-          this.handleReportCardSubscribe(socket, data.reportCardId);
-        }
-      }
-      handleTableSubscribe(socket, table) {
-        const user = this.authenticatedSockets.get(socket.id);
-        if (!user) {
-          socket.emit("subscription_error", { type: "table", table, error: "Authentication required" });
-          return;
-        }
-        const role = this.normalizeRole(user.role);
-        const adminOnlyTables = ["users", "students", "teacher_profiles", "admin_profiles", "parent_profiles"];
-        const academicTables = ["report_cards", "report_card_items", "exam_results", "exam_sessions", "exams"];
-        const fullAccessRoles = ["super_admin", "admin"];
-        const academicRoles = ["super_admin", "admin", "teacher"];
-        if (adminOnlyTables.includes(table) && !fullAccessRoles.includes(role)) {
-          socket.emit("subscription_error", { type: "table", table, error: "Insufficient permissions for this table" });
-          console.log(`   \u26A0\uFE0F  Unauthorized table subscription attempt by ${user.userId} (role: ${role}) for table: ${table}`);
-          return;
-        }
-        if (academicTables.includes(table) && !academicRoles.includes(role)) {
-          socket.emit("subscription_error", { type: "table", table, error: "Insufficient permissions for academic table" });
-          console.log(`   \u26A0\uFE0F  Unauthorized academic table subscription attempt by ${user.userId} (role: ${role}) for table: ${table}`);
-          return;
-        }
-        const channel = `table:${table}`;
-        socket.join(channel);
-        if (!this.connectedClients.has(table)) {
-          this.connectedClients.set(table, /* @__PURE__ */ new Set());
-        }
-        this.connectedClients.get(table).add(socket.id);
-        console.log(`   \u2192 Client ${socket.id} subscribed to table: ${table}`);
-        socket.emit("subscribed", { table, channel });
-      }
-      handleClassSubscribe(socket, classId) {
-        const user = this.authenticatedSockets.get(socket.id);
-        if (!user) {
-          socket.emit("subscription_error", { type: "class", classId, error: "Authentication required" });
-          return;
-        }
-        const role = this.normalizeRole(user.role);
-        const fullAccessRoles = ["super_admin", "admin"];
-        if (fullAccessRoles.includes(role)) {
-          const channel2 = `class:${classId}`;
-          socket.join(channel2);
-          console.log(`   \u2192 Client ${socket.id} (${role}) subscribed to class: ${classId}`);
-          socket.emit("subscribed", { type: "class", classId, channel: channel2 });
-          return;
-        }
-        const authorizedClasses = user.authorizedClasses || [];
-        if (!authorizedClasses.includes(classId) && !authorizedClasses.includes(classId.toString())) {
-          socket.emit("subscription_error", {
-            type: "class",
-            classId,
-            error: "Access denied: You are not authorized for this class"
-          });
-          console.log(`   \u26A0\uFE0F  Unauthorized class subscription: ${user.userId} (role: ${role}) attempted to access class ${classId}`);
-          return;
-        }
-        const channel = `class:${classId}`;
-        socket.join(channel);
-        console.log(`   \u2192 Client ${socket.id} subscribed to class: ${classId}`);
-        socket.emit("subscribed", { type: "class", classId, channel });
-      }
-      handleExamSubscribe(socket, examId) {
-        const user = this.authenticatedSockets.get(socket.id);
-        if (!user) {
-          socket.emit("subscription_error", { type: "exam", examId, error: "Authentication required" });
-          return;
-        }
-        const role = this.normalizeRole(user.role);
-        const fullAccessRoles = ["super_admin", "admin"];
-        if (fullAccessRoles.includes(role)) {
-          const channel = `exam:${examId}`;
-          socket.join(channel);
-          console.log(`   \u2192 Client ${socket.id} (${role}) subscribed to exam: ${examId}`);
-          socket.emit("subscribed", { type: "exam", examId, channel });
-          return;
-        }
-        if (role === "teacher") {
-          const channel = `exam:${examId}`;
-          socket.join(channel);
-          console.log(`   \u2192 Client ${socket.id} (teacher) subscribed to exam: ${examId}`);
-          socket.emit("subscribed", { type: "exam", examId, channel });
-          return;
-        }
-        if (role === "student" && user.authorizedStudentIds && user.authorizedStudentIds.length > 0) {
-          const channel = `exam:${examId}`;
-          socket.join(channel);
-          console.log(`   \u2192 Client ${socket.id} (student) subscribed to exam: ${examId}`);
-          socket.emit("subscribed", { type: "exam", examId, channel });
-          return;
-        }
-        socket.emit("subscription_error", { type: "exam", examId, error: "Access denied: insufficient permissions" });
-        console.log(`   \u26A0\uFE0F  Unauthorized exam subscription: ${user.userId} (role: ${role})`);
-      }
-      handleReportCardSubscribe(socket, reportCardId) {
-        const user = this.authenticatedSockets.get(socket.id);
-        if (!user) {
-          socket.emit("subscription_error", { type: "reportcard", reportCardId, error: "Authentication required" });
-          return;
-        }
-        const role = this.normalizeRole(user.role);
-        const fullAccessRoles = ["super_admin", "admin"];
-        if (fullAccessRoles.includes(role)) {
-          const channel = `reportcard:${reportCardId}`;
-          socket.join(channel);
-          console.log(`   \u2192 Client ${socket.id} (${role}) subscribed to report card: ${reportCardId}`);
-          socket.emit("subscribed", { type: "reportcard", reportCardId, channel });
-          return;
-        }
-        if (role === "teacher") {
-          const channel = `reportcard:${reportCardId}`;
-          socket.join(channel);
-          console.log(`   \u2192 Client ${socket.id} (teacher) subscribed to report card: ${reportCardId}`);
-          socket.emit("subscribed", { type: "reportcard", reportCardId, channel });
-          return;
-        }
-        if (role === "student" && user.authorizedStudentIds && user.authorizedStudentIds.length > 0) {
-          const channel = `reportcard:${reportCardId}`;
-          socket.join(channel);
-          console.log(`   \u2192 Client ${socket.id} (student) subscribed to report card: ${reportCardId}`);
-          socket.emit("subscribed", { type: "reportcard", reportCardId, channel });
-          return;
-        }
-        if (role === "parent" && user.authorizedStudentIds && user.authorizedStudentIds.length > 0) {
-          const channel = `reportcard:${reportCardId}`;
-          socket.join(channel);
-          console.log(`   \u2192 Client ${socket.id} (parent) subscribed to report card: ${reportCardId}`);
-          socket.emit("subscribed", { type: "reportcard", reportCardId, channel });
-          return;
-        }
-        socket.emit("subscription_error", { type: "reportcard", reportCardId, error: "Access denied: insufficient permissions" });
-        console.log(`   \u26A0\uFE0F  Unauthorized report card subscription: ${user.userId} (role: ${role})`);
-      }
-      // Normalize role names to canonical lowercase slugs
-      normalizeRole(role) {
-        const roleMap = {
-          "super admin": "super_admin",
-          "superadmin": "super_admin",
-          "super_admin": "super_admin",
-          "admin": "admin",
-          "administrator": "admin",
-          "teacher": "teacher",
-          "student": "student",
-          "parent": "parent"
-        };
-        return roleMap[role.toLowerCase()] || role.toLowerCase();
-      }
-      handleUnsubscribe(socket, data) {
-        if (data.table) {
-          const channel = `table:${data.table}`;
-          socket.leave(channel);
-          if (this.connectedClients.has(data.table)) {
-            this.connectedClients.get(data.table).delete(socket.id);
-            if (this.connectedClients.get(data.table).size === 0) {
-              this.connectedClients.delete(data.table);
-            }
-          }
-          console.log(`   \u2192 Client ${socket.id} unsubscribed from table: ${data.table}`);
-          socket.emit("unsubscribed", { table: data.table });
-        }
-        if (data.channel) {
-          socket.leave(data.channel);
-          console.log(`   \u2192 Client ${socket.id} left channel: ${data.channel}`);
-          socket.emit("unsubscribed", { channel: data.channel });
-        }
-        if (data.classId) {
-          socket.leave(`class:${data.classId}`);
-          socket.emit("unsubscribed", { type: "class", classId: data.classId });
-        }
-        if (data.examId) {
-          socket.leave(`exam:${data.examId}`);
-          socket.emit("unsubscribed", { type: "exam", examId: data.examId });
-        }
-        if (data.reportCardId) {
-          socket.leave(`reportcard:${data.reportCardId}`);
-          socket.emit("unsubscribed", { type: "reportcard", reportCardId: data.reportCardId });
-        }
-      }
-      handleDisconnect(socket) {
-        const user = this.authenticatedSockets.get(socket.id);
-        console.log(`\u{1F4E1} Client disconnected: ${socket.id}${user ? ` (User: ${user.userId})` : ""}`);
-        const sessionId = this.socketToSession.get(socket.id);
-        if (sessionId) {
-          const session2 = this.activeExamSessions.get(sessionId);
-          if (session2 && session2.socketId === socket.id) {
-            this.activeExamSessions.delete(sessionId);
-            console.log(`   \u2192 Cleaned up exam session ${sessionId} on disconnect`);
-          }
-          this.socketToSession.delete(socket.id);
-        }
-        this.connectedClients.forEach((clients, table) => {
-          clients.delete(socket.id);
-          if (clients.size === 0) {
-            this.connectedClients.delete(table);
-          }
-        });
-        this.authenticatedSockets.delete(socket.id);
-      }
-      generateEventId() {
-        return crypto2.randomUUID();
-      }
-      startEventIdCleanup() {
-        this.eventIdCleanupInterval = setInterval(() => {
-          this.recentEventIds.clear();
-        }, 6e4);
-      }
-      startHeartbeatCheck() {
-        this.heartbeatInterval = setInterval(() => {
-          if (!this.io) return;
-          const now = Date.now();
-          this.authenticatedSockets.forEach((user, socketId) => {
-            const socket = this.io?.sockets.sockets.get(socketId);
-            if (!socket || socket.disconnected) {
-              this.authenticatedSockets.delete(socketId);
-              this.connectedClients.forEach((clients) => {
-                clients.delete(socketId);
-              });
-            }
-          });
-        }, 3e4);
-      }
-      emitTableChange(table, operation, data, oldData, userId) {
-        if (!this.io) {
-          console.warn("\u26A0\uFE0F  Socket.IO not initialized, cannot emit event");
-          return;
-        }
-        const eventId = this.generateEventId();
-        this.recentEventIds.add(eventId);
-        const channel = `table:${table}`;
-        const payload = {
-          eventId,
-          eventType: `${table}.${operation.toLowerCase()}`,
-          table,
-          operation,
-          data,
-          oldData,
-          timestamp: Date.now(),
-          userId
-        };
-        this.io.to(channel).emit("table_change", payload);
-        const subscriberCount = this.connectedClients.get(table)?.size || 0;
-        if (subscriberCount > 0) {
-          console.log(`\u{1F4E4} Emitted ${operation} event for table ${table} to ${subscriberCount} clients (eventId: ${eventId.slice(0, 8)}...)`);
-        }
-        return eventId;
-      }
-      emitEvent(eventType, data, rooms) {
-        if (!this.io) {
-          console.warn("\u26A0\uFE0F  Socket.IO not initialized, cannot emit event");
-          return;
-        }
-        const eventId = this.generateEventId();
-        const payload = {
-          eventId,
-          eventType,
-          data,
-          timestamp: Date.now()
-        };
-        if (rooms) {
-          const roomList = Array.isArray(rooms) ? rooms : [rooms];
-          roomList.forEach((room) => {
-            this.io.to(room).emit(eventType, payload);
-          });
-          console.log(`\u{1F4E4} Emitted ${eventType} to rooms: ${roomList.join(", ")}`);
-        } else {
-          this.io.emit(eventType, payload);
-          console.log(`\u{1F4E4} Broadcast event: ${eventType}`);
-        }
-        return eventId;
-      }
-      emitToUser(userId, eventType, data) {
-        return this.emitEvent(eventType, data, `user:${userId}`);
-      }
-      emitToRole(role, eventType, data) {
-        return this.emitEvent(eventType, data, `role:${role}`);
-      }
-      emitToClass(classId, eventType, data) {
-        return this.emitEvent(eventType, data, `class:${classId}`);
-      }
-      emitToExam(examId, eventType, data) {
-        return this.emitEvent(eventType, data, `exam:${examId}`);
-      }
-      emitToReportCard(reportCardId, eventType, data) {
-        return this.emitEvent(eventType, data, `reportcard:${reportCardId}`);
-      }
-      emitToAll(event, data) {
-        if (!this.io) {
-          console.warn("\u26A0\uFE0F  Socket.IO not initialized, cannot emit event");
-          return;
-        }
-        this.io.emit(event, data);
-        console.log(`\u{1F4E4} Broadcast event: ${event}`);
-      }
-      emitToRoom(room, event, data) {
-        if (!this.io) {
-          console.warn("\u26A0\uFE0F  Socket.IO not initialized, cannot emit event");
-          return;
-        }
-        this.io.to(room).emit(event, data);
-      }
-      emitExamEvent(examId, eventType, data) {
-        const fullEventType = `exam.${eventType}`;
-        this.emitToExam(examId, fullEventType, { ...data, examId });
-        if (data.classId) {
-          this.emitToClass(data.classId, fullEventType, { ...data, examId });
-        }
-      }
-      // Dedicated method for exam publish/unpublish events
-      emitExamPublishEvent(examId, isPublished, data, userId) {
-        const eventType = isPublished ? "exam.published" : "exam.unpublished";
-        const operation = "UPDATE";
-        this.emitTableChange("exams", operation, { ...data, id: examId, isPublished }, void 0, userId);
-        this.emitToExam(examId, eventType, { ...data, examId, isPublished });
-        this.emitToRole("teacher", eventType, { ...data, examId, isPublished });
-        this.emitToRole("admin", eventType, { ...data, examId, isPublished });
-        this.emitToRole("super_admin", eventType, { ...data, examId, isPublished });
-        if (isPublished && data.classId) {
-          this.emitToClass(data.classId.toString(), eventType, { ...data, examId, isPublished });
-        }
-        console.log(`\u{1F4E4} Emitted ${eventType} for exam ${examId}`);
-      }
-      emitReportCardEvent(reportCardId, eventType, data, userId) {
-        const fullEventType = `reportcard.${eventType}`;
-        const operation = eventType === "created" ? "INSERT" : "UPDATE";
-        this.emitTableChange("report_cards", operation, { ...data, id: reportCardId }, void 0, userId);
-        this.emitToReportCard(reportCardId, fullEventType, data);
-        this.emitToRole("teacher", fullEventType, { ...data, reportCardId });
-        this.emitToRole("admin", fullEventType, { ...data, reportCardId });
-        this.emitToRole("super_admin", fullEventType, { ...data, reportCardId });
-        if (data.studentId) {
-          this.emitToUser(data.studentId, fullEventType, data);
-        }
-        if (data.classId) {
-          this.emitToClass(data.classId.toString(), fullEventType, data);
-        }
-        if (eventType === "published" && data.studentId && data.parentIds) {
-          const parentIds = Array.isArray(data.parentIds) ? data.parentIds : [data.parentIds];
-          parentIds.forEach((parentId) => {
-            this.emitToUser(parentId, fullEventType, {
-              ...data,
-              message: "A new report card has been published for your child"
-            });
-          });
-        }
-        console.log(`\u{1F4E4} Emitted reportcard.${eventType} for report card ${reportCardId} (student: ${data.studentId || "unknown"})`);
-      }
-      // Bulk emit for status changes affecting multiple report cards
-      emitBulkReportCardStatusChange(reportCardIds, newStatus, classId, termId, userId) {
-        const eventType = newStatus === "published" ? "bulk_published" : newStatus === "finalized" ? "bulk_finalized" : "bulk_reverted";
-        const fullEventType = `reportcard.${eventType}`;
-        const data = {
-          reportCardIds,
-          newStatus,
-          classId,
-          termId,
-          count: reportCardIds.length,
-          timestamp: Date.now()
-        };
-        this.emitToRole("teacher", fullEventType, data);
-        this.emitToRole("admin", fullEventType, data);
-        this.emitToRole("super_admin", fullEventType, data);
-        this.emitToClass(classId.toString(), fullEventType, data);
-        this.emitTableChange("report_cards", "UPDATE", data, void 0, userId);
-        console.log(`\u{1F4E4} Emitted ${fullEventType} for ${reportCardIds.length} report cards in class ${classId}`);
-      }
-      emitUserEvent(userId, eventType, data, role) {
-        const fullEventType = `user.${eventType}`;
-        this.emitTableChange("users", eventType.toUpperCase(), data, void 0, userId);
-        if (role) {
-          this.emitToRole("admin", fullEventType, data);
-          this.emitToRole("super_admin", fullEventType, data);
-        }
-      }
-      emitAttendanceEvent(classId, eventType, data) {
-        const fullEventType = `attendance.${eventType}`;
-        this.emitToClass(classId, fullEventType, data);
-        this.emitTableChange("attendance", eventType === "marked" ? "INSERT" : "UPDATE", data);
-      }
-      emitNotification(userId, notification) {
-        this.emitToUser(userId, "notification", notification);
-      }
-      emitUploadProgress(userId, uploadId, progress, status, url) {
-        this.emitToUser(userId, "upload.progress", {
-          uploadId,
-          progress,
-          status,
-          url
-        });
-      }
-      // Enhanced helper methods for consistent event emission across all modules
-      emitClassEvent(classId, eventType, data, userId) {
-        const fullEventType = `class.${eventType}`;
-        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
-        this.emitTableChange("classes", operation, data, void 0, userId);
-        this.emitToRole("admin", fullEventType, data);
-        this.emitToRole("teacher", fullEventType, data);
-        if (classId) {
-          this.emitToClass(classId, fullEventType, data);
-        }
-      }
-      emitSubjectEvent(eventType, data, userId) {
-        const fullEventType = `subject.${eventType}`;
-        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
-        this.emitTableChange("subjects", operation, data, void 0, userId);
-        this.emitToRole("admin", fullEventType, data);
-        this.emitToRole("teacher", fullEventType, data);
-      }
-      emitAnnouncementEvent(eventType, data, userId) {
-        const fullEventType = `announcement.${eventType}`;
-        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
-        this.emitTableChange("announcements", operation, data, void 0, userId);
-        const VALID_ROLE_ROOMS = {
-          "student": "student",
-          "teacher": "teacher",
-          "parent": "parent",
-          "admin": "admin",
-          "superadmin": "superadmin",
-          // Case variations for safety
-          "Student": "student",
-          "Teacher": "teacher",
-          "Parent": "parent",
-          "Admin": "admin",
-          "SuperAdmin": "superadmin"
-        };
-        const ALL_AUTHENTICATED_ROLES = ["admin", "superadmin", "teacher", "student", "parent"];
-        if (data.targetRole && typeof data.targetRole === "string") {
-          const targetRoom = VALID_ROLE_ROOMS[data.targetRole];
-          if (targetRoom) {
-            this.emitToRole(targetRoom, fullEventType, data);
-            this.emitToRole("admin", fullEventType, data);
-            this.emitToRole("superadmin", fullEventType, data);
-          }
-        } else {
-          ALL_AUTHENTICATED_ROLES.forEach((role) => {
-            this.emitToRole(role, fullEventType, data);
-          });
-        }
-      }
-      emitStudentEvent(classId, eventType, data, userId) {
-        const fullEventType = `student.${eventType}`;
-        const operation = eventType === "created" || eventType === "enrolled" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
-        this.emitTableChange("students", operation, data, void 0, userId);
-        this.emitToRole("admin", fullEventType, data);
-        if (classId) {
-          this.emitToClass(classId, fullEventType, data);
-        }
-      }
-      emitGradingEvent(examId, eventType, data, userId) {
-        const fullEventType = `grading.${eventType}`;
-        this.emitTableChange("student_answers", "UPDATE", data, void 0, userId);
-        this.emitToExam(examId, fullEventType, data);
-        if (data.classId) {
-          this.emitToClass(data.classId.toString(), fullEventType, data);
-        }
-      }
-      emitMessageEvent(senderId, recipientId, eventType, data) {
-        const fullEventType = `message.${eventType}`;
-        this.emitTableChange("messages", eventType === "sent" ? "INSERT" : "UPDATE", data, void 0, senderId);
-        this.emitToUser(recipientId, fullEventType, data);
-        this.emitToUser(senderId, `message.${eventType === "sent" ? "delivered" : "read_confirmation"}`, data);
-      }
-      emitHomepageContentEvent(eventType, data, userId) {
-        const fullEventType = `homepage.${eventType}`;
-        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
-        this.emitTableChange("homepage_content", operation, data, void 0, userId);
-        this.emitToRole("admin", fullEventType, data);
-        this.emitEvent(fullEventType, { id: data.id, contentType: data.contentType });
-      }
-      emitStudyResourceEvent(classId, eventType, data, userId) {
-        const fullEventType = `study_resource.${eventType}`;
-        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
-        this.emitTableChange("study_resources", operation, data, void 0, userId);
-        this.emitToRole("teacher", fullEventType, data);
-        if (classId) {
-          this.emitToClass(classId, fullEventType, data);
-        }
-      }
-      emitGalleryEvent(eventType, data, userId) {
-        const fullEventType = `gallery.${eventType}`;
-        const operation = eventType === "created" ? "INSERT" : "DELETE";
-        this.emitTableChange("gallery", operation, data, void 0, userId);
-        this.emitToRole("admin", fullEventType, data);
-        this.emitEvent(fullEventType, { id: data.id });
-      }
-      emitExamSessionEvent(examId, sessionId, eventType, data, userId) {
-        const fullEventType = `examSession.${eventType}`;
-        this.emitTableChange("exam_sessions", eventType === "started" ? "INSERT" : "UPDATE", data, void 0, userId);
-        this.emitToExam(examId, fullEventType, { sessionId, ...data });
-        if (data.classId) {
-          this.emitToClass(data.classId.toString(), fullEventType, { sessionId, ...data });
-        }
-      }
-      emitExamResultEvent(examId, eventType, data, userId) {
-        const fullEventType = `examResult.${eventType}`;
-        const operation = eventType === "created" ? "INSERT" : "UPDATE";
-        this.emitTableChange("exam_results", operation, data, void 0, userId);
-        this.emitToExam(examId, fullEventType, data);
-        if (data.studentId) {
-          this.emitToUser(data.studentId.toString(), fullEventType, data);
-        }
-        if (data.classId) {
-          this.emitToClass(data.classId.toString(), fullEventType, data);
-        }
-      }
-      emitTeacherAssignmentEvent(eventType, data, userId) {
-        const fullEventType = `teacherAssignment.${eventType}`;
-        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
-        this.emitTableChange("teacher_assignments", operation, data, void 0, userId);
-        this.emitToRole("admin", fullEventType, data);
-        if (data.teacherId) {
-          this.emitToUser(data.teacherId.toString(), fullEventType, data);
-        }
-        if (data.classId) {
-          this.emitToClass(data.classId.toString(), fullEventType, data);
-        }
-      }
-      emitParentLinkEvent(parentId, studentId, eventType, data, userId) {
-        const fullEventType = `parentLink.${eventType}`;
-        const operation = eventType === "linked" ? "INSERT" : "DELETE";
-        this.emitTableChange("parent_student_links", operation, data, void 0, userId);
-        this.emitToUser(parentId, fullEventType, data);
-        this.emitToUser(studentId, fullEventType, data);
-        this.emitToRole("admin", fullEventType, data);
-      }
-      emitSystemSettingEvent(eventType, data, userId) {
-        const fullEventType = `system.settings_${eventType}`;
-        this.emitTableChange("system_settings", "UPDATE", data, void 0, userId);
-        this.emitToRole("super_admin", fullEventType, data);
-        this.emitToRole("admin", fullEventType, data);
-        if (data.key && ["schoolName", "schoolLogo", "primaryColor", "secondaryColor"].includes(data.key)) {
-          this.emitEvent(`system.branding_${eventType}`, { key: data.key, value: data.value });
-        }
-      }
-      // Dashboard stats emission for real-time dashboard updates
-      emitDashboardStats(role, stats) {
-        this.emitToRole(role, "dashboard.stats_updated", stats);
-      }
-      // Grading settings event for real-time config updates
-      emitGradingSettingsEvent(eventType, data, userId) {
-        const fullEventType = `grading_settings.${eventType}`;
-        this.emitToRole("admin", fullEventType, data);
-        this.emitToRole("super_admin", fullEventType, data);
-        this.emitToRole("teacher", fullEventType, data);
-        this.emitEvent("grading_settings.changed", {
-          testWeight: data.testWeight,
-          examWeight: data.examWeight,
-          gradingScale: data.gradingScale,
-          timestamp: Date.now()
-        });
-        console.log(`\u{1F4E4} Emitted ${fullEventType} - Test: ${data.testWeight}%, Exam: ${data.examWeight}%`);
-      }
-      // Enhanced student-specific report card subscription
-      emitStudentReportCardUpdate(studentId, reportCardId, eventType, data) {
-        const fullEventType = `reportcard.${eventType}`;
-        this.emitToUser(studentId, fullEventType, data);
-        this.emitToReportCard(reportCardId, fullEventType, data);
-        if (data.parentId) {
-          this.emitToUser(data.parentId, fullEventType, data);
-        }
-        console.log(`\u{1F4E4} Emitted student report card update for student ${studentId}`);
-      }
-      getIO() {
-        return this.io;
-      }
-      getSubscriberCount(table) {
-        return this.connectedClients.get(table)?.size || 0;
-      }
-      getActiveSubscriptions() {
-        return Array.from(this.connectedClients.keys());
-      }
-      getConnectedUserCount() {
-        return this.authenticatedSockets.size;
-      }
-      getRoomSubscriberCount(room) {
-        if (!this.io) return 0;
-        const roomObj = this.io.sockets.adapter.rooms.get(room);
-        return roomObj ? roomObj.size : 0;
-      }
+      /**
+       * Get cache statistics
+       */
       getStats() {
+        const totalRequests = this.l1Hits + this.l2Hits + this.misses;
+        const avgResponseTime = this.responseTimes.length > 0 ? this.responseTimes.reduce((a, b) => a + b, 0) / this.responseTimes.length : 0;
         return {
-          totalConnections: this.io?.sockets.sockets.size || 0,
-          authenticatedUsers: this.authenticatedSockets.size,
-          tableSubscriptions: Object.fromEntries(this.connectedClients),
-          activeRooms: this.io ? Array.from(this.io.sockets.adapter.rooms.keys()).filter((r) => !this.io.sockets.sockets.has(r)) : []
+          l1Hits: this.l1Hits,
+          l2Hits: this.l2Hits,
+          misses: this.misses,
+          totalRequests,
+          hitRate: totalRequests > 0 ? (this.l1Hits + this.l2Hits) / totalRequests * 100 : 0,
+          l1Size: this.l1Cache.size,
+          l2Size: this.l2Cache.size,
+          avgResponseTime: Math.round(avgResponseTime * 100) / 100,
+          evictions: this.evictions
         };
       }
+      /**
+       * Clear all caches
+       */
+      clear() {
+        this.l1Cache.clear();
+        this.l2Cache.clear();
+        this.pendingRequests.clear();
+      }
+      /**
+       * Shutdown gracefully
+       */
       shutdown() {
-        if (this.eventIdCleanupInterval) {
-          clearInterval(this.eventIdCleanupInterval);
+        if (this.cleanupInterval) {
+          clearInterval(this.cleanupInterval);
         }
-        if (this.heartbeatInterval) {
-          clearInterval(this.heartbeatInterval);
+        this.clear();
+      }
+      static {
+        // ==================== CACHE KEY GENERATORS ====================
+        this.keys = {
+          // System data (long TTL)
+          systemSettings: () => "system:settings",
+          roles: () => "system:roles",
+          gradingConfig: () => "system:grading",
+          // Reference data (medium TTL)
+          classes: () => "ref:classes",
+          subjects: () => "ref:subjects",
+          academicTerms: () => "ref:terms",
+          currentTerm: () => "ref:currentTerm",
+          // Homepage & public content (medium TTL)
+          homepageContent: () => "homepage:content",
+          announcements: () => "announcements:all",
+          announcementsByRole: (role) => `announcements:role:${role}`,
+          // User data (short TTL)
+          user: (id) => `user:${id}`,
+          userProfile: (id) => `user:profile:${id}`,
+          student: (id) => `student:${id}`,
+          // Teacher data (short TTL)
+          teacherAssignments: (teacherId) => `teacher:assignments:${teacherId}`,
+          teacherDashboard: (teacherId) => `teacher:dashboard:${teacherId}`,
+          teacherClasses: (teacherId) => `teacher:classes:${teacherId}`,
+          // Exam data (short TTL due to real-time nature)
+          exam: (id) => `exam:${id}`,
+          examQuestions: (examId) => `exam:questions:${examId}`,
+          examsByClass: (classId) => `exams:class:${classId}`,
+          examsByTeacher: (teacherId) => `exams:teacher:${teacherId}`,
+          visibleExams: (userId, roleId) => `exams:visible:${userId}:${roleId}`,
+          // Report cards (medium TTL)
+          reportCard: (id) => `reportcard:${id}`,
+          reportCardsByStudent: (studentId) => `reportcards:student:${studentId}`,
+          reportCardsByClass: (classId, termId) => `reportcards:class:${classId}:term:${termId}`,
+          // Notifications (instant TTL due to real-time)
+          userNotifications: (userId) => `notifications:user:${userId}`,
+          unreadCount: (userId) => `notifications:unread:${userId}`
+        };
+      }
+      // ==================== PRIVATE METHODS ====================
+      promoteToL1(key, entry) {
+        this.ensureL1Capacity();
+        entry.tier = "L1";
+        this.l1Cache.set(key, entry);
+        this.l2Cache.delete(key);
+      }
+      ensureL1Capacity() {
+        while (this.l1Cache.size >= this.config.maxL1Size) {
+          const oldestKey = this.findLRUKey(this.l1Cache);
+          if (oldestKey) {
+            const entry = this.l1Cache.get(oldestKey);
+            this.l1Cache.delete(oldestKey);
+            if (entry && entry.expiresAt > Date.now()) {
+              entry.tier = "L2";
+              this.l2Cache.set(oldestKey, entry);
+            }
+            this.evictions++;
+            this.emit("evict", { key: oldestKey, tier: "L1" });
+          }
         }
-        if (this.io) {
-          this.io.close();
+      }
+      ensureL2Capacity() {
+        while (this.l2Cache.size >= this.config.maxL2Size) {
+          const oldestKey = this.findLRUKey(this.l2Cache);
+          if (oldestKey) {
+            this.l2Cache.delete(oldestKey);
+            this.evictions++;
+            this.emit("evict", { key: oldestKey, tier: "L2" });
+          }
         }
-        console.log("\u{1F6D1} Socket.IO Realtime Service shut down");
+      }
+      findLRUKey(cache) {
+        let oldestKey = null;
+        let oldestTime = Infinity;
+        for (const [key, entry] of cache.entries()) {
+          if (entry.createdAt < oldestTime) {
+            oldestTime = entry.createdAt;
+            oldestKey = key;
+          }
+        }
+        return oldestKey;
+      }
+      estimateSize(data) {
+        try {
+          return JSON.stringify(data).length;
+        } catch {
+          return 0;
+        }
+      }
+      recordResponseTime(startTime) {
+        if (!this.config.enableStats) return;
+        const duration = Date.now() - startTime;
+        this.responseTimes.push(duration);
+        if (this.responseTimes.length > 1e3) {
+          this.responseTimes.shift();
+        }
+      }
+      startCleanup() {
+        this.cleanupInterval = setInterval(() => {
+          const now = Date.now();
+          for (const [key, entry] of this.l1Cache.entries()) {
+            if (entry.expiresAt < now) {
+              this.l1Cache.delete(key);
+            }
+          }
+          for (const [key, entry] of this.l2Cache.entries()) {
+            if (entry.expiresAt < now) {
+              this.l2Cache.delete(key);
+            }
+          }
+        }, 60 * 1e3);
+      }
+      emit(event, data) {
+        const listeners = this.eventListeners.get(event);
+        if (listeners) {
+          for (const listener of listeners) {
+            try {
+              listener(data);
+            } catch (e) {
+            }
+          }
+        }
+      }
+      /**
+       * Subscribe to cache events
+       */
+      on(event, listener) {
+        if (!this.eventListeners.has(event)) {
+          this.eventListeners.set(event, /* @__PURE__ */ new Set());
+        }
+        this.eventListeners.get(event).add(listener);
+      }
+      /**
+       * Unsubscribe from cache events
+       */
+      off(event, listener) {
+        const listeners = this.eventListeners.get(event);
+        if (listeners) {
+          listeners.delete(listener);
+        }
       }
     };
-    realtimeService = new RealtimeService();
+    enhancedCache = new EnhancedCache({
+      maxL1Size: 150,
+      maxL2Size: 800,
+      defaultTTL: 5 * 60 * 1e3,
+      enableStats: true
+    });
   }
 });
 
@@ -9467,6 +10084,1128 @@ var init_performance_cache = __esm({
       }
     };
     performanceCache = new PerformanceCache();
+  }
+});
+
+// server/database-optimization.ts
+var database_optimization_exports = {};
+__export(database_optimization_exports, {
+  DatabaseOptimizer: () => DatabaseOptimizer,
+  databaseOptimizer: () => databaseOptimizer
+});
+var DatabaseOptimizer, databaseOptimizer;
+var init_database_optimization = __esm({
+  "server/database-optimization.ts"() {
+    "use strict";
+    init_storage();
+    DatabaseOptimizer = class {
+      constructor() {
+        this.queryStats = /* @__PURE__ */ new Map();
+        this.slowQueryThreshold = 500;
+        // 500ms
+        this.slowQueryLog = [];
+        this.maxSlowQueryLogSize = 100;
+        this.startPeriodicCleanup();
+      }
+      /**
+       * Performance indexes creation script
+       * Run this once to ensure all critical indexes exist
+       */
+      async createPerformanceIndexes() {
+        const created = [];
+        const errors = [];
+        const indexStatements = [
+          // User hot paths
+          { name: "users_active_role_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS users_active_role_idx ON users(role_id, is_active)" },
+          { name: "users_last_login_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS users_last_login_idx ON users(last_login_at DESC NULLS LAST)" },
+          { name: "users_status_active_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS users_status_active_idx ON users(status, is_active) WHERE is_active = true" },
+          // Exam sessions hot paths (critical for exam taking)
+          { name: "exam_sessions_status_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_sessions_status_idx ON exam_sessions(status)" },
+          { name: "exam_sessions_student_status_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_sessions_student_status_idx ON exam_sessions(student_id, status)" },
+          { name: "exam_sessions_started_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_sessions_started_idx ON exam_sessions(started_at DESC)" },
+          { name: "exam_sessions_submitted_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_sessions_submitted_idx ON exam_sessions(submitted_at DESC NULLS LAST)" },
+          { name: "exam_sessions_timeout_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_sessions_timeout_idx ON exam_sessions(is_completed, started_at) WHERE is_completed = false" },
+          // Exam hot paths (for listing and filtering)
+          { name: "exams_published_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exams_published_idx ON exams(is_published) WHERE is_published = true" },
+          { name: "exams_created_by_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exams_created_by_idx ON exams(created_by)" },
+          { name: "exams_teacher_charge_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exams_teacher_charge_idx ON exams(teacher_in_charge_id)" },
+          { name: "exams_class_term_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exams_class_term_idx ON exams(class_id, term_id)" },
+          { name: "exams_subject_class_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exams_subject_class_idx ON exams(subject_id, class_id)" },
+          { name: "exams_date_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exams_date_idx ON exams(date DESC)" },
+          { name: "exams_time_window_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exams_time_window_idx ON exams(start_time, end_time)" },
+          // Report cards hot paths
+          { name: "report_cards_status_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS report_cards_status_idx ON report_cards(status)" },
+          { name: "report_cards_student_status_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS report_cards_student_status_idx ON report_cards(student_id, status)" },
+          { name: "report_cards_published_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS report_cards_published_idx ON report_cards(status, published_at DESC) WHERE status = 'published'" },
+          // Notifications hot paths
+          { name: "notifications_user_unread_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS notifications_user_unread_idx ON notifications(user_id, is_read) WHERE is_read = false" },
+          { name: "notifications_created_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS notifications_created_idx ON notifications(created_at DESC)" },
+          { name: "notifications_user_created_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS notifications_user_created_idx ON notifications(user_id, created_at DESC)" },
+          // Teacher assignments hot paths
+          { name: "teacher_assign_active_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS teacher_assign_active_idx ON teacher_class_assignments(teacher_id, is_active) WHERE is_active = true" },
+          { name: "teacher_assign_term_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS teacher_assign_term_idx ON teacher_class_assignments(term_id)" },
+          { name: "teacher_assign_valid_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS teacher_assign_valid_idx ON teacher_class_assignments(valid_until) WHERE valid_until IS NOT NULL" },
+          // Attendance hot paths
+          { name: "attendance_student_date_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS attendance_student_date_idx ON attendance(student_id, date DESC)" },
+          { name: "attendance_class_date_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS attendance_class_date_idx ON attendance(class_id, date DESC)" },
+          { name: "attendance_date_status_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS attendance_date_status_idx ON attendance(date, status)" },
+          // Messages hot paths
+          { name: "messages_recipient_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS messages_recipient_idx ON messages(recipient_id, created_at DESC)" },
+          { name: "messages_sender_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS messages_sender_idx ON messages(sender_id, created_at DESC)" },
+          { name: "messages_unread_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS messages_unread_idx ON messages(recipient_id, is_read) WHERE is_read = false" },
+          // Audit logs hot paths (for admin dashboards)
+          { name: "audit_logs_user_date_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS audit_logs_user_date_idx ON audit_logs(user_id, created_at DESC)" },
+          // Students hot paths
+          { name: "students_parent_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS students_parent_idx ON students(parent_id)" },
+          // Grading tasks hot paths
+          { name: "grading_tasks_pending_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS grading_tasks_pending_idx ON grading_tasks(teacher_id, status) WHERE status = 'pending'" },
+          { name: "grading_tasks_priority_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS grading_tasks_priority_idx ON grading_tasks(priority DESC, created_at ASC)" },
+          // Continuous assessment hot paths
+          { name: "ca_student_term_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS ca_student_term_idx ON continuous_assessment(student_id, term_id)" },
+          // Announcements hot paths
+          { name: "announcements_published_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS announcements_published_idx ON announcements(is_published, published_at DESC) WHERE is_published = true" },
+          // Homepage content hot paths
+          { name: "homepage_active_order_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS homepage_active_order_idx ON home_page_content(is_active, display_order) WHERE is_active = true" },
+          // ==================== EXAM VISIBILITY OPTIMIZATION INDEXES ====================
+          // Critical for student exam access performance (target: <100ms)
+          // Students class-based lookup for visibility
+          { name: "students_class_dept_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS students_class_dept_idx ON students(class_id, department)" },
+          { name: "students_class_active_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS students_class_active_idx ON students(class_id)" },
+          // Subject category for department filtering (SS1-SS3)
+          { name: "subjects_category_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS subjects_category_idx ON subjects(category) WHERE is_active = true" },
+          { name: "subjects_active_cat_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS subjects_active_cat_idx ON subjects(is_active, category)" },
+          // Optimized exam visibility queries
+          { name: "exams_visibility_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exams_visibility_idx ON exams(is_published, class_id, subject_id)" },
+          { name: "exams_class_published_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exams_class_published_idx ON exams(class_id, is_published) WHERE is_published = true" },
+          // Classes level lookup for SS detection
+          { name: "classes_level_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS classes_level_idx ON classes(level)" },
+          // ==================== VACANCY OPTIMIZATION INDEXES ====================
+          // Critical for public vacancy listing (target: <100ms)
+          { name: "vacancies_status_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS vacancies_status_idx ON vacancies(status)" },
+          { name: "vacancies_active_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS vacancies_active_idx ON vacancies(status, created_at DESC) WHERE status = 'open'" },
+          { name: "vacancies_created_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS vacancies_created_idx ON vacancies(created_at DESC)" },
+          // ==================== EXAM RESULTS & SUBMISSIONS OPTIMIZATION ====================
+          // Critical for real-time anti-cheat and grading
+          { name: "exam_results_exam_student_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_results_exam_student_idx ON exam_results(exam_id, student_id)" },
+          { name: "exam_results_student_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_results_student_idx ON exam_results(student_id)" },
+          { name: "student_answers_session_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS student_answers_session_idx ON student_answers(session_id)" },
+          { name: "student_answers_question_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS student_answers_question_idx ON student_answers(question_id)" },
+          // ==================== SCALABILITY INDEXES ====================
+          // For horizontal scaling support with 1000+ concurrent users
+          // Session management
+          { name: "exam_sessions_exam_student_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_sessions_exam_student_idx ON exam_sessions(exam_id, student_id)" },
+          { name: "exam_sessions_active_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS exam_sessions_active_idx ON exam_sessions(status, started_at) WHERE status = 'in_progress'" },
+          // User authentication hot paths
+          { name: "users_login_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS users_login_idx ON users(username, is_active) WHERE is_active = true" },
+          { name: "users_email_active_idx", sql: "CREATE INDEX CONCURRENTLY IF NOT EXISTS users_email_active_idx ON users(email, is_active) WHERE is_active = true" }
+        ];
+        const pool2 = getPgPool();
+        if (!pool2) {
+          errors.push("Database pool not available");
+          return { created, errors };
+        }
+        for (const idx of indexStatements) {
+          try {
+            await pool2.query(idx.sql);
+            created.push(idx.name);
+          } catch (error) {
+            if (error.message?.includes("already exists")) {
+              created.push(`${idx.name} (exists)`);
+            } else {
+              errors.push(`${idx.name}: ${error.message}`);
+            }
+          }
+        }
+        return { created, errors };
+      }
+      /**
+       * Analyze table statistics and suggest optimizations
+       */
+      async analyzeTableStats() {
+        const pool2 = getPgPool();
+        if (!pool2) return /* @__PURE__ */ new Map();
+        const stats = /* @__PURE__ */ new Map();
+        const criticalTables = [
+          "users",
+          "students",
+          "exams",
+          "exam_sessions",
+          "exam_results",
+          "student_answers",
+          "report_cards",
+          "notifications",
+          "teacher_class_assignments"
+        ];
+        for (const table of criticalTables) {
+          try {
+            const result = await pool2.query(`
+          SELECT 
+            relname as table_name,
+            n_live_tup as row_count,
+            n_dead_tup as dead_rows,
+            n_tup_ins as inserts,
+            n_tup_upd as updates,
+            n_tup_del as deletes,
+            last_vacuum,
+            last_autovacuum,
+            last_analyze,
+            last_autoanalyze
+          FROM pg_stat_user_tables 
+          WHERE relname = $1
+        `, [table]);
+            if (result.rows.length > 0) {
+              stats.set(table, result.rows[0]);
+            }
+          } catch (error) {
+          }
+        }
+        return stats;
+      }
+      /**
+       * Get slow query log
+       */
+      getSlowQueryLog() {
+        return [...this.slowQueryLog];
+      }
+      /**
+       * Log a slow query
+       */
+      logSlowQuery(query, durationMs) {
+        if (durationMs >= this.slowQueryThreshold) {
+          this.slowQueryLog.push({
+            query: query.substring(0, 500),
+            // Truncate long queries
+            duration: durationMs,
+            timestamp: /* @__PURE__ */ new Date()
+          });
+          if (this.slowQueryLog.length > this.maxSlowQueryLogSize) {
+            this.slowQueryLog.shift();
+          }
+          console.warn(`[SLOW QUERY ${durationMs}ms] ${query.substring(0, 100)}...`);
+        }
+      }
+      /**
+       * Record query execution stats
+       */
+      recordQueryStats(queryId, durationMs) {
+        const existing = this.queryStats.get(queryId);
+        if (existing) {
+          existing.totalCalls++;
+          existing.avgDurationMs = (existing.avgDurationMs * (existing.totalCalls - 1) + durationMs) / existing.totalCalls;
+          existing.slowestDurationMs = Math.max(existing.slowestDurationMs, durationMs);
+          existing.lastCalled = /* @__PURE__ */ new Date();
+        } else {
+          this.queryStats.set(queryId, {
+            query: queryId,
+            avgDurationMs: durationMs,
+            totalCalls: 1,
+            slowestDurationMs: durationMs,
+            lastCalled: /* @__PURE__ */ new Date()
+          });
+        }
+        this.logSlowQuery(queryId, durationMs);
+      }
+      /**
+       * Get top N slowest queries
+       */
+      getTopSlowQueries(n = 10) {
+        return Array.from(this.queryStats.values()).sort((a, b) => b.avgDurationMs - a.avgDurationMs).slice(0, n);
+      }
+      /**
+       * Get performance metrics
+       */
+      async getPerformanceMetrics() {
+        const pool2 = getPgPool();
+        const totalQueries = Array.from(this.queryStats.values()).reduce((sum, s) => sum + s.totalCalls, 0);
+        const avgQueryTime = totalQueries > 0 ? Array.from(this.queryStats.values()).reduce((sum, s) => sum + s.avgDurationMs * s.totalCalls, 0) / totalQueries : 0;
+        return {
+          totalQueries,
+          avgQueryTime: Math.round(avgQueryTime * 100) / 100,
+          slowQueries: this.slowQueryLog.length,
+          cacheHitRate: 0,
+          // Will be populated from performanceCache
+          connectionPoolStats: {
+            total: pool2?.totalCount || 0,
+            idle: pool2?.idleCount || 0,
+            waiting: pool2?.waitingCount || 0
+          }
+        };
+      }
+      /**
+       * Run VACUUM ANALYZE on critical tables
+       */
+      async vacuumAnalyzeCriticalTables() {
+        const pool2 = getPgPool();
+        if (!pool2) return { success: [], errors: ["Database pool not available"] };
+        const success = [];
+        const errors = [];
+        const criticalTables = [
+          "exam_sessions",
+          "student_answers",
+          "exam_results",
+          "notifications",
+          "report_cards",
+          "audit_logs"
+        ];
+        for (const table of criticalTables) {
+          try {
+            await pool2.query(`ANALYZE ${table}`);
+            success.push(table);
+          } catch (error) {
+            errors.push(`${table}: ${error.message}`);
+          }
+        }
+        return { success, errors };
+      }
+      /**
+       * Periodic cleanup of stale stats
+       */
+      startPeriodicCleanup() {
+        setInterval(() => {
+          const oneHourAgo = new Date(Date.now() - 60 * 60 * 1e3);
+          for (const [key, stats] of this.queryStats.entries()) {
+            if (stats.lastCalled < oneHourAgo) {
+              this.queryStats.delete(key);
+            }
+          }
+        }, 15 * 60 * 1e3);
+      }
+      /**
+       * Reset all statistics
+       */
+      resetStats() {
+        this.queryStats.clear();
+        this.slowQueryLog = [];
+      }
+    };
+    databaseOptimizer = new DatabaseOptimizer();
+  }
+});
+
+// server/socket-optimizer.ts
+var socket_optimizer_exports = {};
+__export(socket_optimizer_exports, {
+  SocketOptimizer: () => SocketOptimizer,
+  socketOptimizer: () => socketOptimizer
+});
+var SocketOptimizer, socketOptimizer;
+var init_socket_optimizer = __esm({
+  "server/socket-optimizer.ts"() {
+    "use strict";
+    SocketOptimizer = class {
+      constructor(config) {
+        this.io = null;
+        this.batchTimer = null;
+        this.latencyMeasurements = [];
+        this.connectionsByUser = /* @__PURE__ */ new Map();
+        this.config = {
+          batchingEnabled: true,
+          batchIntervalMs: 50,
+          // Batch messages every 50ms
+          maxBatchSize: 100,
+          compressionThreshold: 1024,
+          // Compress messages > 1KB
+          heartbeatInterval: 25e3,
+          deadConnectionTimeout: 6e4,
+          maxConnectionsPerUser: 5,
+          // Max 5 tabs per user
+          enableMetrics: true,
+          ...config
+        };
+        this.stats = this.initializeStats();
+        this.messageBatch = { events: [], createdAt: Date.now() };
+      }
+      /**
+       * Initialize Socket.IO with optimizations
+       */
+      initialize(io) {
+        this.io = io;
+        this.setupOptimizedHandlers();
+        this.startMetricsCollection();
+        console.log("\u2705 Socket Optimizer initialized");
+      }
+      /**
+       * Add optimized event emission with batching
+       */
+      emit(eventType, data, rooms) {
+        if (!this.io) return;
+        const roomList = rooms ? Array.isArray(rooms) ? rooms : [rooms] : [];
+        if (this.config.batchingEnabled) {
+          this.addToBatch(eventType, data, roomList);
+        } else {
+          this.emitImmediate(eventType, data, roomList);
+        }
+      }
+      /**
+       * Emit immediately (bypass batching)
+       */
+      emitImmediate(eventType, data, rooms) {
+        if (!this.io) return;
+        const payload = this.optimizePayload(data);
+        if (rooms.length > 0) {
+          for (const room of rooms) {
+            this.io.to(room).emit(eventType, payload);
+          }
+        } else {
+          this.io.emit(eventType, payload);
+        }
+        this.stats.messagesSent++;
+        this.stats.bytesTransferred += JSON.stringify(payload).length;
+      }
+      /**
+       * Add message to batch
+       */
+      addToBatch(eventType, data, rooms) {
+        this.messageBatch.events.push({ eventType, data, rooms });
+        if (this.messageBatch.events.length >= this.config.maxBatchSize) {
+          this.flushBatch();
+        }
+        if (!this.batchTimer) {
+          this.batchTimer = setTimeout(() => {
+            this.flushBatch();
+          }, this.config.batchIntervalMs);
+        }
+      }
+      /**
+       * Flush message batch
+       */
+      flushBatch() {
+        if (this.batchTimer) {
+          clearTimeout(this.batchTimer);
+          this.batchTimer = null;
+        }
+        const events = this.messageBatch.events;
+        this.messageBatch = { events: [], createdAt: Date.now() };
+        if (events.length === 0) return;
+        const eventsByRoom = /* @__PURE__ */ new Map();
+        const broadcastEvents = [];
+        for (const event of events) {
+          if (event.rooms && event.rooms.length > 0) {
+            for (const room of event.rooms) {
+              if (!eventsByRoom.has(room)) {
+                eventsByRoom.set(room, []);
+              }
+              eventsByRoom.get(room).push({ eventType: event.eventType, data: event.data });
+            }
+          } else {
+            broadcastEvents.push({ eventType: event.eventType, data: event.data });
+          }
+        }
+        if (this.io) {
+          for (const [room, roomEvents] of eventsByRoom) {
+            if (roomEvents.length === 1) {
+              this.io.to(room).emit(roomEvents[0].eventType, this.optimizePayload(roomEvents[0].data));
+            } else {
+              this.io.to(room).emit("batch", { events: roomEvents.map((e) => ({ type: e.eventType, data: this.optimizePayload(e.data) })) });
+            }
+          }
+          for (const event of broadcastEvents) {
+            this.io.emit(event.eventType, this.optimizePayload(event.data));
+          }
+        }
+        this.stats.messagesSent += events.length;
+      }
+      /**
+       * Optimize payload (remove unnecessary data, potentially compress)
+       */
+      optimizePayload(data) {
+        if (data === null || data === void 0) return data;
+        if (typeof data === "object" && !Array.isArray(data)) {
+          const cleaned = {};
+          for (const [key, value] of Object.entries(data)) {
+            if (value !== void 0) {
+              cleaned[key] = value;
+            }
+          }
+          return cleaned;
+        }
+        return data;
+      }
+      /**
+       * Track connection for a user
+       */
+      trackConnection(userId, socketId) {
+        if (!this.connectionsByUser.has(userId)) {
+          this.connectionsByUser.set(userId, /* @__PURE__ */ new Set());
+        }
+        const userConnections = this.connectionsByUser.get(userId);
+        if (userConnections.size >= this.config.maxConnectionsPerUser) {
+          console.warn(`\u26A0\uFE0F  User ${userId} exceeded max connections (${this.config.maxConnectionsPerUser})`);
+          return false;
+        }
+        userConnections.add(socketId);
+        this.stats.totalConnections++;
+        this.stats.authenticatedConnections++;
+        if (this.stats.totalConnections > this.stats.peakConnections) {
+          this.stats.peakConnections = this.stats.totalConnections;
+        }
+        return true;
+      }
+      /**
+       * Untrack connection for a user
+       */
+      untrackConnection(userId, socketId) {
+        const userConnections = this.connectionsByUser.get(userId);
+        if (userConnections) {
+          userConnections.delete(socketId);
+          if (userConnections.size === 0) {
+            this.connectionsByUser.delete(userId);
+          }
+        }
+        if (this.stats.totalConnections > 0) {
+          this.stats.totalConnections--;
+        }
+        if (this.stats.authenticatedConnections > 0) {
+          this.stats.authenticatedConnections--;
+        }
+      }
+      /**
+       * Record latency measurement
+       */
+      recordLatency(latencyMs) {
+        this.latencyMeasurements.push(latencyMs);
+        if (this.latencyMeasurements.length > 1e3) {
+          this.latencyMeasurements.shift();
+        }
+        this.stats.averageLatency = this.latencyMeasurements.reduce((a, b) => a + b, 0) / this.latencyMeasurements.length;
+      }
+      /**
+       * Get connection statistics
+       */
+      getStats() {
+        if (this.io) {
+          const rooms = this.io.sockets.adapter.rooms;
+          this.stats.roomCounts = /* @__PURE__ */ new Map();
+          for (const [roomName, sockets] of rooms) {
+            if (!roomName.startsWith("/")) {
+              this.stats.roomCounts.set(roomName, sockets.size);
+            }
+          }
+        }
+        return { ...this.stats };
+      }
+      /**
+       * Get room size
+       */
+      getRoomSize(room) {
+        if (!this.io) return 0;
+        return this.io.sockets.adapter.rooms.get(room)?.size || 0;
+      }
+      /**
+       * Broadcast to specific room efficiently
+       */
+      broadcastToRoom(room, eventType, data) {
+        if (!this.io) return;
+        this.io.to(room).emit(eventType, this.optimizePayload(data));
+        this.stats.messagesSent++;
+      }
+      /**
+       * Get connections per user stats
+       */
+      getConnectionsPerUser() {
+        const result = /* @__PURE__ */ new Map();
+        for (const [userId, sockets] of this.connectionsByUser) {
+          result.set(userId, sockets.size);
+        }
+        return result;
+      }
+      /**
+       * Setup optimized event handlers
+       */
+      setupOptimizedHandlers() {
+        if (!this.io) return;
+        this.io.on("connection", (socket) => {
+          socket.on("ping_measure", () => {
+            socket.emit("pong_measure", { timestamp: Date.now() });
+          });
+          socket.on("subscribe_batch", (rooms) => {
+            if (Array.isArray(rooms)) {
+              for (const room of rooms.slice(0, 20)) {
+                if (typeof room === "string" && room.length < 100) {
+                  socket.join(room);
+                }
+              }
+            }
+          });
+          socket.on("unsubscribe_batch", (rooms) => {
+            if (Array.isArray(rooms)) {
+              for (const room of rooms) {
+                if (typeof room === "string") {
+                  socket.leave(room);
+                }
+              }
+            }
+          });
+        });
+      }
+      /**
+       * Start metrics collection
+       */
+      startMetricsCollection() {
+        if (!this.config.enableMetrics) return;
+        setInterval(() => {
+          const stats = this.getStats();
+          console.log(`\u{1F4E1} Socket Stats: ${stats.totalConnections} connections, ${stats.messagesSent} msgs sent, ${Math.round(stats.averageLatency)}ms avg latency`);
+        }, 5 * 60 * 1e3);
+      }
+      /**
+       * Initialize stats object
+       */
+      initializeStats() {
+        return {
+          totalConnections: 0,
+          authenticatedConnections: 0,
+          roomCounts: /* @__PURE__ */ new Map(),
+          messagesSent: 0,
+          messagesReceived: 0,
+          bytesTransferred: 0,
+          peakConnections: 0,
+          averageLatency: 0,
+          droppedConnections: 0
+        };
+      }
+      /**
+       * Reset statistics
+       */
+      resetStats() {
+        this.stats = this.initializeStats();
+        this.latencyMeasurements = [];
+      }
+      /**
+       * Shutdown optimizer
+       */
+      shutdown() {
+        if (this.batchTimer) {
+          clearTimeout(this.batchTimer);
+        }
+        this.flushBatch();
+      }
+    };
+    socketOptimizer = new SocketOptimizer();
+  }
+});
+
+// server/performance-monitor.ts
+var performance_monitor_exports = {};
+__export(performance_monitor_exports, {
+  PerformanceMonitor: () => PerformanceMonitor,
+  performanceMiddleware: () => performanceMiddleware,
+  performanceMonitor: () => performanceMonitor
+});
+import { EventEmitter } from "events";
+function performanceMiddleware() {
+  return (req, res, next) => {
+    const startTime = Date.now();
+    res.on("finish", () => {
+      const duration = Date.now() - startTime;
+      performanceMonitor.recordRequest(
+        req.method,
+        req.route?.path || req.path,
+        duration,
+        res.statusCode
+      );
+    });
+    next();
+  };
+}
+var PerformanceMonitor, performanceMonitor;
+var init_performance_monitor = __esm({
+  "server/performance-monitor.ts"() {
+    "use strict";
+    init_enhanced_cache();
+    init_database_optimization();
+    init_socket_optimizer();
+    init_storage();
+    PerformanceMonitor = class extends EventEmitter {
+      constructor() {
+        super();
+        this.endpointMetrics = /* @__PURE__ */ new Map();
+        this.systemMetrics = [];
+        this.totalRequests = 0;
+        this.totalErrors = 0;
+        this.allResponseTimes = [];
+        this.requestTimestamps = [];
+        this.isRunning = false;
+        this.metricsInterval = null;
+        this.startTime = /* @__PURE__ */ new Date();
+      }
+      /**
+       * Start performance monitoring
+       */
+      start() {
+        if (this.isRunning) return;
+        this.isRunning = true;
+        this.metricsInterval = setInterval(() => {
+          this.collectSystemMetrics();
+        }, 3e4);
+        console.log("\u2705 Performance Monitor started");
+      }
+      /**
+       * Stop monitoring
+       */
+      stop() {
+        if (this.metricsInterval) {
+          clearInterval(this.metricsInterval);
+        }
+        this.isRunning = false;
+      }
+      /**
+       * Record an API request
+       */
+      recordRequest(method, path5, durationMs, statusCode) {
+        const key = `${method}:${path5}`;
+        const isError = statusCode >= 400;
+        this.totalRequests++;
+        if (isError) this.totalErrors++;
+        this.allResponseTimes.push(durationMs);
+        this.requestTimestamps.push(Date.now());
+        if (this.allResponseTimes.length > 1e4) {
+          this.allResponseTimes.shift();
+        }
+        const oneMinuteAgo = Date.now() - 6e4;
+        while (this.requestTimestamps.length > 0 && this.requestTimestamps[0] < oneMinuteAgo) {
+          this.requestTimestamps.shift();
+        }
+        let metrics = this.endpointMetrics.get(key);
+        if (!metrics) {
+          metrics = {
+            path: path5,
+            method,
+            totalCalls: 0,
+            totalDurationMs: 0,
+            avgDurationMs: 0,
+            minDurationMs: Infinity,
+            maxDurationMs: 0,
+            p95DurationMs: 0,
+            errorCount: 0,
+            lastCalled: /* @__PURE__ */ new Date(),
+            responseTimes: []
+          };
+          this.endpointMetrics.set(key, metrics);
+        }
+        metrics.totalCalls++;
+        metrics.totalDurationMs += durationMs;
+        metrics.avgDurationMs = metrics.totalDurationMs / metrics.totalCalls;
+        metrics.minDurationMs = Math.min(metrics.minDurationMs, durationMs);
+        metrics.maxDurationMs = Math.max(metrics.maxDurationMs, durationMs);
+        metrics.lastCalled = /* @__PURE__ */ new Date();
+        if (isError) {
+          metrics.errorCount++;
+        }
+        metrics.responseTimes.push(durationMs);
+        if (metrics.responseTimes.length > 1e3) {
+          metrics.responseTimes.shift();
+        }
+        const sorted = [...metrics.responseTimes].sort((a, b) => a - b);
+        metrics.p95DurationMs = this.percentile(sorted, 95);
+        if (durationMs > 500) {
+          this.emit("slowRequest", { method, path: path5, durationMs, statusCode });
+        }
+        if (isError) {
+          this.emit("requestError", { method, path: path5, statusCode, durationMs });
+        }
+      }
+      /**
+       * Collect system metrics
+       */
+      collectSystemMetrics() {
+        const memoryUsage = process.memoryUsage();
+        const cpuUsage = process.cpuUsage();
+        const cpuPercent = (cpuUsage.user + cpuUsage.system) / 1e6;
+        const metrics = {
+          timestamp: /* @__PURE__ */ new Date(),
+          memoryUsage,
+          cpuUsage: cpuPercent,
+          uptime: process.uptime(),
+          activeConnections: socketOptimizer.getStats().totalConnections,
+          requestsPerSecond: this.requestTimestamps.length / 60
+        };
+        this.systemMetrics.push(metrics);
+        if (this.systemMetrics.length > 100) {
+          this.systemMetrics.shift();
+        }
+      }
+      /**
+       * Generate comprehensive performance report
+       */
+      async generateReport() {
+        const uptime = (Date.now() - this.startTime.getTime()) / 1e3;
+        const sortedResponseTimes = [...this.allResponseTimes].sort((a, b) => a - b);
+        const p50 = this.percentile(sortedResponseTimes, 50);
+        const p95 = this.percentile(sortedResponseTimes, 95);
+        const p99 = this.percentile(sortedResponseTimes, 99);
+        const avgResponseTime = this.allResponseTimes.length > 0 ? this.allResponseTimes.reduce((a, b) => a + b, 0) / this.allResponseTimes.length : 0;
+        const dbMetrics = await databaseOptimizer.getPerformanceMetrics();
+        const slowQueries = databaseOptimizer.getTopSlowQueries(10);
+        const cacheStats = enhancedCache.getStats();
+        const socketStats = socketOptimizer.getStats();
+        const memoryUsage = process.memoryUsage();
+        const pool2 = getPgPool();
+        const poolStats = {
+          total: pool2?.totalCount || 0,
+          idle: pool2?.idleCount || 0,
+          waiting: pool2?.waitingCount || 0
+        };
+        const allEndpoints = Array.from(this.endpointMetrics.values());
+        const topEndpoints = [...allEndpoints].sort((a, b) => b.totalCalls - a.totalCalls).slice(0, 10);
+        const slowestEndpoints = [...allEndpoints].sort((a, b) => b.p95DurationMs - a.p95DurationMs).slice(0, 10);
+        const errorsByEndpoint = allEndpoints.filter((e) => e.errorCount > 0).map((e) => ({
+          path: `${e.method} ${e.path}`,
+          errorCount: e.errorCount,
+          errorRate: e.errorCount / e.totalCalls * 100
+        })).sort((a, b) => b.errorRate - a.errorRate);
+        const recommendations = this.generateRecommendations({
+          avgResponseTime,
+          p95,
+          errorRate: this.totalRequests > 0 ? this.totalErrors / this.totalRequests * 100 : 0,
+          cacheHitRate: cacheStats.hitRate,
+          slowestEndpoints,
+          poolStats,
+          memoryUsage
+        });
+        return {
+          generatedAt: /* @__PURE__ */ new Date(),
+          uptime,
+          summary: {
+            totalRequests: this.totalRequests,
+            avgResponseTime: Math.round(avgResponseTime),
+            p50ResponseTime: p50,
+            p95ResponseTime: p95,
+            p99ResponseTime: p99,
+            errorRate: this.totalRequests > 0 ? this.totalErrors / this.totalRequests * 100 : 0,
+            requestsPerSecond: this.requestTimestamps.length / 60
+          },
+          database: {
+            avgQueryTime: dbMetrics.avgQueryTime,
+            slowQueryCount: dbMetrics.slowQueries,
+            connectionPoolStats: poolStats,
+            topSlowQueries: slowQueries.map((q) => ({
+              query: q.query.substring(0, 100),
+              avgMs: Math.round(q.avgDurationMs),
+              calls: q.totalCalls
+            }))
+          },
+          cache: {
+            l1HitRate: cacheStats.l1Size > 0 ? cacheStats.l1Hits / (cacheStats.l1Hits + cacheStats.l2Hits + cacheStats.misses) * 100 : 0,
+            l2HitRate: cacheStats.l2Size > 0 ? cacheStats.l2Hits / (cacheStats.l1Hits + cacheStats.l2Hits + cacheStats.misses) * 100 : 0,
+            totalHitRate: cacheStats.hitRate,
+            size: cacheStats.l1Size + cacheStats.l2Size,
+            evictions: cacheStats.evictions
+          },
+          websocket: {
+            activeConnections: socketStats.totalConnections,
+            peakConnections: socketStats.peakConnections,
+            messagesSent: socketStats.messagesSent,
+            avgLatency: Math.round(socketStats.averageLatency)
+          },
+          memory: {
+            heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024),
+            heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024),
+            external: Math.round(memoryUsage.external / 1024 / 1024),
+            rss: Math.round(memoryUsage.rss / 1024 / 1024)
+          },
+          topEndpoints,
+          slowestEndpoints,
+          errorsByEndpoint,
+          recommendations
+        };
+      }
+      /**
+       * Generate performance recommendations
+       */
+      generateRecommendations(data) {
+        const recommendations = [];
+        if (data.p95 > 500) {
+          recommendations.push(`P95 response time (${data.p95}ms) exceeds 500ms target. Consider optimizing slow endpoints or adding caching.`);
+        }
+        if (data.avgResponseTime > 200) {
+          recommendations.push(`Average response time (${Math.round(data.avgResponseTime)}ms) is high. Review database queries and caching strategy.`);
+        }
+        if (data.errorRate > 1) {
+          recommendations.push(`Error rate (${data.errorRate.toFixed(2)}%) exceeds 1% target. Review error logs and fix root causes.`);
+        }
+        if (data.cacheHitRate < 50) {
+          recommendations.push(`Cache hit rate (${data.cacheHitRate.toFixed(1)}%) is below 50%. Consider caching more frequently accessed data.`);
+        }
+        if (data.poolStats.waiting > 0) {
+          recommendations.push(`Database connections are waiting (${data.poolStats.waiting}). Consider increasing pool size.`);
+        }
+        if (data.poolStats.idle === 0 && data.poolStats.total > 0) {
+          recommendations.push("No idle database connections. Pool may be under-provisioned for current load.");
+        }
+        const heapUsedMB = data.memoryUsage.heapUsed / 1024 / 1024;
+        const heapTotalMB = data.memoryUsage.heapTotal / 1024 / 1024;
+        const heapUsagePercent = heapUsedMB / heapTotalMB * 100;
+        if (heapUsagePercent > 85) {
+          recommendations.push(`Memory usage (${heapUsagePercent.toFixed(1)}%) is high. Consider memory optimization or increasing heap size.`);
+        }
+        const criticallySlowEndpoints = data.slowestEndpoints.filter((e) => e.p95DurationMs > 1e3);
+        if (criticallySlowEndpoints.length > 0) {
+          recommendations.push(`${criticallySlowEndpoints.length} endpoints have P95 > 1000ms. Priority optimization needed.`);
+        }
+        if (recommendations.length === 0) {
+          recommendations.push("System performance is within acceptable parameters. Continue monitoring.");
+        }
+        return recommendations;
+      }
+      /**
+       * Calculate percentile
+       */
+      percentile(sortedArray, p) {
+        if (sortedArray.length === 0) return 0;
+        const index3 = Math.ceil(p / 100 * sortedArray.length) - 1;
+        return sortedArray[Math.max(0, index3)];
+      }
+      /**
+       * Print formatted report to console
+       */
+      async printReport() {
+        const report = await this.generateReport();
+        console.log("\n" + "=".repeat(60));
+        console.log("              PERFORMANCE MONITORING REPORT");
+        console.log("=".repeat(60));
+        console.log(`Generated: ${report.generatedAt.toISOString()}`);
+        console.log(`Uptime: ${Math.round(report.uptime)}s`);
+        console.log("\n\u{1F4C8} REQUEST SUMMARY");
+        console.log("\u2500".repeat(40));
+        console.log(`  Total Requests:    ${report.summary.totalRequests}`);
+        console.log(`  Requests/sec:      ${report.summary.requestsPerSecond.toFixed(2)}`);
+        console.log(`  Error Rate:        ${report.summary.errorRate.toFixed(2)}%`);
+        console.log(`  Avg Response:      ${report.summary.avgResponseTime}ms`);
+        console.log(`  P50:               ${report.summary.p50ResponseTime}ms`);
+        console.log(`  P95:               ${report.summary.p95ResponseTime}ms`);
+        console.log(`  P99:               ${report.summary.p99ResponseTime}ms`);
+        console.log("\n\u{1F4BE} DATABASE");
+        console.log("\u2500".repeat(40));
+        console.log(`  Avg Query Time:    ${report.database.avgQueryTime}ms`);
+        console.log(`  Slow Queries:      ${report.database.slowQueryCount}`);
+        console.log(`  Pool - Total:      ${report.database.connectionPoolStats.total}`);
+        console.log(`  Pool - Idle:       ${report.database.connectionPoolStats.idle}`);
+        console.log(`  Pool - Waiting:    ${report.database.connectionPoolStats.waiting}`);
+        console.log("\n\u{1F5C3}\uFE0F  CACHE");
+        console.log("\u2500".repeat(40));
+        console.log(`  Hit Rate:          ${report.cache.totalHitRate.toFixed(1)}%`);
+        console.log(`  Cache Size:        ${report.cache.size} entries`);
+        console.log(`  Evictions:         ${report.cache.evictions}`);
+        console.log("\n\u{1F50C} WEBSOCKET");
+        console.log("\u2500".repeat(40));
+        console.log(`  Active:            ${report.websocket.activeConnections}`);
+        console.log(`  Peak:              ${report.websocket.peakConnections}`);
+        console.log(`  Messages Sent:     ${report.websocket.messagesSent}`);
+        console.log(`  Avg Latency:       ${report.websocket.avgLatency}ms`);
+        console.log("\n\u{1F4BB} MEMORY (MB)");
+        console.log("\u2500".repeat(40));
+        console.log(`  Heap Used:         ${report.memory.heapUsed}MB`);
+        console.log(`  Heap Total:        ${report.memory.heapTotal}MB`);
+        console.log(`  RSS:               ${report.memory.rss}MB`);
+        if (report.slowestEndpoints.length > 0) {
+          console.log("\n\u{1F422} TOP 5 SLOWEST ENDPOINTS");
+          console.log("\u2500".repeat(40));
+          for (const endpoint of report.slowestEndpoints.slice(0, 5)) {
+            console.log(`  ${endpoint.method} ${endpoint.path}`);
+            console.log(`    Calls: ${endpoint.totalCalls} | Avg: ${Math.round(endpoint.avgDurationMs)}ms | P95: ${endpoint.p95DurationMs}ms`);
+          }
+        }
+        console.log("\n\u{1F4A1} RECOMMENDATIONS");
+        console.log("\u2500".repeat(40));
+        for (const rec of report.recommendations) {
+          console.log(`  \u2022 ${rec}`);
+        }
+        console.log("\n" + "=".repeat(60) + "\n");
+      }
+      /**
+       * Reset all metrics
+       */
+      reset() {
+        this.endpointMetrics.clear();
+        this.systemMetrics = [];
+        this.totalRequests = 0;
+        this.totalErrors = 0;
+        this.allResponseTimes = [];
+        this.requestTimestamps = [];
+      }
+    };
+    performanceMonitor = new PerformanceMonitor();
+  }
+});
+
+// server/query-optimizer.ts
+var query_optimizer_exports = {};
+__export(query_optimizer_exports, {
+  BatchLoader: () => BatchLoader,
+  RateLimiter: () => RateLimiter,
+  apiRateLimiter: () => apiRateLimiter,
+  bulkInsertWithConflict: () => bulkInsertWithConflict,
+  createPaginatedResult: () => createPaginatedResult,
+  getPaginationParams: () => getPaginationParams,
+  getPoolStats: () => getPoolStats,
+  heavyOperationLimiter: () => heavyOperationLimiter,
+  loginRateLimiter: () => loginRateLimiter,
+  selectFields: () => selectFields,
+  timedQuery: () => timedQuery
+});
+function getPaginationParams(options) {
+  const page = Math.max(1, options.page || 1);
+  const limit = Math.min(100, Math.max(1, options.limit || 20));
+  const offset = (page - 1) * limit;
+  return { offset, limit };
+}
+function createPaginatedResult(data, total, options) {
+  const page = Math.max(1, options.page || 1);
+  const limit = Math.min(100, Math.max(1, options.limit || 20));
+  const totalPages = Math.ceil(total / limit);
+  return {
+    data,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1
+    }
+  };
+}
+async function getPoolStats() {
+  const pool2 = getPgPool();
+  if (!pool2) {
+    return { totalConnections: 0, idleConnections: 0, waitingClients: 0 };
+  }
+  return {
+    totalConnections: pool2.totalCount,
+    idleConnections: pool2.idleCount,
+    waitingClients: pool2.waitingCount
+  };
+}
+async function timedQuery(queryName, queryFn, slowThresholdMs = 500) {
+  const start = Date.now();
+  const result = await queryFn();
+  const durationMs = Date.now() - start;
+  if (durationMs > slowThresholdMs) {
+    console.warn(`[SLOW QUERY] ${queryName}: ${durationMs}ms`);
+  }
+  return { result, durationMs };
+}
+async function bulkInsertWithConflict(table, data, conflictColumns, updateColumns) {
+  if (data.length === 0) return 0;
+  const BATCH_SIZE = 100;
+  let inserted = 0;
+  for (let i = 0; i < data.length; i += BATCH_SIZE) {
+    const batch = data.slice(i, i + BATCH_SIZE);
+    const result = await db2.insert(table).values(batch).onConflictDoNothing();
+    inserted += batch.length;
+  }
+  return inserted;
+}
+function selectFields(data, fields) {
+  return data.map((item) => {
+    const result = {};
+    for (const field of fields) {
+      if (field in item) {
+        result[field] = item[field];
+      }
+    }
+    return result;
+  });
+}
+var BatchLoader, RateLimiter, apiRateLimiter, loginRateLimiter, heavyOperationLimiter;
+var init_query_optimizer = __esm({
+  "server/query-optimizer.ts"() {
+    "use strict";
+    init_storage();
+    BatchLoader = class {
+      constructor(batchFn, keyFn = (k) => String(k)) {
+        this.batchFn = batchFn;
+        this.keyFn = keyFn;
+        this.batch = [];
+        this.cache = /* @__PURE__ */ new Map();
+        this.batchScheduled = false;
+        this.pendingPromises = /* @__PURE__ */ new Map();
+      }
+      async load(key) {
+        const keyStr = this.keyFn(key);
+        if (this.cache.has(keyStr)) {
+          return this.cache.get(keyStr);
+        }
+        this.batch.push(key);
+        return new Promise((resolve, reject) => {
+          const existing = this.pendingPromises.get(keyStr) || [];
+          existing.push({ resolve, reject });
+          this.pendingPromises.set(keyStr, existing);
+          if (!this.batchScheduled) {
+            this.batchScheduled = true;
+            setImmediate(() => this.executeBatch());
+          }
+        });
+      }
+      async executeBatch() {
+        const batch = [...this.batch];
+        this.batch = [];
+        this.batchScheduled = false;
+        if (batch.length === 0) return;
+        try {
+          const results = await this.batchFn(batch);
+          for (const key of batch) {
+            const keyStr = this.keyFn(key);
+            const value = results.get(key);
+            this.cache.set(keyStr, value);
+            const pending = this.pendingPromises.get(keyStr) || [];
+            for (const { resolve } of pending) {
+              resolve(value);
+            }
+            this.pendingPromises.delete(keyStr);
+          }
+        } catch (error) {
+          for (const key of batch) {
+            const keyStr = this.keyFn(key);
+            const pending = this.pendingPromises.get(keyStr) || [];
+            for (const { reject } of pending) {
+              reject(error);
+            }
+            this.pendingPromises.delete(keyStr);
+          }
+        }
+      }
+      clear() {
+        this.cache.clear();
+        this.batch = [];
+      }
+    };
+    RateLimiter = class {
+      constructor(maxRequests = 100, windowMs = 6e4) {
+        this.maxRequests = maxRequests;
+        this.windowMs = windowMs;
+        this.requests = /* @__PURE__ */ new Map();
+      }
+      isAllowed(key) {
+        const now = Date.now();
+        const windowStart = now - this.windowMs;
+        let timestamps = this.requests.get(key) || [];
+        timestamps = timestamps.filter((t) => t > windowStart);
+        if (timestamps.length >= this.maxRequests) {
+          return false;
+        }
+        timestamps.push(now);
+        this.requests.set(key, timestamps);
+        return true;
+      }
+      getRemainingRequests(key) {
+        const now = Date.now();
+        const windowStart = now - this.windowMs;
+        let timestamps = this.requests.get(key) || [];
+        timestamps = timestamps.filter((t) => t > windowStart);
+        return Math.max(0, this.maxRequests - timestamps.length);
+      }
+      reset(key) {
+        this.requests.delete(key);
+      }
+      clear() {
+        this.requests.clear();
+      }
+    };
+    apiRateLimiter = new RateLimiter(100, 6e4);
+    loginRateLimiter = new RateLimiter(5, 9e5);
+    heavyOperationLimiter = new RateLimiter(10, 6e4);
   }
 });
 
@@ -11430,7 +13169,12 @@ var teacher_assignment_routes_default = router;
 
 // server/exam-visibility.ts
 init_storage();
+init_enhanced_cache();
+var VISIBILITY_CACHE_TTL = 5 * 60 * 1e3;
+var CONTEXT_CACHE_TTL = 10 * 60 * 1e3;
+var SUBJECTS_CACHE_TTL = 30 * 60 * 1e3;
 function isSeniorSecondaryLevel(level) {
+  if (!level) return false;
   const normalizedLevel = level.trim().toLowerCase();
   return normalizedLevel.includes("senior secondary") || normalizedLevel.includes("senior_secondary") || /^ss\s*[123]$/i.test(normalizedLevel) || /^sss\s*[123]$/i.test(normalizedLevel);
 }
@@ -11442,101 +13186,340 @@ function normalizeDepartment(department) {
   return normalized.length > 0 ? normalized : void 0;
 }
 async function getStudentExamVisibilityContext(studentId) {
-  const student = await storage.getStudent(studentId);
-  if (!student || !student.classId) {
-    return null;
-  }
-  const studentClass = await storage.getClass(student.classId);
-  if (!studentClass) {
-    return null;
-  }
-  return {
-    studentId,
-    classId: student.classId,
-    classLevel: studentClass.level || "",
-    department: normalizeDepartment(student.department)
-  };
+  const cacheKey = `visibility:context:${studentId}`;
+  return enhancedCache.getOrSet(
+    cacheKey,
+    async () => {
+      const student = await storage.getStudent(studentId);
+      if (!student || !student.classId) {
+        return null;
+      }
+      const studentClass = await storage.getClass(student.classId);
+      if (!studentClass) {
+        return null;
+      }
+      return {
+        studentId,
+        classId: student.classId,
+        classLevel: studentClass.level || "",
+        department: normalizeDepartment(student.department)
+      };
+    },
+    CONTEXT_CACHE_TTL,
+    "L2"
+  );
 }
-function filterExamsForStudentContext(exams3, context, subjects3) {
-  const isSS = isSeniorSecondaryLevel(context.classLevel);
-  let filteredExams = exams3.filter((exam) => {
-    return exam.isPublished && exam.classId === context.classId;
-  });
-  if (isSS) {
-    const studentDept = context.department;
-    if (studentDept) {
-      const validSubjectIds = subjects3.filter((s) => {
-        const category = normalizeCategory(s.category);
-        return category === "general" || category === studentDept;
-      }).map((s) => s.id);
-      filteredExams = filteredExams.filter(
-        (exam) => validSubjectIds.includes(exam.subjectId)
-      );
-    } else {
-      const generalSubjectIds = subjects3.filter((s) => normalizeCategory(s.category) === "general").map((s) => s.id);
-      filteredExams = filteredExams.filter(
-        (exam) => generalSubjectIds.includes(exam.subjectId)
-      );
-    }
-  } else {
-    const generalSubjectIds = subjects3.filter((s) => normalizeCategory(s.category) === "general").map((s) => s.id);
-    filteredExams = filteredExams.filter(
-      (exam) => generalSubjectIds.includes(exam.subjectId)
-    );
+async function getCachedSubjects() {
+  return enhancedCache.getOrSet(
+    "visibility:subjects",
+    async () => {
+      const subjects3 = await storage.getSubjects();
+      return subjects3.map((s) => ({
+        id: s.id,
+        category: normalizeCategory(s.category)
+      }));
+    },
+    SUBJECTS_CACHE_TTL,
+    "L1"
+    // Hot data - promoted to L1
+  );
+}
+async function getCachedClassSubjectMappings(classId) {
+  const cacheKey = `visibility:class_subject_mappings:${classId}`;
+  return enhancedCache.getOrSet(
+    cacheKey,
+    async () => {
+      const mappings = await storage.getClassSubjectMappings(classId);
+      return mappings.map((m) => m.subjectId);
+    },
+    VISIBILITY_CACHE_TTL,
+    "L2"
+  );
+}
+async function getCachedClassSubjectMappingsWithDept(classId, department) {
+  const cacheKey = `visibility:class_subject_mappings:${classId}:${department || "all"}`;
+  return enhancedCache.getOrSet(
+    cacheKey,
+    async () => {
+      const mappings = await storage.getClassSubjectMappings(classId, department);
+      return mappings.map((m) => m.subjectId);
+    },
+    VISIBILITY_CACHE_TTL,
+    "L2"
+  );
+}
+async function getCachedPublishedExams() {
+  return enhancedCache.getOrSet(
+    "visibility:published_exams",
+    async () => {
+      const allExams = await storage.getAllExams();
+      return allExams.filter((exam) => exam.isPublished);
+    },
+    EnhancedCache.TTL.SHORT,
+    // 30 seconds - exams can change frequently
+    "L2"
+  );
+}
+function filterExamsForStudentContext(exams3, context, subjects3, mappedSubjectIds) {
+  if (!exams3.length) return [];
+  const classExams = exams3.filter(
+    (exam) => exam.isPublished && exam.classId === context.classId
+  );
+  if (classExams.length === 0) return [];
+  if (!mappedSubjectIds || mappedSubjectIds.length === 0) {
+    console.log(`[EXAM-VISIBILITY] No class_subject_mappings for class ${context.classId}, dept: ${context.department || "none"}. Student cannot see any exams.`);
+    return [];
   }
-  return filteredExams;
+  const validSubjectIds = new Set(mappedSubjectIds);
+  return classExams.filter((exam) => validSubjectIds.has(exam.subjectId));
 }
 async function getVisibleExamsForStudent(studentId) {
-  const context = await getStudentExamVisibilityContext(studentId);
-  if (!context) {
-    console.log(`[EXAM-VISIBILITY] No student context found for studentId: ${studentId}`);
-    console.log(`[EXAM-VISIBILITY] Make sure student has a record in students table with valid classId`);
-    return [];
-  }
-  const [allExams, subjects3] = await Promise.all([
-    storage.getAllExams(),
-    storage.getSubjects()
-  ]);
-  const visibleExams = filterExamsForStudentContext(allExams, context, subjects3);
-  console.log(`[EXAM-VISIBILITY] Student ${studentId} context:`, {
-    classId: context.classId,
-    classLevel: context.classLevel,
-    department: context.department,
-    isSS: isSeniorSecondaryLevel(context.classLevel)
-  });
-  console.log(`[EXAM-VISIBILITY] Found ${allExams.length} total exams, ${visibleExams.length} visible to student`);
-  return visibleExams;
+  const cacheKey = `visibility:student_exams:${studentId}`;
+  return enhancedCache.getOrSet(
+    cacheKey,
+    async () => {
+      const startTime = Date.now();
+      const context = await getStudentExamVisibilityContext(studentId);
+      if (!context) {
+        console.log(`[EXAM-VISIBILITY] No student context found for studentId: ${studentId}`);
+        return [];
+      }
+      const isSS = isSeniorSecondaryLevel(context.classLevel);
+      const [mappedSubjectIds, subjects3, publishedExams] = await Promise.all([
+        // For SS students with department, get department-specific mappings
+        isSS && context.department ? getCachedClassSubjectMappingsWithDept(context.classId, context.department) : getCachedClassSubjectMappings(context.classId),
+        getCachedSubjects(),
+        getCachedPublishedExams()
+      ]);
+      const visibleExams = filterExamsForStudentContext(publishedExams, context, subjects3, mappedSubjectIds);
+      const duration = Date.now() - startTime;
+      if (duration > 50) {
+        console.log(`[EXAM-VISIBILITY] Student ${studentId}: ${visibleExams.length}/${publishedExams.length} exams (mappings: ${mappedSubjectIds.length}), ${duration}ms`);
+      }
+      return visibleExams;
+    },
+    VISIBILITY_CACHE_TTL,
+    "L1"
+    // Hot data for frequently accessed student exams
+  );
 }
 async function getVisibleExamsForParent(parentId) {
-  const children = await storage.getStudentsByParentId(parentId);
-  if (!children || children.length === 0) {
-    return [];
-  }
-  const childContexts = await Promise.all(
-    children.map((child) => getStudentExamVisibilityContext(child.id))
-  );
-  const validContexts = childContexts.filter((ctx) => ctx !== null);
-  if (validContexts.length === 0) {
-    return [];
-  }
-  const [allExams, subjects3] = await Promise.all([
-    storage.getAllExams(),
-    storage.getSubjects()
-  ]);
-  const childExamsMap = /* @__PURE__ */ new Map();
-  for (const context of validContexts) {
-    const childExams = filterExamsForStudentContext(allExams, context, subjects3);
-    for (const exam of childExams) {
-      if (!childExamsMap.has(exam.id)) {
-        childExamsMap.set(exam.id, exam);
+  const cacheKey = `visibility:parent_exams:${parentId}`;
+  return enhancedCache.getOrSet(
+    cacheKey,
+    async () => {
+      const children = await storage.getStudentsByParentId(parentId);
+      if (!children || children.length === 0) {
+        return [];
       }
-    }
-  }
-  return Array.from(childExamsMap.values());
+      const childContexts = await Promise.all(
+        children.map((child) => getStudentExamVisibilityContext(child.id))
+      );
+      const validContexts = childContexts.filter((ctx) => ctx !== null);
+      if (validContexts.length === 0) {
+        return [];
+      }
+      const [subjects3, publishedExams] = await Promise.all([
+        getCachedSubjects(),
+        getCachedPublishedExams()
+      ]);
+      const examMap = /* @__PURE__ */ new Map();
+      for (const context of validContexts) {
+        const isSS = isSeniorSecondaryLevel(context.classLevel);
+        const mappedSubjectIds = await (isSS && context.department ? getCachedClassSubjectMappingsWithDept(context.classId, context.department) : getCachedClassSubjectMappings(context.classId));
+        const childExams = filterExamsForStudentContext(publishedExams, context, subjects3, mappedSubjectIds);
+        for (const exam of childExams) {
+          if (!examMap.has(exam.id)) {
+            examMap.set(exam.id, exam);
+          }
+        }
+      }
+      return Array.from(examMap.values());
+    },
+    VISIBILITY_CACHE_TTL,
+    "L2"
+  );
 }
+function invalidateVisibilityCache(options) {
+  let invalidated = 0;
+  if (options?.all) {
+    invalidated += enhancedCache.invalidate(/^visibility:/);
+    console.log(`[EXAM-VISIBILITY] Invalidated all visibility caches: ${invalidated} entries`);
+    return invalidated;
+  }
+  if (options?.studentId) {
+    invalidated += enhancedCache.invalidate(`visibility:context:${options.studentId}`);
+    invalidated += enhancedCache.invalidate(`visibility:student_exams:${options.studentId}`);
+  }
+  if (options?.classId) {
+    invalidated += enhancedCache.invalidate(/^visibility:exam_students:/);
+    invalidated += enhancedCache.invalidate(new RegExp(`^visibility:class_subject_mappings:${options.classId}`));
+    invalidated += enhancedCache.invalidate(/^visibility:student_exams:/);
+    invalidated += enhancedCache.invalidate(/^visibility:parent_exams:/);
+  }
+  if (options?.examId) {
+    invalidated += enhancedCache.invalidate("visibility:published_exams");
+    invalidated += enhancedCache.invalidate(/^visibility:student_exams:/);
+    invalidated += enhancedCache.invalidate(/^visibility:parent_exams:/);
+  }
+  if (invalidated > 0) {
+    console.log(`[EXAM-VISIBILITY] Invalidated ${invalidated} cache entries`);
+  }
+  return invalidated;
+}
+
+// server/services/subject-assignment-service.ts
+init_storage();
+init_enhanced_cache();
+var CACHE_TTL = 5 * 60 * 1e3;
+function isSeniorSecondaryLevel2(level) {
+  if (!level) return false;
+  const normalizedLevel = level.trim().toLowerCase();
+  return normalizedLevel.includes("senior secondary") || normalizedLevel.includes("senior_secondary") || /^ss\s*[123]$/i.test(normalizedLevel) || /^sss\s*[123]$/i.test(normalizedLevel);
+}
+function normalizeDepartment2(department) {
+  const normalized = (department || "").trim().toLowerCase();
+  return normalized.length > 0 ? normalized : void 0;
+}
+async function getStudentContext(studentId) {
+  const cacheKey = `subject-assignment:context:${studentId}`;
+  return enhancedCache.getOrSet(
+    cacheKey,
+    async () => {
+      const student = await storage.getStudent(studentId);
+      if (!student || !student.classId) {
+        return null;
+      }
+      const studentClass = await storage.getClass(student.classId);
+      if (!studentClass) {
+        return null;
+      }
+      return {
+        studentId,
+        classId: student.classId,
+        classLevel: studentClass.level || "",
+        department: normalizeDepartment2(student.department)
+      };
+    },
+    CACHE_TTL,
+    "L2"
+  );
+}
+async function getAllowedSubjectIdsForStudent(studentId) {
+  const cacheKey = `subject-assignment:allowed-ids:${studentId}`;
+  return enhancedCache.getOrSet(
+    cacheKey,
+    async () => {
+      const context = await getStudentContext(studentId);
+      if (!context) {
+        console.log(`[SUBJECT-ASSIGNMENT] No context found for student ${studentId}`);
+        return [];
+      }
+      return getAllowedSubjectIdsForClass(context.classId, context.classLevel, context.department);
+    },
+    CACHE_TTL,
+    "L2"
+  );
+}
+async function getAllowedSubjectIdsForClass(classId, classLevel, department) {
+  const isSS = isSeniorSecondaryLevel2(classLevel);
+  const deptKey = isSS && department ? department : "none";
+  const cacheKey = `subject-assignment:class-subjects:${classId}:${deptKey}`;
+  return enhancedCache.getOrSet(
+    cacheKey,
+    async () => {
+      if (isSS && department) {
+        const mappings2 = await storage.getClassSubjectMappings(classId, department);
+        return mappings2.map((m) => m.subjectId);
+      }
+      const mappings = await storage.getClassSubjectMappings(classId);
+      return mappings.map((m) => m.subjectId);
+    },
+    CACHE_TTL,
+    "L2"
+  );
+}
+async function getAllowedSubjectsForStudent(studentId) {
+  const cacheKey = `subject-assignment:allowed-full:${studentId}`;
+  return enhancedCache.getOrSet(
+    cacheKey,
+    async () => {
+      const context = await getStudentContext(studentId);
+      if (!context) {
+        return [];
+      }
+      const isSS = isSeniorSecondaryLevel2(context.classLevel);
+      const mappings = await storage.getClassSubjectMappings(
+        context.classId,
+        isSS ? context.department : void 0
+      );
+      if (mappings.length === 0) {
+        return [];
+      }
+      const subjects3 = await storage.getSubjects();
+      const subjectMap = new Map(subjects3.map((s) => [s.id, s]));
+      return mappings.map((m) => {
+        const subject = subjectMap.get(m.subjectId);
+        if (!subject || !subject.isActive) return null;
+        return {
+          id: subject.id,
+          name: subject.name,
+          code: subject.code,
+          category: subject.category || "general",
+          isCompulsory: m.isCompulsory || false
+        };
+      }).filter((s) => s !== null);
+    },
+    CACHE_TTL,
+    "L2"
+  );
+}
+async function canStudentAccessSubject(studentId, subjectId) {
+  const allowedIds = await getAllowedSubjectIdsForStudent(studentId);
+  return allowedIds.includes(subjectId);
+}
+function invalidateStudentCache(studentId) {
+  let invalidated = 0;
+  invalidated += enhancedCache.invalidate(`subject-assignment:context:${studentId}`);
+  invalidated += enhancedCache.invalidate(`subject-assignment:allowed-ids:${studentId}`);
+  invalidated += enhancedCache.invalidate(`subject-assignment:allowed-full:${studentId}`);
+  return invalidated;
+}
+function invalidateClassCache(classId) {
+  let invalidated = 0;
+  invalidated += enhancedCache.invalidate(new RegExp(`^subject-assignment:class-subjects:${classId}:`));
+  invalidated += enhancedCache.invalidate(/^subject-assignment:allowed-ids:/);
+  invalidated += enhancedCache.invalidate(/^subject-assignment:allowed-full:/);
+  invalidated += enhancedCache.invalidate(/^subject-assignment:context:/);
+  return invalidated;
+}
+function invalidateAllCaches() {
+  return enhancedCache.invalidate(/^subject-assignment:/);
+}
+async function getAffectedStudentIds(classId, department) {
+  const students3 = await storage.getStudentsByClass(classId);
+  if (!department) {
+    return students3.map((s) => s.id);
+  }
+  return students3.filter((s) => normalizeDepartment2(s.department) === normalizeDepartment2(department)).map((s) => s.id);
+}
+var SubjectAssignmentService = {
+  getStudentContext,
+  getAllowedSubjectIdsForStudent,
+  getAllowedSubjectIdsForClass,
+  getAllowedSubjectsForStudent,
+  canStudentAccessSubject,
+  invalidateStudentCache,
+  invalidateClassCache,
+  invalidateAllCaches,
+  getAffectedStudentIds,
+  isSeniorSecondaryLevel: isSeniorSecondaryLevel2,
+  normalizeDepartment: normalizeDepartment2
+};
 
 // server/routes.ts
 init_performance_cache();
+init_enhanced_cache();
 var loginSchema = z3.object({
   identifier: z3.string().min(1),
   // Can be username or email
@@ -12134,6 +14117,60 @@ async function mergeExamScores(answerId, storage2) {
   }
 }
 async function registerRoutes(app2) {
+  const { performanceMonitor: performanceMonitor2 } = await Promise.resolve().then(() => (init_performance_monitor(), performance_monitor_exports));
+  const { databaseOptimizer: databaseOptimizer2 } = await Promise.resolve().then(() => (init_database_optimization(), database_optimization_exports));
+  const { enhancedCache: enhancedCache3 } = await Promise.resolve().then(() => (init_enhanced_cache(), enhanced_cache_exports));
+  const { socketOptimizer: socketOptimizer2 } = await Promise.resolve().then(() => (init_socket_optimizer(), socket_optimizer_exports));
+  const { getPoolStats: getPoolStats2 } = await Promise.resolve().then(() => (init_query_optimizer(), query_optimizer_exports));
+  app2.get("/api/health", async (_req, res) => {
+    try {
+      const poolStats = await getPoolStats2();
+      const memoryUsage = process.memoryUsage();
+      const heapUsedMB = Math.round(memoryUsage.heapUsed / 1024 / 1024);
+      const heapTotalMB = Math.round(memoryUsage.heapTotal / 1024 / 1024);
+      const status = poolStats.waitingClients === 0 && heapUsedMB / heapTotalMB < 0.9 ? "healthy" : "degraded";
+      res.json({
+        status,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        uptime: Math.round(process.uptime()),
+        database: {
+          connections: poolStats.totalConnections,
+          idle: poolStats.idleConnections,
+          waiting: poolStats.waitingClients
+        },
+        memory: { heapUsedMB, heapTotalMB }
+      });
+    } catch (error) {
+      res.status(503).json({ status: "unhealthy", error: error.message });
+    }
+  });
+  app2.get("/api/performance/report", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (_req, res) => {
+    try {
+      const report = await performanceMonitor2.generateReport();
+      res.json(report);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  app2.get("/api/performance/cache-stats", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), (_req, res) => {
+    const enhanced = enhancedCache3.getStats();
+    const basic = performanceCache.getStats();
+    res.json({ enhanced, basic });
+  });
+  app2.get("/api/performance/database-stats", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (_req, res) => {
+    try {
+      const metrics = await databaseOptimizer2.getPerformanceMetrics();
+      const slowQueries = databaseOptimizer2.getTopSlowQueries(10);
+      res.json({ metrics, slowQueries });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  app2.get("/api/performance/socket-stats", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), (_req, res) => {
+    const stats = socketOptimizer2.getStats();
+    const roomCounts = Object.fromEntries(stats.roomCounts);
+    res.json({ ...stats, roomCounts });
+  });
   app2.use(teacher_assignment_routes_default);
   const ALLOWED_SYNC_TABLES = ["classes", "subjects", "academic_terms", "users", "students", "announcements", "exams", "homepage_content", "notifications"];
   const TABLE_PERMISSIONS = {
@@ -12348,6 +14385,9 @@ async function registerRoutes(app2) {
         teacherInChargeId: assignedTeacherId
       });
       const exam = await storage.createExam(examData);
+      if (exam.isPublished) {
+        invalidateVisibilityCache({ examId: exam.id });
+      }
       realtimeService.emitTableChange("exams", "INSERT", exam, void 0, teacherId);
       if (exam.classId) {
         realtimeService.emitToClass(exam.classId.toString(), "exam.created", exam);
@@ -12872,6 +14912,7 @@ async function registerRoutes(app2) {
       if (!exam) {
         return res.status(500).json({ message: "Failed to update exam" });
       }
+      invalidateVisibilityCache({ examId: exam.id });
       realtimeService.emitTableChange("exams", "UPDATE", exam, existingExam, teacherId);
       if (exam.classId) {
         realtimeService.emitToClass(exam.classId.toString(), "exam.updated", exam);
@@ -12900,6 +14941,7 @@ async function registerRoutes(app2) {
       if (!deletionResult.success) {
         return res.status(500).json({ message: "Failed to delete exam" });
       }
+      invalidateVisibilityCache({ examId });
       const duration = Date.now() - startTime;
       try {
         await storage.createAuditLog({
@@ -12973,6 +15015,7 @@ async function registerRoutes(app2) {
       if (!exam) {
         return res.status(500).json({ message: "Failed to update exam publish status" });
       }
+      invalidateVisibilityCache({ examId: exam.id });
       realtimeService.emitExamPublishEvent(examId, isPublished, exam, teacherId);
       res.json(exam);
     } catch (error) {
@@ -17685,7 +19728,15 @@ Treasure-Home School Administration
   app2.get("/api/vacancies", async (req, res) => {
     try {
       const status = req.query.status;
-      const vacancies3 = await storage.getAllVacancies(status);
+      const cacheKey = `vacancies:list:${status || "all"}`;
+      const vacancies3 = await enhancedCache3.getOrSet(
+        cacheKey,
+        () => storage.getAllVacancies(status),
+        EnhancedCache.TTL.MEDIUM,
+        // 5 minutes TTL
+        "L1"
+        // Hot data - public endpoint
+      );
       res.json(vacancies3);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch vacancies" });
@@ -17761,6 +19812,7 @@ Treasure-Home School Administration
         ...req.body,
         createdBy: req.user.id
       });
+      enhancedCache3.invalidate(/^vacancies:/);
       realtimeService.emitTableChange("vacancies", "INSERT", vacancy, void 0, req.user.id);
       realtimeService.emitEvent("vacancy.created", vacancy);
       res.status(201).json(vacancy);
@@ -17775,6 +19827,7 @@ Treasure-Home School Administration
       if (!vacancy) {
         return res.status(404).json({ message: "Vacancy not found" });
       }
+      enhancedCache3.invalidate(/^vacancies:/);
       realtimeService.emitTableChange("vacancies", "UPDATE", vacancy, existingVacancy, req.user.id);
       realtimeService.emitEvent("vacancy.closed", vacancy);
       res.json(vacancy);
@@ -18096,9 +20149,27 @@ Treasure-Home School Administration
       const studentClass = await storage.getClass(student.classId);
       const term = await storage.getAcademicTerm(Number(termId));
       const exams3 = await storage.getExamsByClassAndTerm(student.classId, Number(termId));
-      const classSubjectIds = new Set(exams3.map((e) => e.subjectId));
-      const allSubjects = await storage.getSubjects();
-      const classSubjects = allSubjects.filter((s) => classSubjectIds.has(s.id));
+      const classLevel = studentClass?.level ?? "";
+      const isSSS = studentClass?.name?.startsWith("SS") || classLevel.includes("Senior Secondary");
+      let mappings;
+      if (isSSS && student.department) {
+        mappings = await storage.getClassSubjectMappings(student.classId, student.department);
+      } else {
+        mappings = await storage.getClassSubjectMappings(student.classId);
+      }
+      const classSubjects = [];
+      for (const mapping of mappings) {
+        const subject = await storage.getSubject(mapping.subjectId);
+        if (subject && subject.isActive) {
+          classSubjects.push(subject);
+        }
+      }
+      if (classSubjects.length === 0) {
+        console.log(`[REPORT-CARD] No class-subject mappings for ${studentClass?.name}, falling back to exam-based subjects`);
+        const classSubjectIds = new Set(exams3.map((e) => e.subjectId));
+        const allSubjects = await storage.getSubjects();
+        classSubjects.push(...allSubjects.filter((s) => classSubjectIds.has(s.id)));
+      }
       const subjectScores = {};
       for (const subject of classSubjects) {
         subjectScores[subject.id] = {
@@ -19392,6 +21463,17 @@ Treasure-Home School Administration
         department: department || null,
         isCompulsory: isCompulsory || false
       });
+      invalidateVisibilityCache({ classId });
+      const socketIO = realtimeService.getIO();
+      if (socketIO) {
+        socketIO.emit("subject-assignments-updated", {
+          eventType: "subject-assignments-updated",
+          affectedClassIds: [classId],
+          added: 1,
+          removed: 0,
+          timestamp: (/* @__PURE__ */ new Date()).toISOString()
+        });
+      }
       res.status(201).json(mapping);
     } catch (error) {
       console.error("Error creating class-subject mapping:", error);
@@ -19424,14 +21506,112 @@ Treasure-Home School Administration
   app2.delete("/api/class-subject-mappings/:id", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
+      const mappingToDelete = await storage.getClassSubjectMappingById(Number(id));
+      if (!mappingToDelete) {
+        return res.status(404).json({ message: "Mapping not found" });
+      }
       const success = await storage.deleteClassSubjectMapping(Number(id));
       if (!success) {
-        return res.status(404).json({ message: "Mapping not found" });
+        return res.status(500).json({ message: "Failed to delete mapping" });
+      }
+      invalidateVisibilityCache({ classId: mappingToDelete.classId });
+      const socketIO = realtimeService.getIO();
+      if (socketIO) {
+        socketIO.emit("subject-assignments-updated", {
+          eventType: "subject-assignments-updated",
+          affectedClassIds: [mappingToDelete.classId],
+          added: 0,
+          removed: 1,
+          timestamp: (/* @__PURE__ */ new Date()).toISOString()
+        });
       }
       res.json({ message: "Mapping deleted successfully" });
     } catch (error) {
       console.error("Error deleting class-subject mapping:", error);
       res.status(500).json({ message: error.message || "Failed to delete mapping" });
+    }
+  });
+  app2.get("/api/unified-subject-assignments", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      const allMappings = await storage.getAllClassSubjectMappings();
+      res.json(allMappings);
+    } catch (error) {
+      console.error("Error fetching unified subject assignments:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch subject assignments" });
+    }
+  });
+  app2.put("/api/unified-subject-assignments", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      const { additions, removals } = req.body;
+      if (!Array.isArray(additions) && !Array.isArray(removals)) {
+        return res.status(400).json({ message: "additions and/or removals arrays are required" });
+      }
+      const result = await storage.bulkUpdateClassSubjectMappings(
+        additions || [],
+        removals || []
+      );
+      for (const classId of result.affectedClassIds) {
+        invalidateVisibilityCache({ classId });
+        SubjectAssignmentService.invalidateClassCache(classId);
+      }
+      let totalSynced = 0;
+      const syncErrors = [];
+      for (const classId of result.affectedClassIds) {
+        const syncResult = await storage.syncStudentsWithClassMappings(classId);
+        totalSynced += syncResult.synced;
+        syncErrors.push(...syncResult.errors);
+      }
+      console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Synced ${totalSynced} students with new mappings`);
+      const cleanupResult = await storage.cleanupReportCardsForClasses(result.affectedClassIds);
+      console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Cleaned up ${cleanupResult.itemsRemoved} report card items from ${cleanupResult.studentsProcessed} students in ${result.affectedClassIds.length} affected classes`);
+      const socketIO = realtimeService.getIO();
+      if (socketIO && result.affectedClassIds.length > 0) {
+        socketIO.emit("subject-assignments-updated", {
+          eventType: "subject-assignments-updated",
+          affectedClassIds: result.affectedClassIds,
+          added: result.added,
+          removed: result.removed,
+          studentsSynced: totalSynced,
+          timestamp: (/* @__PURE__ */ new Date()).toISOString()
+        });
+        console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Emitted websocket event to all clients`);
+      }
+      console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Updated: ${result.added} added, ${result.removed} removed, ${result.affectedClassIds.length} classes affected, ${totalSynced} students synced`);
+      res.json({
+        message: "Subject assignments updated successfully",
+        added: result.added,
+        removed: result.removed,
+        affectedClasses: result.affectedClassIds.length,
+        studentsSynced: totalSynced,
+        reportCardItemsRemoved: cleanupResult.itemsRemoved,
+        syncErrors: syncErrors.length > 0 ? syncErrors : void 0
+      });
+    } catch (error) {
+      console.error("Error updating unified subject assignments:", error);
+      res.status(500).json({ message: error.message || "Failed to update subject assignments" });
+    }
+  });
+  app2.get("/api/subject-visibility/:classId", authenticateUser, async (req, res) => {
+    try {
+      const { classId } = req.params;
+      const { department } = req.query;
+      const mappings = await storage.getClassSubjectMappings(
+        Number(classId),
+        department
+      );
+      const subjectIds = mappings.map((m) => m.subjectId);
+      const subjects3 = await Promise.all(
+        subjectIds.map((id) => storage.getSubject(id))
+      );
+      const visibleSubjects = subjects3.filter(Boolean).map((subject, index3) => ({
+        ...subject,
+        isCompulsory: mappings[index3]?.isCompulsory || false,
+        department: mappings[index3]?.department
+      }));
+      res.json(visibleSubjects);
+    } catch (error) {
+      console.error("Error fetching subject visibility:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch subject visibility" });
     }
   });
   app2.get("/api/subjects/by-category/:category", authenticateUser, async (req, res) => {
@@ -19442,6 +21622,43 @@ Treasure-Home School Administration
     } catch (error) {
       console.error("Error fetching subjects by category:", error);
       res.status(500).json({ message: error.message || "Failed to fetch subjects" });
+    }
+  });
+  app2.post("/api/admin/sync-all-student-subjects", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      console.log("[ADMIN-SYNC] Starting full sync of all students with class_subject_mappings...");
+      const result = await storage.syncAllStudentsWithMappings();
+      const cleanupResult = await storage.cleanupAllReportCards();
+      invalidateVisibilityCache({ all: true });
+      SubjectAssignmentService.invalidateAllCaches();
+      console.log(`[ADMIN-SYNC] Completed: ${result.synced} students synced, ${cleanupResult.itemsRemoved} report card items removed, ${result.errors.length} errors`);
+      res.json({
+        message: "Student subject sync completed",
+        studentsSynced: result.synced,
+        reportCardItemsRemoved: cleanupResult.itemsRemoved,
+        errors: result.errors.length > 0 ? result.errors.slice(0, 20) : void 0,
+        totalErrors: result.errors.length
+      });
+    } catch (error) {
+      console.error("[ADMIN-SYNC] Error syncing students:", error);
+      res.status(500).json({ message: error.message || "Failed to sync students" });
+    }
+  });
+  app2.post("/api/admin/cleanup-report-cards", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      console.log("[ADMIN-CLEANUP] Starting report card cleanup...");
+      const result = await storage.cleanupAllReportCards();
+      console.log(`[ADMIN-CLEANUP] Completed: ${result.itemsRemoved} items removed from ${result.studentsProcessed} students`);
+      res.json({
+        message: "Report card cleanup completed",
+        studentsProcessed: result.studentsProcessed,
+        itemsRemoved: result.itemsRemoved,
+        errors: result.errors.length > 0 ? result.errors.slice(0, 20) : void 0,
+        totalErrors: result.errors.length
+      });
+    } catch (error) {
+      console.error("[ADMIN-CLEANUP] Error:", error);
+      res.status(500).json({ message: error.message || "Failed to cleanup report cards" });
     }
   });
   app2.post("/api/admin/resync-exam-score", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
@@ -19496,18 +21713,41 @@ Treasure-Home School Administration
       if (!student) {
         return res.status(404).json({ message: "Student profile not found" });
       }
-      const assignments = await storage.getStudentSubjectAssignments(student.id);
-      const enrichedAssignments = await Promise.all(assignments.map(async (assignment) => {
-        const subject = await storage.getSubject(assignment.subjectId);
+      if (!student.classId) {
+        return res.json([]);
+      }
+      const classInfo = await storage.getClass(student.classId);
+      if (!classInfo) {
+        return res.json([]);
+      }
+      const level = classInfo?.level ?? "";
+      const isSSS = classInfo?.name?.startsWith("SS") || level.includes("Senior Secondary");
+      let mappings;
+      if (isSSS && student.department) {
+        mappings = await storage.getClassSubjectMappings(student.classId, student.department);
+      } else {
+        mappings = await storage.getClassSubjectMappings(student.classId);
+      }
+      if (mappings.length === 0) {
+        console.log(`[MY-SUBJECTS] No class-subject mappings found for class ${classInfo.name}${student.department ? ` (${student.department})` : ""}`);
+        return res.json([]);
+      }
+      const enrichedSubjects = await Promise.all(mappings.map(async (mapping) => {
+        const subject = await storage.getSubject(mapping.subjectId);
         return {
-          id: assignment.id,
-          subjectId: assignment.subjectId,
+          id: mapping.id,
+          // Use mapping ID for consistency
+          subjectId: mapping.subjectId,
           subjectName: subject?.name,
           subjectCode: subject?.code,
-          category: subject?.category || "general"
+          category: subject?.category || "general",
+          isCompulsory: mapping.isCompulsory,
+          department: mapping.department
         };
       }));
-      res.json(enrichedAssignments);
+      const validSubjects = enrichedSubjects.filter((s) => s.subjectName);
+      console.log(`[MY-SUBJECTS] Returned ${validSubjects.length} subjects for student in ${classInfo.name}${student.department ? ` (${student.department})` : ""}`);
+      res.json(validSubjects);
     } catch (error) {
       console.error("Error fetching my subjects:", error);
       res.status(500).json({ message: error.message || "Failed to fetch subjects" });
@@ -19523,14 +21763,25 @@ Treasure-Home School Administration
       if (!student.classId) {
         return res.json({});
       }
-      const assignments = await storage.getStudentSubjectAssignments(student.id);
+      const classInfo = await storage.getClass(student.classId);
+      if (!classInfo) {
+        return res.json({});
+      }
+      const level = classInfo?.level ?? "";
+      const isSSS = classInfo?.name?.startsWith("SS") || level.includes("Senior Secondary");
+      let mappings;
+      if (isSSS && student.department) {
+        mappings = await storage.getClassSubjectMappings(student.classId, student.department);
+      } else {
+        mappings = await storage.getClassSubjectMappings(student.classId);
+      }
       const teacherMap = {};
-      for (const assignment of assignments) {
+      for (const mapping of mappings) {
         try {
-          const teachers = await storage.getTeachersForClassSubject(student.classId, assignment.subjectId);
+          const teachers = await storage.getTeachersForClassSubject(student.classId, mapping.subjectId);
           if (teachers && teachers.length > 0) {
             const teacher = teachers[0];
-            teacherMap[assignment.subjectId] = {
+            teacherMap[mapping.subjectId] = {
               id: teacher.id,
               firstName: teacher.firstName,
               lastName: teacher.lastName,
@@ -19545,6 +21796,116 @@ Treasure-Home School Administration
     } catch (error) {
       console.error("Error fetching subject teachers:", error);
       res.status(500).json({ message: error.message || "Failed to fetch teachers" });
+    }
+  });
+  app2.get("/api/my-active-exams", authenticateUser, authorizeRoles(ROLE_IDS.STUDENT), async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const student = await storage.getStudentByUserId(userId);
+      if (!student) {
+        return res.status(404).json({ message: "Student profile not found" });
+      }
+      if (!student.classId) {
+        return res.json({ activeExams: {}, examCounts: {} });
+      }
+      const classInfo = await storage.getClass(student.classId);
+      if (!classInfo) {
+        return res.json({ activeExams: {}, examCounts: {} });
+      }
+      const level = classInfo?.level ?? "";
+      const isSSS = classInfo?.name?.startsWith("SS") || level.includes("Senior Secondary");
+      let mappings;
+      if (isSSS && student.department) {
+        mappings = await storage.getClassSubjectMappings(student.classId, student.department);
+      } else {
+        mappings = await storage.getClassSubjectMappings(student.classId);
+      }
+      if (mappings.length === 0) {
+        return res.json({ activeExams: {}, examCounts: {} });
+      }
+      const subjectIds = new Set(mappings.map((m) => m.subjectId));
+      const classExams = await storage.getExamsByClass(student.classId);
+      const now = /* @__PURE__ */ new Date();
+      const activeExamsBySubject = {};
+      const examCountsBySubject = {};
+      for (const exam of classExams) {
+        if (!subjectIds.has(exam.subjectId)) continue;
+        const isPublished = exam.isPublished;
+        const startTime = exam.startTime ? new Date(exam.startTime) : null;
+        const endTime = exam.endTime ? new Date(exam.endTime) : null;
+        const isActiveNow = isPublished && (!startTime || startTime <= now) && (!endTime || endTime >= now);
+        if (isPublished && (!endTime || endTime >= now)) {
+          examCountsBySubject[exam.subjectId] = (examCountsBySubject[exam.subjectId] || 0) + 1;
+        }
+        if (isActiveNow) {
+          if (!activeExamsBySubject[exam.subjectId]) {
+            activeExamsBySubject[exam.subjectId] = [];
+          }
+          activeExamsBySubject[exam.subjectId].push({
+            id: exam.id,
+            title: exam.name,
+            examType: exam.examType,
+            duration: exam.timeLimit,
+            startDate: exam.startTime,
+            endDate: exam.endTime
+          });
+        }
+      }
+      res.json({
+        activeExams: activeExamsBySubject,
+        examCounts: examCountsBySubject
+      });
+    } catch (error) {
+      console.error("Error fetching active exams:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch active exams" });
+    }
+  });
+  app2.get("/api/settings", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      const { key } = req.query;
+      if (key) {
+        const setting = await storage.getSetting(key);
+        if (!setting) {
+          return res.status(404).json({ message: "Setting not found" });
+        }
+        return res.json(setting);
+      }
+      const settings3 = await storage.getAllSettings();
+      res.json(settings3);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+  app2.put("/api/settings", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      const { key, value, description, dataType } = req.body;
+      if (!key || typeof key !== "string" || key.trim().length === 0) {
+        return res.status(400).json({ message: "Setting key is required and must be a non-empty string" });
+      }
+      if (value === void 0 || value === null) {
+        return res.status(400).json({ message: "Setting value is required" });
+      }
+      const userId = req.user.id;
+      const trimmedKey = key.trim();
+      const stringValue = typeof value === "string" ? value : JSON.stringify(value);
+      const existing = await storage.getSetting(trimmedKey);
+      if (existing) {
+        const updated = await storage.updateSetting(trimmedKey, stringValue, userId);
+        return res.json(updated);
+      } else {
+        const created = await storage.createSetting({
+          key: trimmedKey,
+          value: stringValue,
+          description: description || "",
+          dataType: dataType || "string",
+          updatedBy: userId
+        });
+        return res.json(created);
+      }
+    } catch (error) {
+      console.error("Error saving setting:", error);
+      res.status(500).json({ message: "Failed to save setting" });
     }
   });
   if (process.env.NODE_ENV === "production" && process.env.FRONTEND_URL) {
@@ -19890,6 +22251,8 @@ function validateEnvironment(isProduction4) {
 }
 
 // server/index.ts
+init_performance_monitor();
+init_database_optimization();
 import fs5 from "fs/promises";
 var isProduction3 = process.env.NODE_ENV === "production";
 validateEnvironment(isProduction3);
@@ -19983,6 +22346,9 @@ app.use((req, res, next) => {
   }
   res.on("finish", () => {
     const duration = Date.now() - start;
+    if (path5.startsWith("/api")) {
+      performanceMonitor.recordRequest(req.method, req.route?.path || path5, duration, res.statusCode);
+    }
     if (res.statusCode >= 400 && res.statusCode < 500) {
       console.log(`\u274C 4xx ERROR: ${req.method} ${req.originalUrl || path5} - Status ${res.statusCode} - Referer: ${req.get("referer") || "none"}`);
     }
@@ -20108,6 +22474,22 @@ function sanitizeLogData(data) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error(`\u274C Socket.IO initialization error: ${errorMessage}`);
+  }
+  try {
+    console.log("Initializing Performance Monitoring...");
+    performanceMonitor.start();
+    console.log("\u2705 Performance monitoring started");
+    databaseOptimizer.createPerformanceIndexes().then((result) => {
+      console.log(`\u2705 Database indexes: ${result.created.length} created/verified, ${result.errors.length} errors`);
+      if (result.errors.length > 0) {
+        console.log(`   Index errors: ${result.errors.slice(0, 3).join(", ")}${result.errors.length > 3 ? "..." : ""}`);
+      }
+    }).catch((err) => {
+      console.log(`\u26A0\uFE0F Database index creation skipped: ${err.message}`);
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.log(`\u26A0\uFE0F Performance monitoring initialization warning: ${errorMessage}`);
   }
   app.use((err, req, res, next) => {
     if (err.name === "MulterError" || err.message?.includes("Only image files") || err.message?.includes("Only document files") || err.message?.includes("Only CSV files")) {

@@ -26,7 +26,13 @@ import {
   BookOpen,
   Star,
   Loader2,
-  Lock
+  Lock,
+  Users,
+  FileText,
+  Pen,
+  Heart,
+  Activity,
+  Brain
 } from 'lucide-react';
 import { format } from 'date-fns';
 import {
@@ -52,6 +58,7 @@ interface SubjectScore {
   grade: string;
   remarks: string;
   teacherRemarks?: string | null;
+  subjectPosition?: number | null;
   isOverridden?: boolean;
   canEditTest?: boolean;
   canEditExam?: boolean;
@@ -76,20 +83,17 @@ interface AffectiveTraits {
   punctuality: number;
   neatness: number;
   attentiveness: number;
-  politeness: number;
+  teamwork: number;
+  leadership: number;
+  assignments: number;
   classParticipation: number;
-  relationshipWithOthers: number;
-  perseverance: number;
-  selfControl: number;
-  emotionalStability: number;
 }
 
 interface PsychomotorSkills {
+  sports: number;
   handwriting: number;
-  drawingCreativity: number;
-  gamesSports: number;
   musicalSkills: number;
-  practicalSkills: number;
+  creativity: number;
 }
 
 interface ReportCardData {
@@ -116,6 +120,7 @@ interface ReportCardData {
   attendance?: AttendanceSummary;
   affectiveTraits?: AffectiveTraits;
   psychomotorSkills?: PsychomotorSkills;
+  dateIssued?: string;
 }
 
 interface ProfessionalReportCardProps {
@@ -140,6 +145,17 @@ const getGradeColor = (grade: string) => {
   return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
 };
 
+const getRemarkFromGrade = (grade: string): string => {
+  if (!grade) return '-';
+  const gradeUpper = grade.toUpperCase();
+  if (gradeUpper === 'A' || gradeUpper === 'A+') return 'Excellent';
+  if (gradeUpper === 'B' || gradeUpper === 'B+') return 'Very Good';
+  if (gradeUpper === 'C' || gradeUpper === 'C+') return 'Good';
+  if (gradeUpper === 'D' || gradeUpper === 'D+') return 'Fair';
+  if (gradeUpper === 'E') return 'Pass';
+  return 'Needs Improvement';
+};
+
 const getPositionSuffix = (pos: number): string => {
   if (!pos) return '';
   if (pos >= 11 && pos <= 13) return 'th';
@@ -156,29 +172,32 @@ const formatPosition = (pos: number): string => {
   return `${pos}${getPositionSuffix(pos)}`;
 };
 
-const RatingStars = ({ value, onChange, readonly = false }: { value: number; onChange?: (val: number) => void; readonly?: boolean }) => {
+const RatingDisplay = ({ value, label }: { value: number; label: string }) => {
+  const ratingText = value > 0 ? RATING_LABELS[value] : '-';
+  const ratingColor = value >= 4 ? 'text-green-600' : value >= 3 ? 'text-blue-600' : value >= 2 ? 'text-yellow-600' : 'text-red-600';
+  
   return (
-    <div className="flex items-center gap-1">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <button
-          key={star}
-          type="button"
-          onClick={() => !readonly && onChange?.(star)}
-          disabled={readonly}
-          className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-xs font-medium transition-colors
-            ${star <= value 
-              ? 'bg-primary text-primary-foreground' 
-              : 'bg-muted text-muted-foreground'}
-            ${!readonly ? 'hover-elevate cursor-pointer' : 'cursor-default'}
-          `}
-          data-testid={`rating-star-${star}`}
-        >
-          {star}
-        </button>
-      ))}
-      <span className="text-xs text-muted-foreground ml-2 hidden sm:inline">
-        {value > 0 ? RATING_LABELS[value] : '-'}
-      </span>
+    <div className="flex items-center justify-between py-2 border-b border-muted last:border-b-0">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <div className="flex items-center gap-2">
+        <div className="flex gap-0.5">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <div
+              key={star}
+              className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-medium
+                ${star <= value 
+                  ? 'bg-primary text-primary-foreground' 
+                  : 'bg-muted text-muted-foreground/50'}
+              `}
+            >
+              {star}
+            </div>
+          ))}
+        </div>
+        <span className={`text-xs font-medium min-w-[60px] text-right ${ratingColor}`}>
+          {ratingText}
+        </span>
+      </div>
     </div>
   );
 };
@@ -200,28 +219,6 @@ export function ProfessionalReportCard({
     teacher: reportCard.teacherRemarks || '',
     principal: reportCard.principalRemarks || ''
   });
-  const [affectiveTraits, setAffectiveTraits] = useState<AffectiveTraits>(
-    reportCard.affectiveTraits || {
-      punctuality: 0,
-      neatness: 0,
-      attentiveness: 0,
-      politeness: 0,
-      classParticipation: 0,
-      relationshipWithOthers: 0,
-      perseverance: 0,
-      selfControl: 0,
-      emotionalStability: 0
-    }
-  );
-  const [psychomotorSkills, setPsychomotorSkills] = useState<PsychomotorSkills>(
-    reportCard.psychomotorSkills || {
-      handwriting: 0,
-      drawingCreativity: 0,
-      gamesSports: 0,
-      musicalSkills: 0,
-      practicalSkills: 0
-    }
-  );
   
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -247,6 +244,23 @@ export function ProfessionalReportCard({
     totalStudents: reportCard.totalStudentsInClass || 0
   };
 
+  const affectiveTraits = reportCard.affectiveTraits || {
+    punctuality: 0,
+    neatness: 0,
+    attentiveness: 0,
+    teamwork: 0,
+    leadership: 0,
+    assignments: 0,
+    classParticipation: 0
+  };
+
+  const psychomotorSkills = reportCard.psychomotorSkills || {
+    sports: 0,
+    handwriting: 0,
+    musicalSkills: 0,
+    creativity: 0
+  };
+
   const totalSubjects = reportCard.items?.length || 0;
   const totalObtained = reportCard.items?.reduce((sum, item) => sum + (item.obtainedMarks || 0), 0) || 0;
   const totalMax = reportCard.items?.reduce((sum, item) => sum + (item.totalMarks || 100), 0) || 0;
@@ -255,20 +269,17 @@ export function ProfessionalReportCard({
     { key: 'punctuality', label: 'Punctuality' },
     { key: 'neatness', label: 'Neatness' },
     { key: 'attentiveness', label: 'Attentiveness' },
-    { key: 'politeness', label: 'Politeness' },
-    { key: 'classParticipation', label: 'Class Participation' },
-    { key: 'relationshipWithOthers', label: 'Relationship with Others' },
-    { key: 'perseverance', label: 'Perseverance' },
-    { key: 'selfControl', label: 'Self-Control' },
-    { key: 'emotionalStability', label: 'Emotional Stability' }
+    { key: 'teamwork', label: 'Teamwork' },
+    { key: 'leadership', label: 'Leadership' },
+    { key: 'assignments', label: 'Assignments/Homework' },
+    { key: 'classParticipation', label: 'Class Participation' }
   ];
 
   const psychomotorLabels: { key: keyof PsychomotorSkills; label: string }[] = [
+    { key: 'sports', label: 'Sports' },
     { key: 'handwriting', label: 'Handwriting' },
-    { key: 'drawingCreativity', label: 'Drawing & Creativity' },
-    { key: 'gamesSports', label: 'Games & Sports' },
     { key: 'musicalSkills', label: 'Musical Skills' },
-    { key: 'practicalSkills', label: 'Practical Skills' }
+    { key: 'creativity', label: 'Creativity / Craft' }
   ];
 
   return (
@@ -295,9 +306,15 @@ export function ProfessionalReportCard({
         </Button>
       </div>
 
-      {/* Student Info Panel - Responsive */}
+      {/* Section 1: Student Information */}
       <Card className="mb-4 print:shadow-none print:border-2">
-        <CardContent className="p-3 sm:p-4">
+        <CardHeader className="pb-2 pt-3 px-3 sm:px-4">
+          <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+            <User className="w-4 h-4" />
+            Student Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-3 sm:p-4 pt-0">
           <div className="flex flex-col sm:flex-row gap-4">
             {/* Student Photo */}
             <div className="flex justify-center sm:justify-start">
@@ -317,21 +334,21 @@ export function ProfessionalReportCard({
                 {reportCard.studentName}
               </h3>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Admission No:</span>
-                  <span className="font-medium ml-1" data-testid="text-admission-number">{reportCard.admissionNumber}</span>
+                <div className="flex flex-col">
+                  <span className="text-muted-foreground text-xs">Admission No</span>
+                  <span className="font-medium" data-testid="text-admission-number">{reportCard.admissionNumber}</span>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Class:</span>
-                  <span className="font-medium ml-1" data-testid="text-class-name">{reportCard.className}</span>
+                <div className="flex flex-col">
+                  <span className="text-muted-foreground text-xs">Class / Level</span>
+                  <span className="font-medium" data-testid="text-class-name">{reportCard.className}{reportCard.classArm ? ` (${reportCard.classArm})` : ''}</span>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Session:</span>
-                  <span className="font-medium ml-1" data-testid="text-session">{reportCard.academicSession || '2024/2025'}</span>
+                <div className="flex flex-col">
+                  <span className="text-muted-foreground text-xs">Term</span>
+                  <span className="font-medium" data-testid="text-term">{reportCard.termName}</span>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Term:</span>
-                  <span className="font-medium ml-1" data-testid="text-term">{reportCard.termName}</span>
+                <div className="flex flex-col">
+                  <span className="text-muted-foreground text-xs">Session</span>
+                  <span className="font-medium" data-testid="text-session">{reportCard.academicSession || '2024/2025'}</span>
                 </div>
               </div>
             </div>
@@ -339,48 +356,52 @@ export function ProfessionalReportCard({
         </CardContent>
       </Card>
 
-      {/* Academic Summary - Responsive Grid */}
+      {/* Section 2: Overall Performance Summary */}
       <Card className="mb-4 print:shadow-none print:border-2">
         <CardHeader className="pb-2 pt-3 px-3 sm:px-4">
           <CardTitle className="text-sm sm:text-base flex items-center gap-2">
             <BarChart3 className="w-4 h-4" />
-            Academic Summary
+            Overall Performance Summary
           </CardTitle>
         </CardHeader>
         <CardContent className="p-3 sm:p-4 pt-0">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
             <div className="bg-muted/50 p-2 sm:p-3 rounded-md text-center">
-              <p className="text-xs text-muted-foreground">Total Score</p>
+              <p className="text-xs text-muted-foreground">Total Subjects</p>
+              <p className="text-lg sm:text-xl font-bold" data-testid="text-subjects-count">
+                {totalSubjects}
+              </p>
+            </div>
+            <div className="bg-muted/50 p-2 sm:p-3 rounded-md text-center">
+              <p className="text-xs text-muted-foreground">Total Marks</p>
               <p className="text-lg sm:text-xl font-bold" data-testid="text-total-score">
                 {totalObtained}<span className="text-sm font-normal text-muted-foreground">/{totalMax}</span>
               </p>
             </div>
             <div className="bg-muted/50 p-2 sm:p-3 rounded-md text-center">
-              <p className="text-xs text-muted-foreground">Average</p>
+              <p className="text-xs text-muted-foreground">Average Score</p>
               <p className="text-lg sm:text-xl font-bold" data-testid="text-average">
                 {reportCard.averagePercentage || 0}%
               </p>
             </div>
-            <div className="bg-muted/50 p-2 sm:p-3 rounded-md text-center">
-              <p className="text-xs text-muted-foreground">Grade</p>
-              <Badge className={`text-sm sm:text-base ${getGradeColor(reportCard.overallGrade)}`} data-testid="badge-grade">
-                {reportCard.overallGrade || '-'}
-              </Badge>
-            </div>
-            <div className="bg-muted/50 p-2 sm:p-3 rounded-md text-center">
-              <p className="text-xs text-muted-foreground">Subjects</p>
-              <p className="text-lg sm:text-xl font-bold" data-testid="text-subjects-count">
-                {totalSubjects}
-              </p>
-            </div>
             <div className="bg-primary/10 p-2 sm:p-3 rounded-md text-center">
               <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                <Award className="w-3 h-3" /> Position
+                <Award className="w-3 h-3" /> Class Position
               </p>
               <p className="text-lg sm:text-xl font-bold text-primary" data-testid="text-position">
                 {formatPosition(reportCard.position)} <span className="text-sm font-normal text-muted-foreground">of {reportCard.totalStudentsInClass}</span>
               </p>
             </div>
+            <div className="bg-muted/50 p-2 sm:p-3 rounded-md text-center col-span-2 sm:col-span-1">
+              <p className="text-xs text-muted-foreground">Final Grade</p>
+              <Badge className={`text-sm sm:text-base ${getGradeColor(reportCard.overallGrade)}`} data-testid="badge-grade">
+                {reportCard.overallGrade || '-'}
+              </Badge>
+            </div>
+          </div>
+
+          {/* Class Statistics Row */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-3">
             <div className="bg-green-50 dark:bg-green-900/20 p-2 sm:p-3 rounded-md text-center">
               <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
                 <TrendingUp className="w-3 h-3 text-green-600" /> Class Highest
@@ -407,7 +428,7 @@ export function ProfessionalReportCard({
         </CardContent>
       </Card>
 
-      {/* Subject Scores - Collapsible on Mobile */}
+      {/* Section 3: Subject Performance (Core Academic Fields) */}
       <Collapsible open={isSubjectsOpen} onOpenChange={setIsSubjectsOpen} className="mb-4">
         <Card className="print:shadow-none print:border-2">
           <CollapsibleTrigger asChild className="print:hidden">
@@ -442,11 +463,12 @@ export function ProfessionalReportCard({
                   <thead>
                     <tr className="bg-muted/50">
                       <th className="text-left p-2 font-semibold border-b">Subject</th>
-                      <th className="text-center p-2 font-semibold border-b">Test ({testWeight}%)</th>
-                      <th className="text-center p-2 font-semibold border-b">Exam ({examWeight}%)</th>
-                      <th className="text-center p-2 font-semibold border-b">Total</th>
+                      <th className="text-center p-2 font-semibold border-b">Test ({testWeight})</th>
+                      <th className="text-center p-2 font-semibold border-b">Exam ({examWeight})</th>
+                      <th className="text-center p-2 font-semibold border-b">Total (100)</th>
                       <th className="text-center p-2 font-semibold border-b">Grade</th>
-                      <th className="text-left p-2 font-semibold border-b print:hidden">Remarks</th>
+                      <th className="text-center p-2 font-semibold border-b">Position</th>
+                      <th className="text-left p-2 font-semibold border-b">Remarks</th>
                       <th className="text-center p-2 font-semibold border-b print:hidden">Action</th>
                     </tr>
                   </thead>
@@ -462,13 +484,17 @@ export function ProfessionalReportCard({
                         </td>
                         <td className="text-center p-2 font-semibold border-b">
                           {item.obtainedMarks || 0}/100
-                          <span className="text-xs text-muted-foreground ml-1">({item.percentage || 0}%)</span>
                         </td>
                         <td className="text-center p-2 border-b">
                           <Badge className={`${getGradeColor(item.grade)}`}>{item.grade || '-'}</Badge>
                         </td>
-                        <td className="p-2 text-xs text-muted-foreground border-b max-w-[150px] truncate print:hidden">
-                          {item.remarks || item.teacherRemarks || '-'}
+                        <td className="text-center p-2 border-b text-muted-foreground">
+                          {item.subjectPosition ? formatPosition(item.subjectPosition) : '-'}
+                        </td>
+                        <td className="p-2 text-xs border-b max-w-[120px]">
+                          <span className={getGradeColor(item.grade).replace('bg-', 'text-').replace('-100', '-700')}>
+                            {item.remarks || item.teacherRemarks || getRemarkFromGrade(item.grade)}
+                          </span>
                         </td>
                         <td className="text-center p-2 border-b print:hidden">
                           {(item.canEditTest || item.canEditExam || item.canEditRemarks) && onEditSubject && (
@@ -498,6 +524,9 @@ export function ProfessionalReportCard({
                         <div className="flex items-center gap-2 mt-1">
                           <Badge className={`${getGradeColor(item.grade)} text-xs`}>{item.grade || '-'}</Badge>
                           <span className="text-xs text-muted-foreground">{item.percentage || 0}%</span>
+                          {item.subjectPosition && (
+                            <span className="text-xs text-muted-foreground">Pos: {formatPosition(item.subjectPosition)}</span>
+                          )}
                         </div>
                       </div>
                       {(item.canEditTest || item.canEditExam || item.canEditRemarks) && onEditSubject && (
@@ -525,6 +554,9 @@ export function ProfessionalReportCard({
                         <p className="font-semibold">{item.obtainedMarks || 0}/100</p>
                       </div>
                     </div>
+                    <p className="text-xs mt-2 text-muted-foreground">
+                      <span className="font-medium">Remarks:</span> {item.remarks || item.teacherRemarks || getRemarkFromGrade(item.grade)}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -533,7 +565,7 @@ export function ProfessionalReportCard({
         </Card>
       </Collapsible>
 
-      {/* Attendance Summary */}
+      {/* Section 4: Attendance & Conduct */}
       <Collapsible open={isAttendanceOpen} onOpenChange={setIsAttendanceOpen} className="mb-4">
         <Card className="print:shadow-none print:border-2">
           <CollapsibleTrigger asChild className="print:hidden">
@@ -541,7 +573,7 @@ export function ProfessionalReportCard({
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm sm:text-base flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
-                  Attendance Summary
+                  Attendance & Conduct
                 </CardTitle>
                 <div className="flex items-center gap-2 sm:hidden">
                   {isAttendanceOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -551,29 +583,29 @@ export function ProfessionalReportCard({
           </CollapsibleTrigger>
           
           <CardHeader className="hidden print:block pb-2 pt-3 px-4">
-            <CardTitle className="text-base">Attendance Summary</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              Attendance & Conduct
+            </CardTitle>
           </CardHeader>
           
           <CollapsibleContent className="print:!block">
             <CardContent className="p-3 sm:p-4 pt-0">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-                <div className="bg-muted/50 p-2 sm:p-3 rounded-md text-center">
-                  <p className="text-xs text-muted-foreground">School Opened</p>
-                  <p className="text-lg font-bold" data-testid="text-school-opened">{attendance.timesSchoolOpened}</p>
+                <div className="bg-muted/50 p-3 rounded-md text-center">
+                  <p className="text-xs text-muted-foreground">School Days</p>
+                  <p className="text-xl font-bold">{attendance.timesSchoolOpened}</p>
                 </div>
-                <div className="bg-green-50 dark:bg-green-900/20 p-2 sm:p-3 rounded-md text-center">
-                  <p className="text-xs text-muted-foreground">Times Present</p>
-                  <p className="text-lg font-bold text-green-600" data-testid="text-times-present">{attendance.timesPresent}</p>
+                <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-md text-center">
+                  <p className="text-xs text-muted-foreground">Days Present</p>
+                  <p className="text-xl font-bold text-green-600">{attendance.timesPresent}</p>
                 </div>
-                <div className="bg-red-50 dark:bg-red-900/20 p-2 sm:p-3 rounded-md text-center">
-                  <p className="text-xs text-muted-foreground">Times Absent</p>
-                  <p className="text-lg font-bold text-red-600" data-testid="text-times-absent">{attendance.timesAbsent}</p>
+                <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-md text-center">
+                  <p className="text-xs text-muted-foreground">Days Absent</p>
+                  <p className="text-xl font-bold text-red-600">{attendance.timesAbsent}</p>
                 </div>
-                <div className="bg-primary/10 p-2 sm:p-3 rounded-md text-center">
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md text-center">
                   <p className="text-xs text-muted-foreground">Attendance %</p>
-                  <p className="text-lg font-bold text-primary" data-testid="text-attendance-percentage">
-                    {attendance.attendancePercentage}%
-                  </p>
+                  <p className="text-xl font-bold text-blue-600">{attendance.attendancePercentage}%</p>
                 </div>
               </div>
             </CardContent>
@@ -581,15 +613,15 @@ export function ProfessionalReportCard({
         </Card>
       </Collapsible>
 
-      {/* Affective Traits (Behavioural) */}
+      {/* Section 5: Cognitive & Affective Skills */}
       <Collapsible open={isAffectiveOpen} onOpenChange={setIsAffectiveOpen} className="mb-4">
         <Card className="print:shadow-none print:border-2">
           <CollapsibleTrigger asChild className="print:hidden">
             <CardHeader className="pb-2 pt-3 px-3 sm:px-4 cursor-pointer hover-elevate">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm sm:text-base flex items-center gap-2">
-                  <Star className="w-4 h-4" />
-                  Affective Traits (Behavioural)
+                  <Brain className="w-4 h-4" />
+                  Cognitive & Affective Skills
                 </CardTitle>
                 <div className="flex items-center gap-2 sm:hidden">
                   {isAffectiveOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -599,39 +631,34 @@ export function ProfessionalReportCard({
           </CollapsibleTrigger>
           
           <CardHeader className="hidden print:block pb-2 pt-3 px-4">
-            <CardTitle className="text-base">Affective Traits (Behavioural)</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              Cognitive & Affective Skills
+            </CardTitle>
           </CardHeader>
           
           <CollapsibleContent className="print:!block">
             <CardContent className="p-3 sm:p-4 pt-0">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {affectiveTraitLabels.map(({ key, label }) => (
-                  <div key={key} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
-                    <Label className="text-xs sm:text-sm">{label}</Label>
-                    <RatingStars
-                      value={affectiveTraits[key]}
-                      onChange={(val) => setAffectiveTraits(prev => ({ ...prev, [key]: val }))}
-                      readonly={!canEditRemarks}
-                    />
-                  </div>
+                  <RatingDisplay key={key} value={affectiveTraits[key]} label={label} />
                 ))}
               </div>
               <p className="text-xs text-muted-foreground mt-3 text-center">
-                Rating: 1=Poor, 2=Fair, 3=Good, 4=Very Good, 5=Excellent
+                Rating Scale: 5 = Excellent, 4 = Very Good, 3 = Good, 2 = Fair, 1 = Poor
               </p>
             </CardContent>
           </CollapsibleContent>
         </Card>
       </Collapsible>
 
-      {/* Psychomotor Skills */}
+      {/* Section 6: Psychomotor Skills */}
       <Collapsible open={isPsychomotorOpen} onOpenChange={setIsPsychomotorOpen} className="mb-4">
         <Card className="print:shadow-none print:border-2">
           <CollapsibleTrigger asChild className="print:hidden">
             <CardHeader className="pb-2 pt-3 px-3 sm:px-4 cursor-pointer hover-elevate">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm sm:text-base flex items-center gap-2">
-                  <GraduationCap className="w-4 h-4" />
+                  <Activity className="w-4 h-4" />
                   Psychomotor Skills
                 </CardTitle>
                 <div className="flex items-center gap-2 sm:hidden">
@@ -642,178 +669,150 @@ export function ProfessionalReportCard({
           </CollapsibleTrigger>
           
           <CardHeader className="hidden print:block pb-2 pt-3 px-4">
-            <CardTitle className="text-base">Psychomotor Skills</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              Psychomotor Skills
+            </CardTitle>
           </CardHeader>
           
           <CollapsibleContent className="print:!block">
             <CardContent className="p-3 sm:p-4 pt-0">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {psychomotorLabels.map(({ key, label }) => (
-                  <div key={key} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
-                    <Label className="text-xs sm:text-sm">{label}</Label>
-                    <RatingStars
-                      value={psychomotorSkills[key]}
-                      onChange={(val) => setPsychomotorSkills(prev => ({ ...prev, [key]: val }))}
-                      readonly={!canEditRemarks}
-                    />
-                  </div>
+                  <RatingDisplay key={key} value={psychomotorSkills[key]} label={label} />
                 ))}
               </div>
               <p className="text-xs text-muted-foreground mt-3 text-center">
-                Rating: 1=Poor, 2=Fair, 3=Good, 4=Very Good, 5=Excellent
+                Rating Scale: 5 = Excellent, 4 = Very Good, 3 = Good, 2 = Fair, 1 = Poor
               </p>
             </CardContent>
           </CollapsibleContent>
         </Card>
       </Collapsible>
 
-      {/* Teacher & Principal Remarks */}
+      {/* Section 7: Comments */}
       <Card className="mb-4 print:shadow-none print:border-2">
         <CardHeader className="pb-2 pt-3 px-3 sm:px-4">
-          <CardTitle className="text-sm sm:text-base">Remarks & Sign-Off</CardTitle>
+          <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Comments
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-3 sm:p-4 pt-0 space-y-4">
-          {/* Teacher Remarks */}
+          {/* Teacher's Comment */}
           <div>
-            <Label className="text-sm font-medium mb-2 block">Class Teacher's Comment</Label>
-            <Textarea
-              value={localRemarks.teacher}
-              onChange={(e) => setLocalRemarks(prev => ({ ...prev, teacher: e.target.value }))}
-              placeholder="Enter class teacher's remarks..."
-              disabled={!canEditRemarks}
-              className="resize-none min-h-[80px] text-sm"
-              data-testid="textarea-teacher-remarks"
-            />
-          </div>
-
-          {/* Principal Remarks */}
-          <div>
-            <Label className="text-sm font-medium mb-2 block">Principal's Comment</Label>
-            <Textarea
-              value={localRemarks.principal}
-              onChange={(e) => setLocalRemarks(prev => ({ ...prev, principal: e.target.value }))}
-              placeholder="Enter principal's remarks..."
-              disabled={!canEditRemarks}
-              className="resize-none min-h-[80px] text-sm"
-              data-testid="textarea-principal-remarks"
-            />
-          </div>
-
-          {/* Save Remarks Button or Lock Notice */}
-          <div className="flex justify-end print:hidden">
-            {canEditRemarks && onSaveRemarks ? (
-              <Button
-                size="sm"
-                onClick={() => onSaveRemarks(localRemarks.teacher, localRemarks.principal)}
-                disabled={isLoading}
-                data-testid="button-save-remarks"
-              >
-                {isLoading ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4 mr-2" />
-                )}
-                {isLoading ? 'Saving...' : 'Save Remarks'}
-              </Button>
+            <Label className="text-sm font-medium text-muted-foreground mb-2 block">
+              Teacher's Comment
+            </Label>
+            {canEditRemarks ? (
+              <Textarea
+                value={localRemarks.teacher}
+                onChange={(e) => setLocalRemarks(prev => ({ ...prev, teacher: e.target.value }))}
+                placeholder="Enter teacher's comment..."
+                className="min-h-[80px]"
+                data-testid="textarea-teacher-remarks"
+              />
             ) : (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Lock className="w-4 h-4" />
-                <span>Remarks are locked. Revert to draft to edit.</span>
+              <div className="bg-muted/50 p-3 rounded-md min-h-[60px]">
+                <p className="text-sm" data-testid="text-teacher-remarks">
+                  {reportCard.teacherRemarks || 'No comment provided.'}
+                </p>
               </div>
             )}
           </div>
 
-          {/* Signature Areas */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t print:pt-8">
-            <div className="text-center">
-              <div className="border-b border-muted-foreground/30 pb-8 mb-2 min-h-[40px] flex items-end justify-center">
-                <span className="text-muted-foreground text-sm print:text-black">_____________________</span>
+          {/* Principal's Comment */}
+          <div>
+            <Label className="text-sm font-medium text-muted-foreground mb-2 block">
+              Principal's Comment
+            </Label>
+            {canEditRemarks ? (
+              <Textarea
+                value={localRemarks.principal}
+                onChange={(e) => setLocalRemarks(prev => ({ ...prev, principal: e.target.value }))}
+                placeholder="Enter principal's comment..."
+                className="min-h-[80px]"
+                data-testid="textarea-principal-remarks"
+              />
+            ) : (
+              <div className="bg-muted/50 p-3 rounded-md min-h-[60px]">
+                <p className="text-sm" data-testid="text-principal-remarks">
+                  {reportCard.principalRemarks || 'No comment provided.'}
+                </p>
               </div>
-              <p className="font-medium text-sm">Class Teacher's Signature</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Date: {reportCard.generatedAt ? format(new Date(reportCard.generatedAt), 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy')}
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="border-b border-muted-foreground/30 pb-8 mb-2 min-h-[40px] flex items-end justify-center">
-                <span className="text-muted-foreground text-sm print:text-black">_____________________</span>
-              </div>
-              <p className="font-medium text-sm">Principal's Signature</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Date: {reportCard.generatedAt ? format(new Date(reportCard.generatedAt), 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy')}
-              </p>
-            </div>
+            )}
           </div>
+
+          {/* Save Button */}
+          {canEditRemarks && onSaveRemarks && (
+            <div className="flex justify-end print:hidden">
+              <Button
+                onClick={() => onSaveRemarks(localRemarks.teacher, localRemarks.principal)}
+                disabled={isLoading}
+                data-testid="button-save-remarks"
+              >
+                {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                Save Comments
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Grading Key - For Print */}
-      <Card className="mb-8 print:shadow-none print:border-2 print:break-inside-avoid">
+      {/* Section 8: Signatures & Administrative Fields */}
+      <Card className="print:shadow-none print:border-2">
         <CardHeader className="pb-2 pt-3 px-3 sm:px-4">
-          <CardTitle className="text-sm">Grading Key</CardTitle>
+          <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+            <Pen className="w-4 h-4" />
+            Signatures
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-3 sm:p-4 pt-0">
-          <div className="flex flex-wrap gap-2 sm:gap-3 justify-center text-xs">
-            <div className="flex items-center gap-1">
-              <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">A</Badge>
-              <span>75-100 (Excellent)</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {/* Teacher's Signature */}
+            <div className="text-center">
+              <div className="border-b-2 border-dashed border-muted-foreground/30 mb-2 h-12 flex items-end justify-center pb-1">
+                <span className="text-lg font-serif italic text-primary/70">________________</span>
+              </div>
+              <p className="text-sm font-medium">Class Teacher's Signature</p>
             </div>
-            <div className="flex items-center gap-1">
-              <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">B</Badge>
-              <span>65-74 (Very Good)</span>
+            
+            {/* Principal's Signature */}
+            <div className="text-center">
+              <div className="border-b-2 border-dashed border-muted-foreground/30 mb-2 h-12 flex items-end justify-center pb-1">
+                <span className="text-lg font-serif italic text-primary/70">________________</span>
+              </div>
+              <p className="text-sm font-medium">Principal's Signature</p>
             </div>
-            <div className="flex items-center gap-1">
-              <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">C</Badge>
-              <span>55-64 (Good)</span>
+          </div>
+
+          <Separator className="my-4" />
+
+          {/* Date Issued */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Calendar className="w-4 h-4" />
+              <span>Date Issued:</span>
+              <span className="font-medium text-foreground" data-testid="text-date-issued">
+                {reportCard.dateIssued || reportCard.generatedAt 
+                  ? format(new Date(reportCard.dateIssued || reportCard.generatedAt || new Date()), 'MMMM d, yyyy')
+                  : format(new Date(), 'MMMM d, yyyy')}
+              </span>
             </div>
-            <div className="flex items-center gap-1">
-              <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">D</Badge>
-              <span>45-54 (Fair)</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">F</Badge>
-              <span>0-44 (Needs Improvement)</span>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Clock className="w-4 h-4" />
+              <span>Next Term Begins:</span>
+              <span className="font-medium text-foreground">To be announced</span>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Print Styles */}
-      <style>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .print\\:hidden {
-            display: none !important;
-          }
-          .print\\:block {
-            display: block !important;
-          }
-          .print\\:shadow-none {
-            box-shadow: none !important;
-          }
-          .print\\:border-2 {
-            border-width: 2px !important;
-          }
-          .print\\:pt-8 {
-            padding-top: 2rem !important;
-          }
-          .print\\:break-inside-avoid {
-            break-inside: avoid !important;
-          }
-          [data-state="closed"] > [data-radix-collapsible-content] {
-            display: block !important;
-            visibility: visible !important;
-          }
-          @page {
-            margin: 1cm;
-            size: A4;
-          }
-        }
-      `}</style>
+      {/* School Footer for Print */}
+      <div className="hidden print:block mt-6 pt-4 border-t-2 text-center text-sm text-muted-foreground">
+        <p className="font-semibold">TREASURE HOME SCHOOL</p>
+        <p>Seriki-Soyinka, Ifo, Ogun State, Nigeria</p>
+        <p className="italic mt-1">This is a computer-generated report card.</p>
+      </div>
     </div>
   );
 }
-
-export default ProfessionalReportCard;

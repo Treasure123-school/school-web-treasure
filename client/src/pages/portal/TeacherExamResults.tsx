@@ -16,8 +16,15 @@ import {
   XCircle,
   RefreshCw,
   Loader2,
-  RotateCcw
+  RotateCcw,
+  MoreVertical
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Link } from 'wouter';
 import { format } from 'date-fns';
 import { useAuth } from '@/lib/auth';
@@ -40,6 +47,7 @@ interface EnrichedExamResult extends ExamResult {
   studentName?: string;
   studentUsername?: string;
   admissionNumber?: string | null;
+  testScore?: number | null;
 }
 
 interface EditableScore {
@@ -206,34 +214,39 @@ export default function TeacherExamResults() {
   const subject = subjects.find((s) => s.id === currentExam?.subjectId);
   const examClass = classes.find((c) => c.id === currentExam?.classId);
 
+  // Helper function to calculate combined scores - test score (max 40) + exam score (max 60) = 100 total
+  const calculateCombinedScores = (result: EnrichedExamResult) => {
+    const testMaxScore = 40;
+    const examMaxScore = result.maxScore ?? 60;
+    const totalMaxScore = testMaxScore + examMaxScore;
+    const totalScore = (result.testScore ?? 0) + (result.score ?? 0);
+    const percentage = totalMaxScore > 0 ? (totalScore / totalMaxScore) * 100 : 0;
+    return { testMaxScore, examMaxScore, totalMaxScore, totalScore, percentage };
+  };
+
   const totalSubmissions = examResults.length;
   const averageScore = totalSubmissions > 0
-    ? examResults.reduce((sum: number, r) => sum + (r.score ?? 0), 0) / totalSubmissions
+    ? examResults.reduce((sum: number, r) => sum + calculateCombinedScores(r).totalScore, 0) / totalSubmissions
     : 0;
   
   const averagePercentage = totalSubmissions > 0
-    ? examResults.reduce((sum: number, r) => {
-        const percentage = (r.maxScore ?? 0) > 0 ? ((r.score ?? 0) / (r.maxScore ?? 0)) * 100 : 0;
-        return sum + percentage;
-      }, 0) / totalSubmissions
+    ? examResults.reduce((sum: number, r) => sum + calculateCombinedScores(r).percentage, 0) / totalSubmissions
     : 0;
 
   const highestScore = totalSubmissions > 0
-    ? Math.max(...examResults.map((r) => r.score ?? 0))
+    ? Math.max(...examResults.map((r) => calculateCombinedScores(r).totalScore))
     : 0;
 
   const lowestScore = totalSubmissions > 0
-    ? Math.min(...examResults.map((r) => r.score ?? 0))
+    ? Math.min(...examResults.map((r) => calculateCombinedScores(r).totalScore))
     : 0;
 
-  const passCount = examResults.filter((r) => {
-    const percentage = (r.maxScore ?? 0) > 0 ? ((r.score ?? 0) / (r.maxScore ?? 0)) * 100 : 0;
-    return percentage >= 50;
-  }).length;
+  const passCount = examResults.filter((r) => calculateCombinedScores(r).percentage >= 50).length;
 
   const failCount = totalSubmissions - passCount;
 
-  const sortedResults = [...examResults].sort((a, b) => (b.score || 0) - (a.score || 0));
+  // Sort by combined total score instead of just exam score
+  const sortedResults = [...examResults].sort((a, b) => calculateCombinedScores(b).totalScore - calculateCombinedScores(a).totalScore);
 
   const getGrade = (percentage: number) => {
     if (percentage >= 90) return { grade: 'A+', color: 'text-green-600' };
@@ -292,16 +305,18 @@ export default function TeacherExamResults() {
     if (!currentExam || examResults.length === 0) return;
 
     const csvContent = [
-      ['Student Name', 'Username', 'Admission No.', 'Exam Score', 'Max Score', 'Percentage', 'Grade', 'Submitted At'].join(','),
+      ['Student Name', 'Username', 'Admission No.', 'Test Score', 'Exam Score', 'Total Score', 'Max Score', 'Percentage', 'Grade', 'Submitted At'].join(','),
       ...sortedResults.map((result) => {
-        const percentage = (result.maxScore ?? 0) > 0 ? ((result.score ?? 0) / (result.maxScore ?? 0)) * 100 : 0;
+        const { totalScore, totalMaxScore, percentage } = calculateCombinedScores(result);
         const { grade } = getGrade(percentage);
         return [
           `"${result.studentName || 'Unknown Student'}"`,
           result.studentUsername || result.studentId,
           result.admissionNumber || '-',
+          result.testScore ?? 0,
           result.score ?? 0,
-          result.maxScore ?? 0,
+          totalScore,
+          totalMaxScore,
           percentage.toFixed(1) + '%',
           grade,
           result.createdAt ? format(new Date(result.createdAt), 'PPpp') : 'N/A'
@@ -320,18 +335,7 @@ export default function TeacherExamResults() {
 
   if (!currentExam) {
     return (
-        <div className="container mx-auto p-6">
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Exam not found</p>
-            <Button asChild className="mt-4" data-testid="button-back">
-              <Link href="/portal/teacher">Back to Dashboard</Link>
-            </Button>
-          </div>
-        </div>
-    );
-  }
-  return (
-      <div className="container mx-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
+
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
             <Button variant="outline" size="sm" asChild data-testid="button-back" className="w-fit">
@@ -444,7 +448,7 @@ export default function TeacherExamResults() {
               <>
                 <div className="block sm:hidden space-y-3">
                   {sortedResults.map((result, index) => {
-                    const percentage = (result.maxScore ?? 0) > 0 ? ((result.score ?? 0) / (result.maxScore ?? 0)) * 100 : 0;
+                    const { totalScore, totalMaxScore, percentage } = calculateCombinedScores(result);
                     const { grade, color } = getGrade(percentage);
                     const isPassed = percentage >= 50;
                     const isSyncing = syncingResults.has(result.id);
@@ -489,9 +493,9 @@ export default function TeacherExamResults() {
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-xs mb-3">
                           <div>
-                            <span className="text-muted-foreground">Score</span>
+                            <span className="text-muted-foreground">Total Score</span>
                             <p className="font-medium" data-testid={`text-score-mobile-${index}`}>
-                              {result.score || 0}/{result.maxScore || 0}
+                              {totalScore}/{totalMaxScore}
                             </p>
                           </div>
                           <div>
@@ -507,37 +511,41 @@ export default function TeacherExamResults() {
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 pt-2 border-t">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleSyncToReportCard(result.id)}
-                            disabled={isSyncing}
-                            className="flex-1"
-                            data-testid={`button-sync-mobile-${index}`}
-                          >
-                            {isSyncing ? (
-                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                            ) : (
-                              <RefreshCw className="h-3 w-3 mr-1" />
-                            )}
-                            Sync to Report
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleAllowRetakeClick(result)}
-                            disabled={allowingRetake.has(result.id)}
-                            className="flex-1"
-                            data-testid={`button-retake-mobile-${index}`}
-                          >
-                            {allowingRetake.has(result.id) ? (
-                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                            ) : (
-                              <RotateCcw className="h-3 w-3 mr-1" />
-                            )}
-                            Allow Retake
-                          </Button>
+                        <div className="flex items-center justify-end pt-2 border-t">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                data-testid={`button-actions-mobile-${index}`}
+                                disabled={isSyncing || allowingRetake.has(result.id)}
+                              >
+                                {(isSyncing || allowingRetake.has(result.id)) ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <MoreVertical className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => handleSyncToReportCard(result.id)}
+                                disabled={isSyncing}
+                                data-testid={`button-sync-mobile-${index}`}
+                              >
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Sync to Report
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleAllowRetakeClick(result)}
+                                disabled={allowingRetake.has(result.id)}
+                                data-testid={`button-retake-mobile-${index}`}
+                              >
+                                <RotateCcw className="h-4 w-4 mr-2" />
+                                Allow Retake
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                     );
@@ -550,19 +558,20 @@ export default function TeacherExamResults() {
                       <TableRow>
                         <TableHead className="text-xs">Rank</TableHead>
                         <TableHead className="text-xs">Student</TableHead>
-                        <TableHead className="text-xs hidden md:table-cell">Username</TableHead>
-                        <TableHead className="text-xs hidden lg:table-cell">Adm. No.</TableHead>
+                        <TableHead className="text-xs hidden md:table-cell">Adm. No.</TableHead>
+                        <TableHead className="text-xs hidden lg:table-cell">Test Score</TableHead>
                         <TableHead className="text-xs">Exam Score</TableHead>
+                        <TableHead className="text-xs">Total</TableHead>
                         <TableHead className="text-xs hidden lg:table-cell">Percentage</TableHead>
                         <TableHead className="text-xs">Grade</TableHead>
-                        <TableHead className="text-xs">Status</TableHead>
-                        <TableHead className="text-xs hidden lg:table-cell">Submitted At</TableHead>
+                        <TableHead className="text-xs hidden xl:table-cell">Submitted At</TableHead>
+                        <TableHead className="text-xs hidden xl:table-cell">Remarks</TableHead>
                         <TableHead className="text-xs">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {sortedResults.map((result, index) => {
-                        const percentage = (result.maxScore ?? 0) > 0 ? ((result.score ?? 0) / (result.maxScore ?? 0)) * 100 : 0;
+                        const { totalScore, totalMaxScore, percentage } = calculateCombinedScores(result);
                         const { grade, color } = getGrade(percentage);
                         const isPassed = percentage >= 50;
                         const isSyncing = syncingResults.has(result.id);
@@ -577,14 +586,17 @@ export default function TeacherExamResults() {
                             <TableCell className="font-medium text-xs sm:text-sm py-2" data-testid={`text-student-name-${index}`}>
                               {result.studentName || 'Unknown Student'}
                             </TableCell>
-                            <TableCell className="text-xs hidden md:table-cell py-2" data-testid={`text-student-username-${index}`}>
-                              @{result.studentUsername || result.studentId}
-                            </TableCell>
-                            <TableCell className="text-xs hidden lg:table-cell py-2" data-testid={`text-student-adm-${index}`}>
+                            <TableCell className="text-xs hidden md:table-cell py-2" data-testid={`text-student-adm-${index}`}>
                               {result.admissionNumber || '-'}
                             </TableCell>
-                            <TableCell className="text-xs sm:text-sm py-2" data-testid={`text-score-${index}`}>
-                              {result.score || 0} / {result.maxScore || 0}
+                            <TableCell className="text-xs hidden lg:table-cell py-2" data-testid={`text-test-score-${index}`}>
+                              {result.testScore ?? '-'}
+                            </TableCell>
+                            <TableCell className="text-xs sm:text-sm py-2" data-testid={`text-exam-score-${index}`}>
+                              {result.score || 0}
+                            </TableCell>
+                            <TableCell className="text-xs sm:text-sm py-2 font-medium" data-testid={`text-total-${index}`}>
+                              {totalScore} / {totalMaxScore}
                             </TableCell>
                             <TableCell className="text-xs hidden lg:table-cell py-2" data-testid={`text-percentage-${index}`}>
                               {percentage.toFixed(1)}%
@@ -594,20 +606,11 @@ export default function TeacherExamResults() {
                                 {grade}
                               </span>
                             </TableCell>
-                            <TableCell className="py-2">
-                              <div className="flex items-center gap-1">
-                                {isPassed ? (
-                                  <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" data-testid={`icon-passed-${index}`} />
-                                ) : (
-                                  <XCircle className="h-3 w-3 sm:h-4 sm:w-4 text-red-500" data-testid={`icon-failed-${index}`} />
-                                )}
-                                <span className={`text-xs ${isPassed ? 'text-green-600' : 'text-red-600'}`} data-testid={`text-status-${index}`}>
-                                  {isPassed ? 'Passed' : 'Failed'}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-xs hidden lg:table-cell py-2" data-testid={`text-submitted-at-${index}`}>
+                            <TableCell className="text-xs hidden xl:table-cell py-2" data-testid={`text-submitted-at-${index}`}>
                               {result.createdAt ? format(new Date(result.createdAt), 'PPp') : 'N/A'}
+                            </TableCell>
+                            <TableCell className="text-xs hidden xl:table-cell py-2 max-w-[150px] truncate" data-testid={`text-remarks-${index}`} title={result.remarks || '-'}>
+                              {result.remarks || '-'}
                             </TableCell>
                             <TableCell className="py-2">
                               <div className="flex items-center gap-1">
@@ -690,6 +693,6 @@ export default function TeacherExamResults() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
+
   );
 }

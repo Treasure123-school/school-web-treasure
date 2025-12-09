@@ -22,7 +22,6 @@ import {
   Loader,
   BookOpen
 } from 'lucide-react';
-import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
 
 interface ExamResult {
   id?: number;
@@ -264,39 +263,32 @@ export default function StudentExamResults() {
   // FALLBACK MODE: Show no results if we don't have latestResult AND API returned empty
   if ((error || allResults.length === 0) && (specificExamId || !latestResult)) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 py-4">
-            <div className="flex items-center space-x-3">
-              <img src={schoolLogo} alt="Treasure-Home School" className="h-10 w-10 object-contain" />
-              <div>
-                <h2 className="text-xl font-bold text-blue-600 dark:text-blue-400">Treasure-Home School</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Exam Results</p>
-              </div>
-            </div>
+      <div className="space-y-6 p-4 md:p-6">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Exam Results</h1>
+            <p className="text-sm text-muted-foreground">View your exam scores and performance</p>
           </div>
         </div>
         
-        <div className="max-w-4xl mx-auto px-4 py-12">
-          <Card className="text-center py-12">
-            <CardContent>
-              <FileText className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                {specificExamId ? 'No Result Found for This Exam' : 'No Exam Results Found'}
-              </h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                {specificExamId 
-                  ? 'You have not completed this specific exam yet, or no result was recorded.'
-                  : "You haven't completed any exams yet."
-                }
-              </p>
-              <Button onClick={() => setLocation('/portal/student/exams')} data-testid="button-go-to-exams">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Go to Exams
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+        <Card className="text-center py-12">
+          <CardContent>
+            <FileText className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              {specificExamId ? 'No Result Found for This Exam' : 'No Exam Results Found'}
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              {specificExamId 
+                ? 'You have not completed this specific exam yet, or no result was recorded.'
+                : "You haven't completed any exams yet."
+              }
+            </p>
+            <Button onClick={() => setLocation('/portal/student/exams')} data-testid="button-go-to-exams">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Go to Exams
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -314,30 +306,23 @@ export default function StudentExamResults() {
   const strokeDashoffset = circumference * (1 - percentage / 100);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <img src={schoolLogo} alt="Treasure-Home School" className="h-10 w-10 object-contain" />
-              <div>
-                <h2 className="text-xl font-bold text-blue-600 dark:text-blue-400">Treasure-Home School</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Exam Results</p>
-              </div>
-            </div>
-            <Button 
-              variant="outline" 
-              onClick={() => setLocation('/portal/student/exams')}
-              data-testid="button-back-to-exams"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Exams
-            </Button>
-          </div>
+    <div className="space-y-6 p-4 md:p-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Exam Results</h1>
+          <p className="text-sm text-muted-foreground">View your exam scores and performance</p>
         </div>
+        <Button 
+          variant="outline" 
+          onClick={() => setLocation('/portal/student/exams')}
+          data-testid="button-back-to-exams"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Exams
+        </Button>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <div className="space-y-6">
         {allResults.length > 1 && (
           <Card className="bg-white dark:bg-gray-800">
             <CardHeader className="pb-3">

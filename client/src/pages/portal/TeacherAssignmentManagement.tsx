@@ -327,6 +327,7 @@ export default function TeacherAssignmentManagement() {
   }, [assignments]);
 
   return (
+
       <div className="p-6 space-y-6" data-testid="teacher-assignment-management">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -915,5 +916,6 @@ export default function TeacherAssignmentManagement() {
           </DialogContent>
         </Dialog>
       </div>
+
   );
 }
