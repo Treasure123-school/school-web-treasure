@@ -415,12 +415,64 @@ export default function ExamManagement() {
       });
       queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
       setIsExamDialogOpen(false);
+      setEditingExam(null);
       resetExam();
     },
     onError: (error: any) => {
       toast({
         title: "Error",
         description: error.message || "Failed to create exam",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update exam mutation
+  const updateExamMutation = useMutation({
+    mutationFn: async ({ examId, examData }: { examId: number; examData: Partial<ExamForm> }) => {
+      const response = await apiRequest('PATCH', `/api/exams/${examId}`, examData);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to update exam');
+      }
+      return response.json();
+    },
+    onMutate: async ({ examId, examData }) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/exams'] });
+      const previousExams = queryClient.getQueryData(['/api/exams']);
+      
+      queryClient.setQueryData(['/api/exams'], (old: Exam[] | undefined) => {
+        if (!old) return old;
+        return old.map((exam) => 
+          exam.id === examId ? { ...exam, ...examData } : exam
+        );
+      });
+      
+      return { previousExams };
+    },
+    onSuccess: (updatedExam) => {
+      queryClient.setQueryData(['/api/exams'], (old: Exam[] | undefined) => {
+        if (!old) return old;
+        return old.map((exam) => 
+          exam.id === updatedExam.id ? updatedExam : exam
+        );
+      });
+      
+      toast({
+        title: "Success",
+        description: "Exam updated successfully",
+      });
+      setIsExamDialogOpen(false);
+      setEditingExam(null);
+      resetExam();
+    },
+    onError: (error: any, variables, context: any) => {
+      if (context?.previousExams) {
+        queryClient.setQueryData(['/api/exams'], context.previousExams);
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update exam",
         variant: "destructive",
       });
     },
@@ -825,7 +877,74 @@ export default function ExamManagement() {
   };
 
   const onSubmitExam = (data: ExamForm) => {
-    createExamMutation.mutate(data);
+    if (editingExam) {
+      updateExamMutation.mutate({ examId: editingExam.id, examData: data });
+    } else {
+      createExamMutation.mutate(data);
+    }
+  };
+
+  // Function to open edit dialog with exam data
+  const handleEditExam = (exam: Exam) => {
+    setEditingExam(exam);
+    
+    // Format date for the input field (YYYY-MM-DD format)
+    const formatDate = (dateValue: string | Date | null | undefined): string => {
+      if (!dateValue) return '';
+      const date = new Date(dateValue);
+      if (isNaN(date.getTime())) return '';
+      return date.toISOString().split('T')[0];
+    };
+
+    // Format datetime-local for input fields
+    const formatDateTime = (dateValue: string | Date | null | undefined): string => {
+      if (!dateValue) return '';
+      const date = new Date(dateValue);
+      if (isNaN(date.getTime())) return '';
+      return date.toISOString().slice(0, 16);
+    };
+    
+    // Populate form with exam data
+    resetExam({
+      name: exam.name || '',
+      date: formatDate(exam.date),
+      classId: exam.classId,
+      subjectId: exam.subjectId,
+      termId: exam.termId || undefined,
+      examType: (exam.examType as 'test' | 'exam') || 'exam',
+      teacherInChargeId: exam.teacherInChargeId || undefined,
+      instructions: exam.instructions || '',
+      timerMode: (exam.timerMode as 'individual' | 'global') || 'individual',
+      timeLimit: exam.timeLimit || 60,
+      totalMarks: exam.totalMarks || 100,
+      startTime: formatDateTime(exam.startTime),
+      endTime: formatDateTime(exam.endTime),
+      isPublished: exam.isPublished || false,
+      allowRetakes: exam.allowRetakes || false,
+      shuffleQuestions: exam.shuffleQuestions || false,
+      shuffleOptions: exam.shuffleOptions || false,
+      autoGradingEnabled: exam.autoGradingEnabled !== false,
+      instantFeedback: exam.instantFeedback || false,
+      showCorrectAnswers: exam.showCorrectAnswers || false,
+      passingScore: exam.passingScore || 60,
+      gradingScale: (exam.gradingScale as 'standard' | 'percentage' | 'points' | 'custom') || 'standard',
+      enableProctoring: exam.enableProctoring || false,
+      lockdownMode: exam.lockdownMode || false,
+      requireWebcam: exam.requireWebcam || false,
+      requireFullscreen: exam.requireFullscreen || false,
+      maxTabSwitches: exam.maxTabSwitches || 3,
+    });
+    
+    setIsExamDialogOpen(true);
+  };
+
+  // Handle dialog close to reset editingExam state
+  const handleExamDialogClose = (open: boolean) => {
+    setIsExamDialogOpen(open);
+    if (!open) {
+      setEditingExam(null);
+      resetExam();
+    }
   };
 
   const onInvalidExam = (errors: any) => {
@@ -1465,7 +1584,7 @@ export default function ExamManagement() {
             <h1 className="text-2xl sm:text-3xl font-bold">Exam Management</h1>
             <p className="text-sm sm:text-base text-muted-foreground">Create and manage exams for your classes</p>
           </div>
-          <Dialog open={isExamDialogOpen} onOpenChange={setIsExamDialogOpen}>
+          <Dialog open={isExamDialogOpen} onOpenChange={handleExamDialogClose}>
             <DialogTrigger asChild>
               <Button data-testid="button-create-exam" className="w-full sm:w-auto">
                 <Plus className="w-4 h-4 mr-2" />
@@ -1474,7 +1593,7 @@ export default function ExamManagement() {
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Create New Exam</DialogTitle>
+                <DialogTitle>{editingExam ? 'Edit Exam' : 'Create New Exam'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleExamSubmit(onSubmitExam, onInvalidExam)} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2127,11 +2246,18 @@ export default function ExamManagement() {
                 </div>
 
                 <div className="flex justify-end space-x-2">
-                  <Button type="button" variant="outline" onClick={() => setIsExamDialogOpen(false)}>
+                  <Button type="button" variant="outline" onClick={() => handleExamDialogClose(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={createExamMutation.isPending} data-testid="button-submit-exam">
-                    {createExamMutation.isPending ? 'Creating...' : 'Create Exam'}
+                  <Button 
+                    type="submit" 
+                    disabled={editingExam ? updateExamMutation.isPending : createExamMutation.isPending} 
+                    data-testid="button-submit-exam"
+                  >
+                    {editingExam 
+                      ? (updateExamMutation.isPending ? 'Updating...' : 'Update Exam')
+                      : (createExamMutation.isPending ? 'Creating...' : 'Create Exam')
+                    }
                   </Button>
                 </div>
               </form>
@@ -2272,6 +2398,13 @@ export default function ExamManagement() {
                               >
                                 <Eye className="w-4 h-4 mr-2" />
                                 Preview
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleEditExam(exam)}
+                                data-testid={`dropdown-edit-exam-${exam.id}`}
+                              >
+                                <Edit className="w-4 h-4 mr-2" />
+                                Edit Exam
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <AlertDialog>
@@ -2431,6 +2564,15 @@ export default function ExamManagement() {
                                 title="Preview exam as student"
                               >
                                 <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditExam(exam)}
+                                data-testid={`button-edit-exam-${exam.id}`}
+                                title="Edit exam settings"
+                              >
+                                <Edit className="w-4 h-4" />
                               </Button>
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
