@@ -287,6 +287,7 @@ export function useSocketIORealtime({
         'exam.published', 'exam.unpublished', 'exam.deleted',
         'question.deleted',
         'reportcard.updated', 'reportcard.published', 'reportcard.finalized', 'reportcard.reverted',
+        'score-updated', 'score.updated',
         'user.created', 'user.updated', 'user.deleted',
         'attendance.marked', 'attendance.updated',
         'notification',
