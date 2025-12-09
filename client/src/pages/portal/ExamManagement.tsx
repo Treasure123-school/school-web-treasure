@@ -896,12 +896,20 @@ export default function ExamManagement() {
       return date.toISOString().split('T')[0];
     };
 
-    // Format datetime-local for input fields
+    // Format datetime-local for input fields (returns string for HTML input)
     const formatDateTime = (dateValue: string | Date | null | undefined): string => {
       if (!dateValue) return '';
       const date = new Date(dateValue);
       if (isNaN(date.getTime())) return '';
       return date.toISOString().slice(0, 16);
+    };
+
+    // Parse date to Date object for schema validation
+    const parseToDate = (dateValue: string | Date | null | undefined): Date | undefined => {
+      if (!dateValue) return undefined;
+      const date = new Date(dateValue);
+      if (isNaN(date.getTime())) return undefined;
+      return date;
     };
     
     // Populate form with exam data
@@ -917,8 +925,8 @@ export default function ExamManagement() {
       timerMode: (exam.timerMode as 'individual' | 'global') || 'individual',
       timeLimit: exam.timeLimit || 60,
       totalMarks: exam.totalMarks || 100,
-      startTime: formatDateTime(exam.startTime),
-      endTime: formatDateTime(exam.endTime),
+      startTime: parseToDate(exam.startTime),
+      endTime: parseToDate(exam.endTime),
       isPublished: exam.isPublished || false,
       allowRetakes: exam.allowRetakes || false,
       shuffleQuestions: exam.shuffleQuestions || false,

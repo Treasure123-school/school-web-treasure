@@ -2517,6 +2517,847 @@ var init_smart_deletion_manager = __esm({
   }
 });
 
+// server/realtime-service.ts
+var realtime_service_exports = {};
+__export(realtime_service_exports, {
+  realtimeService: () => realtimeService
+});
+import { Server as SocketIOServer } from "socket.io";
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
+var JWT_SECRET, RealtimeService, realtimeService;
+var init_realtime_service = __esm({
+  "server/realtime-service.ts"() {
+    "use strict";
+    JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === "development" ? "dev-secret-key-change-in-production" : void 0);
+    RealtimeService = class {
+      constructor() {
+        this.io = null;
+        this.connectedClients = /* @__PURE__ */ new Map();
+        this.authenticatedSockets = /* @__PURE__ */ new Map();
+        this.recentEventIds = /* @__PURE__ */ new Set();
+        this.eventIdCleanupInterval = null;
+        // Duplicate session detection: Map<sessionId, ActiveExamSession>
+        this.activeExamSessions = /* @__PURE__ */ new Map();
+        // Track socket to session mapping for cleanup
+        this.socketToSession = /* @__PURE__ */ new Map();
+        this.heartbeatInterval = null;
+      }
+      initialize(httpServer) {
+        const allowedOrigins2 = [];
+        if (process.env.NODE_ENV === "development") {
+          allowedOrigins2.push(
+            "http://localhost:5173",
+            "http://localhost:5000",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:5000"
+          );
+        }
+        if (process.env.FRONTEND_URL) {
+          allowedOrigins2.push(process.env.FRONTEND_URL);
+        }
+        if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
+          allowedOrigins2.push(`https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
+        }
+        if (process.env.REPLIT_DEV_DOMAIN) {
+          allowedOrigins2.push(`https://${process.env.REPLIT_DEV_DOMAIN}`);
+        }
+        this.io = new SocketIOServer(httpServer, {
+          cors: {
+            origin: (origin, callback) => {
+              if (!origin) return callback(null, true);
+              if (allowedOrigins2.some((allowed) => origin.startsWith(allowed) || origin.includes(".repl.co") || origin.includes(".replit.dev"))) {
+                return callback(null, true);
+              }
+              if (process.env.NODE_ENV === "development") {
+                return callback(null, true);
+              }
+              console.warn(`\u26A0\uFE0F  Socket.IO CORS blocked origin: ${origin}`);
+              callback(new Error("CORS not allowed"));
+            },
+            credentials: true,
+            methods: ["GET", "POST"]
+          },
+          path: "/socket.io/",
+          transports: ["websocket", "polling"],
+          // Production optimizations
+          pingTimeout: 6e4,
+          pingInterval: 25e3,
+          upgradeTimeout: 3e4,
+          maxHttpBufferSize: 1e6,
+          // 1MB
+          connectTimeout: 45e3
+        });
+        this.setupMiddleware();
+        this.setupEventHandlers();
+        this.startEventIdCleanup();
+        this.startHeartbeatCheck();
+        console.log("\u2705 Socket.IO Realtime Service initialized");
+        console.log(`   \u2192 CORS origins: ${allowedOrigins2.length > 0 ? allowedOrigins2.join(", ") : "dynamic (Replit)"}`);
+        console.log(`   \u2192 Environment: ${process.env.NODE_ENV || "development"}`);
+      }
+      setupMiddleware() {
+        if (!this.io) return;
+        this.io.use((socket, next) => {
+          const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.replace("Bearer ", "");
+          if (!token) {
+            console.log(`\u{1F4E1} Connection rejected: No authentication token provided (${socket.id})`);
+            return next(new Error("Authentication required"));
+          }
+          try {
+            if (!JWT_SECRET) {
+              console.warn("\u26A0\uFE0F  JWT_SECRET not configured - rejecting connection");
+              return next(new Error("Server configuration error"));
+            }
+            const decoded = jwt.verify(token, JWT_SECRET);
+            const role = decoded.roleName || decoded.role || "unknown";
+            this.authenticatedSockets.set(socket.id, {
+              id: socket.id,
+              userId: decoded.userId,
+              role,
+              authorizedClasses: decoded.authorizedClasses || [],
+              authorizedStudentIds: decoded.authorizedStudentIds || []
+            });
+            console.log(`\u{1F4E1} Authenticated socket: ${socket.id} (User: ${decoded.userId}, Role: ${role}, Classes: ${(decoded.authorizedClasses || []).length})`);
+            next();
+          } catch (error) {
+            console.warn(`\u26A0\uFE0F  Invalid token for socket ${socket.id}:`, error instanceof Error ? error.message : "Unknown error");
+            return next(new Error("Invalid or expired token"));
+          }
+        });
+      }
+      setupEventHandlers() {
+        if (!this.io) return;
+        this.io.on("connection", (socket) => {
+          const user = this.authenticatedSockets.get(socket.id);
+          console.log(`\u{1F4E1} Client connected: ${socket.id}${user ? ` (User: ${user.userId})` : " (Anonymous)"}`);
+          if (user) {
+            socket.join(`user:${user.userId}`);
+            socket.join(`role:${user.role}`);
+            console.log(`   \u2192 Auto-joined rooms: user:${user.userId}, role:${user.role}`);
+          }
+          socket.on("subscribe", (data) => {
+            this.handleSubscribe(socket, data);
+          });
+          socket.on("subscribe:table", (data) => {
+            this.handleTableSubscribe(socket, data.table);
+          });
+          socket.on("subscribe:class", (data) => {
+            this.handleClassSubscribe(socket, data.classId);
+          });
+          socket.on("subscribe:exam", (data) => {
+            this.handleExamSubscribe(socket, data.examId);
+          });
+          socket.on("subscribe:reportcard", (data) => {
+            this.handleReportCardSubscribe(socket, data.reportCardId);
+          });
+          socket.on("unsubscribe", (data) => {
+            this.handleUnsubscribe(socket, data);
+          });
+          socket.on("disconnect", () => {
+            this.handleDisconnect(socket);
+          });
+          socket.on("ping", () => {
+            socket.emit("pong", { timestamp: Date.now() });
+          });
+          socket.on("get:subscriptions", () => {
+            const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id);
+            socket.emit("subscriptions", { rooms });
+          });
+          socket.on("exam:register_session", (data) => {
+            this.handleExamSessionRegister(socket, data);
+          });
+          socket.on("exam:session_heartbeat", (data) => {
+            this.handleExamSessionHeartbeat(socket, data);
+          });
+          socket.on("exam:unregister_session", (data) => {
+            this.handleExamSessionUnregister(socket, data);
+          });
+        });
+      }
+      // EXAM SECURITY: Handle exam session registration for duplicate detection
+      handleExamSessionRegister(socket, data) {
+        const user = this.authenticatedSockets.get(socket.id);
+        if (!user) {
+          socket.emit("exam:session_error", { error: "Authentication required" });
+          return;
+        }
+        const { sessionId, examId } = data;
+        const now = /* @__PURE__ */ new Date();
+        const existingSession = this.activeExamSessions.get(sessionId);
+        if (existingSession && existingSession.socketId !== socket.id) {
+          const timeSinceLastPing = now.getTime() - existingSession.lastPing.getTime();
+          if (timeSinceLastPing < 1e4) {
+            console.log(`\u26A0\uFE0F  DUPLICATE EXAM SESSION DETECTED: Session ${sessionId}, User ${user.userId}`);
+            console.log(`   \u2192 Existing socket: ${existingSession.socketId}, New socket: ${socket.id}`);
+            socket.emit("exam:duplicate_session", {
+              sessionId,
+              examId,
+              message: "This exam session is already open in another tab or device",
+              existingSocketId: existingSession.socketId
+            });
+            this.io?.to(existingSession.socketId).emit("exam:duplicate_session", {
+              sessionId,
+              examId,
+              message: "This exam session was opened in another tab or device",
+              newSocketId: socket.id
+            });
+            return;
+          }
+          console.log(`   \u2192 Cleaning up stale exam session: ${sessionId} (socket: ${existingSession.socketId})`);
+          this.socketToSession.delete(existingSession.socketId);
+        }
+        this.activeExamSessions.set(sessionId, {
+          socketId: socket.id,
+          sessionId,
+          userId: user.userId,
+          examId,
+          registeredAt: now,
+          lastPing: now
+        });
+        this.socketToSession.set(socket.id, sessionId);
+        socket.join(`exam_session:${sessionId}`);
+        console.log(`\u{1F4CB} Exam session registered: Session ${sessionId}, User ${user.userId}, Socket ${socket.id}`);
+        socket.emit("exam:session_registered", { sessionId, examId });
+      }
+      // EXAM SECURITY: Handle session heartbeat to keep session alive
+      handleExamSessionHeartbeat(socket, data) {
+        const session2 = this.activeExamSessions.get(data.sessionId);
+        if (session2 && session2.socketId === socket.id) {
+          session2.lastPing = /* @__PURE__ */ new Date();
+          socket.emit("exam:heartbeat_ack", { sessionId: data.sessionId, timestamp: Date.now() });
+        }
+      }
+      // EXAM SECURITY: Handle session unregistration when exam ends
+      handleExamSessionUnregister(socket, data) {
+        const session2 = this.activeExamSessions.get(data.sessionId);
+        if (session2 && session2.socketId === socket.id) {
+          this.activeExamSessions.delete(data.sessionId);
+          this.socketToSession.delete(socket.id);
+          socket.leave(`exam_session:${data.sessionId}`);
+          console.log(`\u{1F4CB} Exam session unregistered: Session ${data.sessionId}, Socket ${socket.id}`);
+        }
+      }
+      handleSubscribe(socket, data) {
+        if (data.table) {
+          this.handleTableSubscribe(socket, data.table);
+        }
+        if (data.channel) {
+          socket.join(data.channel);
+          console.log(`   \u2192 Client ${socket.id} joined channel: ${data.channel}`);
+          socket.emit("subscribed", { channel: data.channel });
+        }
+        if (data.classId) {
+          this.handleClassSubscribe(socket, data.classId);
+        }
+        if (data.examId) {
+          this.handleExamSubscribe(socket, data.examId);
+        }
+        if (data.reportCardId) {
+          this.handleReportCardSubscribe(socket, data.reportCardId);
+        }
+      }
+      handleTableSubscribe(socket, table) {
+        const user = this.authenticatedSockets.get(socket.id);
+        if (!user) {
+          socket.emit("subscription_error", { type: "table", table, error: "Authentication required" });
+          return;
+        }
+        const role = this.normalizeRole(user.role);
+        const adminOnlyTables = ["users", "students", "teacher_profiles", "admin_profiles", "parent_profiles"];
+        const academicTables = ["report_cards", "report_card_items", "exam_results", "exam_sessions", "exams"];
+        const fullAccessRoles = ["super_admin", "admin"];
+        const academicRoles = ["super_admin", "admin", "teacher"];
+        if (adminOnlyTables.includes(table) && !fullAccessRoles.includes(role)) {
+          socket.emit("subscription_error", { type: "table", table, error: "Insufficient permissions for this table" });
+          console.log(`   \u26A0\uFE0F  Unauthorized table subscription attempt by ${user.userId} (role: ${role}) for table: ${table}`);
+          return;
+        }
+        if (academicTables.includes(table) && !academicRoles.includes(role)) {
+          socket.emit("subscription_error", { type: "table", table, error: "Insufficient permissions for academic table" });
+          console.log(`   \u26A0\uFE0F  Unauthorized academic table subscription attempt by ${user.userId} (role: ${role}) for table: ${table}`);
+          return;
+        }
+        const channel = `table:${table}`;
+        socket.join(channel);
+        if (!this.connectedClients.has(table)) {
+          this.connectedClients.set(table, /* @__PURE__ */ new Set());
+        }
+        this.connectedClients.get(table).add(socket.id);
+        console.log(`   \u2192 Client ${socket.id} subscribed to table: ${table}`);
+        socket.emit("subscribed", { table, channel });
+      }
+      handleClassSubscribe(socket, classId) {
+        const user = this.authenticatedSockets.get(socket.id);
+        if (!user) {
+          socket.emit("subscription_error", { type: "class", classId, error: "Authentication required" });
+          return;
+        }
+        const role = this.normalizeRole(user.role);
+        const fullAccessRoles = ["super_admin", "admin"];
+        if (fullAccessRoles.includes(role)) {
+          const channel2 = `class:${classId}`;
+          socket.join(channel2);
+          console.log(`   \u2192 Client ${socket.id} (${role}) subscribed to class: ${classId}`);
+          socket.emit("subscribed", { type: "class", classId, channel: channel2 });
+          return;
+        }
+        const authorizedClasses = user.authorizedClasses || [];
+        if (!authorizedClasses.includes(classId) && !authorizedClasses.includes(classId.toString())) {
+          socket.emit("subscription_error", {
+            type: "class",
+            classId,
+            error: "Access denied: You are not authorized for this class"
+          });
+          console.log(`   \u26A0\uFE0F  Unauthorized class subscription: ${user.userId} (role: ${role}) attempted to access class ${classId}`);
+          return;
+        }
+        const channel = `class:${classId}`;
+        socket.join(channel);
+        console.log(`   \u2192 Client ${socket.id} subscribed to class: ${classId}`);
+        socket.emit("subscribed", { type: "class", classId, channel });
+      }
+      handleExamSubscribe(socket, examId) {
+        const user = this.authenticatedSockets.get(socket.id);
+        if (!user) {
+          socket.emit("subscription_error", { type: "exam", examId, error: "Authentication required" });
+          return;
+        }
+        const role = this.normalizeRole(user.role);
+        const fullAccessRoles = ["super_admin", "admin"];
+        if (fullAccessRoles.includes(role)) {
+          const channel = `exam:${examId}`;
+          socket.join(channel);
+          console.log(`   \u2192 Client ${socket.id} (${role}) subscribed to exam: ${examId}`);
+          socket.emit("subscribed", { type: "exam", examId, channel });
+          return;
+        }
+        if (role === "teacher") {
+          const channel = `exam:${examId}`;
+          socket.join(channel);
+          console.log(`   \u2192 Client ${socket.id} (teacher) subscribed to exam: ${examId}`);
+          socket.emit("subscribed", { type: "exam", examId, channel });
+          return;
+        }
+        if (role === "student" && user.authorizedStudentIds && user.authorizedStudentIds.length > 0) {
+          const channel = `exam:${examId}`;
+          socket.join(channel);
+          console.log(`   \u2192 Client ${socket.id} (student) subscribed to exam: ${examId}`);
+          socket.emit("subscribed", { type: "exam", examId, channel });
+          return;
+        }
+        socket.emit("subscription_error", { type: "exam", examId, error: "Access denied: insufficient permissions" });
+        console.log(`   \u26A0\uFE0F  Unauthorized exam subscription: ${user.userId} (role: ${role})`);
+      }
+      handleReportCardSubscribe(socket, reportCardId) {
+        const user = this.authenticatedSockets.get(socket.id);
+        if (!user) {
+          socket.emit("subscription_error", { type: "reportcard", reportCardId, error: "Authentication required" });
+          return;
+        }
+        const role = this.normalizeRole(user.role);
+        const fullAccessRoles = ["super_admin", "admin"];
+        if (fullAccessRoles.includes(role)) {
+          const channel = `reportcard:${reportCardId}`;
+          socket.join(channel);
+          console.log(`   \u2192 Client ${socket.id} (${role}) subscribed to report card: ${reportCardId}`);
+          socket.emit("subscribed", { type: "reportcard", reportCardId, channel });
+          return;
+        }
+        if (role === "teacher") {
+          const channel = `reportcard:${reportCardId}`;
+          socket.join(channel);
+          console.log(`   \u2192 Client ${socket.id} (teacher) subscribed to report card: ${reportCardId}`);
+          socket.emit("subscribed", { type: "reportcard", reportCardId, channel });
+          return;
+        }
+        if (role === "student" && user.authorizedStudentIds && user.authorizedStudentIds.length > 0) {
+          const channel = `reportcard:${reportCardId}`;
+          socket.join(channel);
+          console.log(`   \u2192 Client ${socket.id} (student) subscribed to report card: ${reportCardId}`);
+          socket.emit("subscribed", { type: "reportcard", reportCardId, channel });
+          return;
+        }
+        if (role === "parent" && user.authorizedStudentIds && user.authorizedStudentIds.length > 0) {
+          const channel = `reportcard:${reportCardId}`;
+          socket.join(channel);
+          console.log(`   \u2192 Client ${socket.id} (parent) subscribed to report card: ${reportCardId}`);
+          socket.emit("subscribed", { type: "reportcard", reportCardId, channel });
+          return;
+        }
+        socket.emit("subscription_error", { type: "reportcard", reportCardId, error: "Access denied: insufficient permissions" });
+        console.log(`   \u26A0\uFE0F  Unauthorized report card subscription: ${user.userId} (role: ${role})`);
+      }
+      // Normalize role names to canonical lowercase slugs
+      normalizeRole(role) {
+        const roleMap = {
+          "super admin": "super_admin",
+          "superadmin": "super_admin",
+          "super_admin": "super_admin",
+          "admin": "admin",
+          "administrator": "admin",
+          "teacher": "teacher",
+          "student": "student",
+          "parent": "parent"
+        };
+        return roleMap[role.toLowerCase()] || role.toLowerCase();
+      }
+      handleUnsubscribe(socket, data) {
+        if (data.table) {
+          const channel = `table:${data.table}`;
+          socket.leave(channel);
+          if (this.connectedClients.has(data.table)) {
+            this.connectedClients.get(data.table).delete(socket.id);
+            if (this.connectedClients.get(data.table).size === 0) {
+              this.connectedClients.delete(data.table);
+            }
+          }
+          console.log(`   \u2192 Client ${socket.id} unsubscribed from table: ${data.table}`);
+          socket.emit("unsubscribed", { table: data.table });
+        }
+        if (data.channel) {
+          socket.leave(data.channel);
+          console.log(`   \u2192 Client ${socket.id} left channel: ${data.channel}`);
+          socket.emit("unsubscribed", { channel: data.channel });
+        }
+        if (data.classId) {
+          socket.leave(`class:${data.classId}`);
+          socket.emit("unsubscribed", { type: "class", classId: data.classId });
+        }
+        if (data.examId) {
+          socket.leave(`exam:${data.examId}`);
+          socket.emit("unsubscribed", { type: "exam", examId: data.examId });
+        }
+        if (data.reportCardId) {
+          socket.leave(`reportcard:${data.reportCardId}`);
+          socket.emit("unsubscribed", { type: "reportcard", reportCardId: data.reportCardId });
+        }
+      }
+      handleDisconnect(socket) {
+        const user = this.authenticatedSockets.get(socket.id);
+        console.log(`\u{1F4E1} Client disconnected: ${socket.id}${user ? ` (User: ${user.userId})` : ""}`);
+        const sessionId = this.socketToSession.get(socket.id);
+        if (sessionId) {
+          const session2 = this.activeExamSessions.get(sessionId);
+          if (session2 && session2.socketId === socket.id) {
+            this.activeExamSessions.delete(sessionId);
+            console.log(`   \u2192 Cleaned up exam session ${sessionId} on disconnect`);
+          }
+          this.socketToSession.delete(socket.id);
+        }
+        this.connectedClients.forEach((clients, table) => {
+          clients.delete(socket.id);
+          if (clients.size === 0) {
+            this.connectedClients.delete(table);
+          }
+        });
+        this.authenticatedSockets.delete(socket.id);
+      }
+      generateEventId() {
+        return crypto.randomUUID();
+      }
+      startEventIdCleanup() {
+        this.eventIdCleanupInterval = setInterval(() => {
+          this.recentEventIds.clear();
+        }, 6e4);
+      }
+      startHeartbeatCheck() {
+        this.heartbeatInterval = setInterval(() => {
+          if (!this.io) return;
+          const now = Date.now();
+          this.authenticatedSockets.forEach((user, socketId) => {
+            const socket = this.io?.sockets.sockets.get(socketId);
+            if (!socket || socket.disconnected) {
+              this.authenticatedSockets.delete(socketId);
+              this.connectedClients.forEach((clients) => {
+                clients.delete(socketId);
+              });
+            }
+          });
+        }, 3e4);
+      }
+      emitTableChange(table, operation, data, oldData, userId) {
+        if (!this.io) {
+          console.warn("\u26A0\uFE0F  Socket.IO not initialized, cannot emit event");
+          return;
+        }
+        const eventId = this.generateEventId();
+        this.recentEventIds.add(eventId);
+        const channel = `table:${table}`;
+        const payload = {
+          eventId,
+          eventType: `${table}.${operation.toLowerCase()}`,
+          table,
+          operation,
+          data,
+          oldData,
+          timestamp: Date.now(),
+          userId
+        };
+        this.io.to(channel).emit("table_change", payload);
+        const subscriberCount = this.connectedClients.get(table)?.size || 0;
+        if (subscriberCount > 0) {
+          console.log(`\u{1F4E4} Emitted ${operation} event for table ${table} to ${subscriberCount} clients (eventId: ${eventId.slice(0, 8)}...)`);
+        }
+        return eventId;
+      }
+      emitEvent(eventType, data, rooms) {
+        if (!this.io) {
+          console.warn("\u26A0\uFE0F  Socket.IO not initialized, cannot emit event");
+          return;
+        }
+        const eventId = this.generateEventId();
+        const payload = {
+          eventId,
+          eventType,
+          data,
+          timestamp: Date.now()
+        };
+        if (rooms) {
+          const roomList = Array.isArray(rooms) ? rooms : [rooms];
+          roomList.forEach((room) => {
+            this.io.to(room).emit(eventType, payload);
+          });
+          console.log(`\u{1F4E4} Emitted ${eventType} to rooms: ${roomList.join(", ")}`);
+        } else {
+          this.io.emit(eventType, payload);
+          console.log(`\u{1F4E4} Broadcast event: ${eventType}`);
+        }
+        return eventId;
+      }
+      emitToUser(userId, eventType, data) {
+        return this.emitEvent(eventType, data, `user:${userId}`);
+      }
+      emitToRole(role, eventType, data) {
+        return this.emitEvent(eventType, data, `role:${role}`);
+      }
+      emitToClass(classId, eventType, data) {
+        return this.emitEvent(eventType, data, `class:${classId}`);
+      }
+      emitToExam(examId, eventType, data) {
+        return this.emitEvent(eventType, data, `exam:${examId}`);
+      }
+      emitToReportCard(reportCardId, eventType, data) {
+        return this.emitEvent(eventType, data, `reportcard:${reportCardId}`);
+      }
+      emitToAll(event, data) {
+        if (!this.io) {
+          console.warn("\u26A0\uFE0F  Socket.IO not initialized, cannot emit event");
+          return;
+        }
+        this.io.emit(event, data);
+        console.log(`\u{1F4E4} Broadcast event: ${event}`);
+      }
+      emitToRoom(room, event, data) {
+        if (!this.io) {
+          console.warn("\u26A0\uFE0F  Socket.IO not initialized, cannot emit event");
+          return;
+        }
+        this.io.to(room).emit(event, data);
+      }
+      emitExamEvent(examId, eventType, data) {
+        const fullEventType = `exam.${eventType}`;
+        this.emitToExam(examId, fullEventType, { ...data, examId });
+        if (data.classId) {
+          this.emitToClass(data.classId, fullEventType, { ...data, examId });
+        }
+      }
+      // Dedicated method for exam publish/unpublish events
+      emitExamPublishEvent(examId, isPublished, data, userId) {
+        const eventType = isPublished ? "exam.published" : "exam.unpublished";
+        const operation = "UPDATE";
+        this.emitTableChange("exams", operation, { ...data, id: examId, isPublished }, void 0, userId);
+        this.emitToExam(examId, eventType, { ...data, examId, isPublished });
+        this.emitToRole("teacher", eventType, { ...data, examId, isPublished });
+        this.emitToRole("admin", eventType, { ...data, examId, isPublished });
+        this.emitToRole("super_admin", eventType, { ...data, examId, isPublished });
+        if (isPublished && data.classId) {
+          this.emitToClass(data.classId.toString(), eventType, { ...data, examId, isPublished });
+        }
+        console.log(`\u{1F4E4} Emitted ${eventType} for exam ${examId}`);
+      }
+      emitReportCardEvent(reportCardId, eventType, data, userId) {
+        const fullEventType = `reportcard.${eventType}`;
+        const operation = eventType === "created" ? "INSERT" : "UPDATE";
+        this.emitTableChange("report_cards", operation, { ...data, id: reportCardId }, void 0, userId);
+        this.emitToReportCard(reportCardId, fullEventType, data);
+        this.emitToRole("teacher", fullEventType, { ...data, reportCardId });
+        this.emitToRole("admin", fullEventType, { ...data, reportCardId });
+        this.emitToRole("super_admin", fullEventType, { ...data, reportCardId });
+        if (data.studentId) {
+          this.emitToUser(data.studentId, fullEventType, data);
+        }
+        if (data.classId) {
+          this.emitToClass(data.classId.toString(), fullEventType, data);
+        }
+        if (eventType === "published" && data.studentId && data.parentIds) {
+          const parentIds = Array.isArray(data.parentIds) ? data.parentIds : [data.parentIds];
+          parentIds.forEach((parentId) => {
+            this.emitToUser(parentId, fullEventType, {
+              ...data,
+              message: "A new report card has been published for your child"
+            });
+          });
+        }
+        console.log(`\u{1F4E4} Emitted reportcard.${eventType} for report card ${reportCardId} (student: ${data.studentId || "unknown"})`);
+      }
+      // Bulk emit for status changes affecting multiple report cards
+      emitBulkReportCardStatusChange(reportCardIds, newStatus, classId, termId, userId) {
+        const eventType = newStatus === "published" ? "bulk_published" : newStatus === "finalized" ? "bulk_finalized" : "bulk_reverted";
+        const fullEventType = `reportcard.${eventType}`;
+        const data = {
+          reportCardIds,
+          newStatus,
+          classId,
+          termId,
+          count: reportCardIds.length,
+          timestamp: Date.now()
+        };
+        this.emitToRole("teacher", fullEventType, data);
+        this.emitToRole("admin", fullEventType, data);
+        this.emitToRole("super_admin", fullEventType, data);
+        this.emitToClass(classId.toString(), fullEventType, data);
+        this.emitTableChange("report_cards", "UPDATE", data, void 0, userId);
+        console.log(`\u{1F4E4} Emitted ${fullEventType} for ${reportCardIds.length} report cards in class ${classId}`);
+      }
+      emitUserEvent(userId, eventType, data, role) {
+        const fullEventType = `user.${eventType}`;
+        this.emitTableChange("users", eventType.toUpperCase(), data, void 0, userId);
+        if (role) {
+          this.emitToRole("admin", fullEventType, data);
+          this.emitToRole("super_admin", fullEventType, data);
+        }
+      }
+      emitAttendanceEvent(classId, eventType, data) {
+        const fullEventType = `attendance.${eventType}`;
+        this.emitToClass(classId, fullEventType, data);
+        this.emitTableChange("attendance", eventType === "marked" ? "INSERT" : "UPDATE", data);
+      }
+      emitNotification(userId, notification) {
+        this.emitToUser(userId, "notification", notification);
+      }
+      emitUploadProgress(userId, uploadId, progress, status, url) {
+        this.emitToUser(userId, "upload.progress", {
+          uploadId,
+          progress,
+          status,
+          url
+        });
+      }
+      // Enhanced helper methods for consistent event emission across all modules
+      emitClassEvent(classId, eventType, data, userId) {
+        const fullEventType = `class.${eventType}`;
+        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
+        this.emitTableChange("classes", operation, data, void 0, userId);
+        this.emitToRole("admin", fullEventType, data);
+        this.emitToRole("teacher", fullEventType, data);
+        if (classId) {
+          this.emitToClass(classId, fullEventType, data);
+        }
+      }
+      emitSubjectEvent(eventType, data, userId) {
+        const fullEventType = `subject.${eventType}`;
+        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
+        this.emitTableChange("subjects", operation, data, void 0, userId);
+        this.emitToRole("admin", fullEventType, data);
+        this.emitToRole("teacher", fullEventType, data);
+      }
+      emitAnnouncementEvent(eventType, data, userId) {
+        const fullEventType = `announcement.${eventType}`;
+        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
+        this.emitTableChange("announcements", operation, data, void 0, userId);
+        const VALID_ROLE_ROOMS = {
+          "student": "student",
+          "teacher": "teacher",
+          "parent": "parent",
+          "admin": "admin",
+          "superadmin": "superadmin",
+          // Case variations for safety
+          "Student": "student",
+          "Teacher": "teacher",
+          "Parent": "parent",
+          "Admin": "admin",
+          "SuperAdmin": "superadmin"
+        };
+        const ALL_AUTHENTICATED_ROLES = ["admin", "superadmin", "teacher", "student", "parent"];
+        if (data.targetRole && typeof data.targetRole === "string") {
+          const targetRoom = VALID_ROLE_ROOMS[data.targetRole];
+          if (targetRoom) {
+            this.emitToRole(targetRoom, fullEventType, data);
+            this.emitToRole("admin", fullEventType, data);
+            this.emitToRole("superadmin", fullEventType, data);
+          }
+        } else {
+          ALL_AUTHENTICATED_ROLES.forEach((role) => {
+            this.emitToRole(role, fullEventType, data);
+          });
+        }
+      }
+      emitStudentEvent(classId, eventType, data, userId) {
+        const fullEventType = `student.${eventType}`;
+        const operation = eventType === "created" || eventType === "enrolled" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
+        this.emitTableChange("students", operation, data, void 0, userId);
+        this.emitToRole("admin", fullEventType, data);
+        if (classId) {
+          this.emitToClass(classId, fullEventType, data);
+        }
+      }
+      emitGradingEvent(examId, eventType, data, userId) {
+        const fullEventType = `grading.${eventType}`;
+        this.emitTableChange("student_answers", "UPDATE", data, void 0, userId);
+        this.emitToExam(examId, fullEventType, data);
+        if (data.classId) {
+          this.emitToClass(data.classId.toString(), fullEventType, data);
+        }
+      }
+      emitMessageEvent(senderId, recipientId, eventType, data) {
+        const fullEventType = `message.${eventType}`;
+        this.emitTableChange("messages", eventType === "sent" ? "INSERT" : "UPDATE", data, void 0, senderId);
+        this.emitToUser(recipientId, fullEventType, data);
+        this.emitToUser(senderId, `message.${eventType === "sent" ? "delivered" : "read_confirmation"}`, data);
+      }
+      emitHomepageContentEvent(eventType, data, userId) {
+        const fullEventType = `homepage.${eventType}`;
+        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
+        this.emitTableChange("homepage_content", operation, data, void 0, userId);
+        this.emitToRole("admin", fullEventType, data);
+        this.emitEvent(fullEventType, { id: data.id, contentType: data.contentType });
+      }
+      emitStudyResourceEvent(classId, eventType, data, userId) {
+        const fullEventType = `study_resource.${eventType}`;
+        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
+        this.emitTableChange("study_resources", operation, data, void 0, userId);
+        this.emitToRole("teacher", fullEventType, data);
+        if (classId) {
+          this.emitToClass(classId, fullEventType, data);
+        }
+      }
+      emitGalleryEvent(eventType, data, userId) {
+        const fullEventType = `gallery.${eventType}`;
+        const operation = eventType === "created" ? "INSERT" : "DELETE";
+        this.emitTableChange("gallery", operation, data, void 0, userId);
+        this.emitToRole("admin", fullEventType, data);
+        this.emitEvent(fullEventType, { id: data.id });
+      }
+      emitExamSessionEvent(examId, sessionId, eventType, data, userId) {
+        const fullEventType = `examSession.${eventType}`;
+        this.emitTableChange("exam_sessions", eventType === "started" ? "INSERT" : "UPDATE", data, void 0, userId);
+        this.emitToExam(examId, fullEventType, { sessionId, ...data });
+        if (data.classId) {
+          this.emitToClass(data.classId.toString(), fullEventType, { sessionId, ...data });
+        }
+      }
+      emitExamResultEvent(examId, eventType, data, userId) {
+        const fullEventType = `examResult.${eventType}`;
+        const operation = eventType === "created" ? "INSERT" : "UPDATE";
+        this.emitTableChange("exam_results", operation, data, void 0, userId);
+        this.emitToExam(examId, fullEventType, data);
+        if (data.studentId) {
+          this.emitToUser(data.studentId.toString(), fullEventType, data);
+        }
+        if (data.classId) {
+          this.emitToClass(data.classId.toString(), fullEventType, data);
+        }
+      }
+      emitTeacherAssignmentEvent(eventType, data, userId) {
+        const fullEventType = `teacherAssignment.${eventType}`;
+        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
+        this.emitTableChange("teacher_assignments", operation, data, void 0, userId);
+        this.emitToRole("admin", fullEventType, data);
+        if (data.teacherId) {
+          this.emitToUser(data.teacherId.toString(), fullEventType, data);
+        }
+        if (data.classId) {
+          this.emitToClass(data.classId.toString(), fullEventType, data);
+        }
+      }
+      emitParentLinkEvent(parentId, studentId, eventType, data, userId) {
+        const fullEventType = `parentLink.${eventType}`;
+        const operation = eventType === "linked" ? "INSERT" : "DELETE";
+        this.emitTableChange("parent_student_links", operation, data, void 0, userId);
+        this.emitToUser(parentId, fullEventType, data);
+        this.emitToUser(studentId, fullEventType, data);
+        this.emitToRole("admin", fullEventType, data);
+      }
+      emitSystemSettingEvent(eventType, data, userId) {
+        const fullEventType = `system.settings_${eventType}`;
+        this.emitTableChange("system_settings", "UPDATE", data, void 0, userId);
+        this.emitToRole("super_admin", fullEventType, data);
+        this.emitToRole("admin", fullEventType, data);
+        if (data.key && ["schoolName", "schoolLogo", "primaryColor", "secondaryColor"].includes(data.key)) {
+          this.emitEvent(`system.branding_${eventType}`, { key: data.key, value: data.value });
+        }
+      }
+      // Dashboard stats emission for real-time dashboard updates
+      emitDashboardStats(role, stats) {
+        this.emitToRole(role, "dashboard.stats_updated", stats);
+      }
+      // Grading settings event for real-time config updates
+      emitGradingSettingsEvent(eventType, data, userId) {
+        const fullEventType = `grading_settings.${eventType}`;
+        this.emitToRole("admin", fullEventType, data);
+        this.emitToRole("super_admin", fullEventType, data);
+        this.emitToRole("teacher", fullEventType, data);
+        this.emitEvent("grading_settings.changed", {
+          testWeight: data.testWeight,
+          examWeight: data.examWeight,
+          gradingScale: data.gradingScale,
+          timestamp: Date.now()
+        });
+        console.log(`\u{1F4E4} Emitted ${fullEventType} - Test: ${data.testWeight}%, Exam: ${data.examWeight}%`);
+      }
+      // Enhanced student-specific report card subscription
+      emitStudentReportCardUpdate(studentId, reportCardId, eventType, data) {
+        const fullEventType = `reportcard.${eventType}`;
+        this.emitToUser(studentId, fullEventType, data);
+        this.emitToReportCard(reportCardId, fullEventType, data);
+        if (data.parentId) {
+          this.emitToUser(data.parentId, fullEventType, data);
+        }
+        console.log(`\u{1F4E4} Emitted student report card update for student ${studentId}`);
+      }
+      getIO() {
+        return this.io;
+      }
+      getSubscriberCount(table) {
+        return this.connectedClients.get(table)?.size || 0;
+      }
+      getActiveSubscriptions() {
+        return Array.from(this.connectedClients.keys());
+      }
+      getConnectedUserCount() {
+        return this.authenticatedSockets.size;
+      }
+      getRoomSubscriberCount(room) {
+        if (!this.io) return 0;
+        const roomObj = this.io.sockets.adapter.rooms.get(room);
+        return roomObj ? roomObj.size : 0;
+      }
+      getStats() {
+        return {
+          totalConnections: this.io?.sockets.sockets.size || 0,
+          authenticatedUsers: this.authenticatedSockets.size,
+          tableSubscriptions: Object.fromEntries(this.connectedClients),
+          activeRooms: this.io ? Array.from(this.io.sockets.adapter.rooms.keys()).filter((r) => !this.io.sockets.sockets.has(r)) : []
+        };
+      }
+      shutdown() {
+        if (this.eventIdCleanupInterval) {
+          clearInterval(this.eventIdCleanupInterval);
+        }
+        if (this.heartbeatInterval) {
+          clearInterval(this.heartbeatInterval);
+        }
+        if (this.io) {
+          this.io.close();
+        }
+        console.log("\u{1F6D1} Socket.IO Realtime Service shut down");
+      }
+    };
+    realtimeService = new RealtimeService();
+  }
+});
+
 // server/storage.ts
 var storage_exports = {};
 __export(storage_exports, {
@@ -2573,6 +3414,7 @@ var init_storage = __esm({
     init_cloudinary_service();
     init_deletion_service();
     init_smart_deletion_manager();
+    init_realtime_service();
     db2 = getDatabase();
     schema = getSchema();
     DatabaseStorage = class {
@@ -5436,7 +6278,10 @@ var init_storage = __esm({
           let created = 0;
           let updated = 0;
           const students3 = await db2.select().from(schema.students).where(eq2(schema.students.classId, classId));
-          const classSubjects = await db2.select().from(schema.subjects).where(eq2(schema.subjects.classId, classId));
+          const classInfo = await this.getClass(classId);
+          const isSeniorSecondary = classInfo && ["SS1", "SS2", "SS3", "Senior Secondary"].some(
+            (level) => classInfo.level?.toLowerCase().includes(level.toLowerCase())
+          );
           for (const student of students3) {
             try {
               const existingReportCard = await db2.select().from(schema.reportCards).where(and2(
@@ -5461,22 +6306,25 @@ var init_storage = __esm({
                 reportCardId = existingReportCard[0].id;
                 updated++;
               }
-              const studentAssignments = await this.getStudentSubjectAssignments(student.id);
-              let subjectIds;
-              if (studentAssignments.length > 0) {
-                subjectIds = studentAssignments.filter((a) => a.isActive).map((a) => a.subjectId);
+              const studentDepartment = student.department;
+              let subjects3;
+              if (isSeniorSecondary && studentDepartment) {
+                subjects3 = await this.getSubjectsByClassAndDepartment(classId, studentDepartment);
               } else {
-                subjectIds = classSubjects.map((s) => s.id);
+                subjects3 = await this.getSubjectsByClassAndDepartment(classId);
               }
-              let subjects3 = subjectIds.length > 0 ? await db2.select().from(schema.subjects).where(
-                and2(
-                  inArray2(schema.subjects.id, subjectIds),
-                  eq2(schema.subjects.isActive, true)
-                )
-              ) : classSubjects.filter((s) => s.isActive !== false);
               if (subjects3.length === 0) {
-                errors.push(`No active subjects found for student ${student.id}`);
+                console.log(`[REPORT-CARD] No class_subject_mappings found for class ${classId}, department: ${studentDepartment || "none"}. Admin must assign subjects via Subject Manager.`);
+                errors.push(`No subjects assigned for student ${student.id} (class ${classId}, dept: ${studentDepartment || "none"}). Admin must configure subjects.`);
                 continue;
+              }
+              const validSubjectIds = new Set(subjects3.map((s) => s.id));
+              const existingItems = await db2.select().from(schema.reportCardItems).where(eq2(schema.reportCardItems.reportCardId, reportCardId));
+              for (const item of existingItems) {
+                if (!validSubjectIds.has(item.subjectId)) {
+                  await db2.delete(schema.reportCardItems).where(eq2(schema.reportCardItems.id, item.id));
+                  console.log(`[REPORT-CARD] Removed invalid subject ${item.subjectId} from report card ${reportCardId}`);
+                }
               }
               for (const subject of subjects3) {
                 const existingItem = await db2.select().from(schema.reportCardItems).where(and2(
@@ -5601,11 +6449,12 @@ var init_storage = __esm({
           const reportCard = await this.getReportCard(item[0].reportCardId);
           if (!reportCard) return void 0;
           const gradingScale = reportCard.gradingScale || "standard";
+          const gradingConfig = getGradingConfig(gradingScale);
           const testScore = data.testScore !== void 0 ? data.testScore : item[0].testScore;
           const testMaxScore = data.testMaxScore !== void 0 ? data.testMaxScore : item[0].testMaxScore;
           const examScore = data.examScore !== void 0 ? data.examScore : item[0].examScore;
           const examMaxScore = data.examMaxScore !== void 0 ? data.examMaxScore : item[0].examMaxScore;
-          const weighted = calculateWeightedScore(testScore, testMaxScore, examScore, examMaxScore, gradingScale);
+          const weighted = calculateWeightedScore(testScore, testMaxScore, examScore, examMaxScore, gradingConfig);
           const gradeInfo = calculateGradeFromPercentage(weighted.percentage, gradingScale);
           const result = await db2.update(schema.reportCardItems).set({
             testScore,
@@ -5800,7 +6649,65 @@ var init_storage = __esm({
         }
       }
       async recalculateClassPositions(classId, termId) {
-        console.log(`[REPORT-CARD] Position calculation skipped for class ${classId}, term ${termId} (feature disabled)`);
+        try {
+          console.log(`[REPORT-CARD] Calculating class positions for class ${classId}, term ${termId}`);
+          const reportCards3 = await db2.select({
+            id: schema.reportCards.id,
+            studentId: schema.reportCards.studentId,
+            totalScore: schema.reportCards.totalScore,
+            averageScore: schema.reportCards.averageScore
+          }).from(schema.reportCards).where(and2(
+            eq2(schema.reportCards.classId, classId),
+            eq2(schema.reportCards.termId, termId)
+          ));
+          if (reportCards3.length === 0) {
+            console.log(`[REPORT-CARD] No report cards found for class ${classId}, term ${termId}`);
+            return;
+          }
+          const totalStudentsInClass = reportCards3.length;
+          const sortedCards = [...reportCards3].sort((a, b) => {
+            const scoreA = a.totalScore ?? a.averageScore ?? 0;
+            const scoreB = b.totalScore ?? b.averageScore ?? 0;
+            return scoreB - scoreA;
+          });
+          const positionMap = /* @__PURE__ */ new Map();
+          let lastAssignedPosition = 1;
+          let previousScore = null;
+          for (let i = 0; i < sortedCards.length; i++) {
+            const card = sortedCards[i];
+            const score = card.totalScore ?? card.averageScore ?? 0;
+            if (i === 0) {
+              lastAssignedPosition = 1;
+            } else if (score !== previousScore) {
+              lastAssignedPosition = i + 1;
+            }
+            positionMap.set(card.id, lastAssignedPosition);
+            previousScore = score;
+          }
+          for (const card of reportCards3) {
+            const position = positionMap.get(card.id) ?? reportCards3.length;
+            await db2.update(schema.reportCards).set({
+              position,
+              totalStudentsInClass,
+              updatedAt: /* @__PURE__ */ new Date()
+            }).where(eq2(schema.reportCards.id, card.id));
+          }
+          console.log(`[REPORT-CARD] Successfully calculated positions for ${totalStudentsInClass} students in class ${classId}, term ${termId}`);
+          try {
+            realtimeService.emitTableChange("report_cards", "UPDATE", {
+              event: "positions_updated",
+              classId,
+              termId,
+              totalStudents: totalStudentsInClass,
+              reportCardIds: reportCards3.map((rc) => rc.id),
+              positions: Array.from(positionMap.entries()).map(([id, pos]) => ({ reportCardId: id, position: pos }))
+            });
+          } catch (emitError) {
+            console.warn(`[REPORT-CARD] Failed to emit position update WebSocket event:`, emitError);
+          }
+        } catch (error) {
+          console.error(`[REPORT-CARD] Error calculating class positions for class ${classId}, term ${termId}:`, error);
+        }
       }
       // Auto-sync exam score to report card (called immediately after exam submission)
       async syncExamScoreToReportCard(studentId, examId, score, maxScore) {
@@ -5862,27 +6769,12 @@ var init_storage = __esm({
               ));
               console.log(`[REPORT-CARD-SYNC] Using ${relevantSubjects.length} subjects from student's personal assignments`);
             } else {
-              const classSubjectAssignments = await db2.select({ subjectId: schema.teacherClassAssignments.subjectId }).from(schema.teacherClassAssignments).where(and2(
-                eq2(schema.teacherClassAssignments.classId, classId),
-                eq2(schema.teacherClassAssignments.isActive, true)
-              ));
-              const assignedSubjectIds = new Set(classSubjectAssignments.map((a) => a.subjectId));
-              const hasClassAssignedSubjects = assignedSubjectIds.size > 0;
-              const allSubjects = await db2.select().from(schema.subjects).where(eq2(schema.subjects.isActive, true));
-              relevantSubjects = allSubjects.filter((subject) => {
-                const category = (subject.category || "general").trim().toLowerCase();
-                if (hasClassAssignedSubjects && !assignedSubjectIds.has(subject.id)) {
-                  return false;
-                }
-                if (isSeniorSecondary && studentDepartment) {
-                  return category === "general" || category === studentDepartment;
-                } else if (isSeniorSecondary && !studentDepartment) {
-                  return category === "general";
-                } else {
-                  return true;
-                }
-              });
-              console.log(`[REPORT-CARD-SYNC] Using ${relevantSubjects.length} subjects from class-level filtering (${hasClassAssignedSubjects ? "with teacher assignments" : "department-only"})`);
+              relevantSubjects = await this.getSubjectsByClassAndDepartment(classId, studentDepartment);
+              if (relevantSubjects.length > 0) {
+                console.log(`[REPORT-CARD-SYNC] Using ${relevantSubjects.length} subjects from class_subject_mappings (department: ${studentDepartment || "none"})`);
+              } else {
+                console.log(`[REPORT-CARD-SYNC] No subjects found in class_subject_mappings for class ${classId}, department: ${studentDepartment || "none"}. Admin must assign subjects.`);
+              }
             }
             console.log(`[REPORT-CARD-SYNC] Creating ${relevantSubjects.length} subject items for ${isSeniorSecondary ? `SS ${studentDepartment || "no-dept"}` : "non-SS"} student`);
             for (const subject of relevantSubjects) {
@@ -7001,6 +7893,10 @@ var init_storage = __esm({
         }
         return result[0];
       }
+      async getClassSubjectMappingById(id) {
+        const result = await this.db.select().from(schema.classSubjectMappings).where(eq2(schema.classSubjectMappings.id, id)).limit(1);
+        return result[0];
+      }
       async getClassSubjectMappings(classId, department) {
         if (department) {
           return await this.db.select().from(schema.classSubjectMappings).where(
@@ -7014,6 +7910,9 @@ var init_storage = __esm({
           );
         }
         return await this.db.select().from(schema.classSubjectMappings).where(eq2(schema.classSubjectMappings.classId, classId));
+      }
+      async getAllClassSubjectMappings() {
+        return await this.db.select().from(schema.classSubjectMappings);
       }
       async getSubjectsByClassAndDepartment(classId, department) {
         const mappings = await this.getClassSubjectMappings(classId, department);
@@ -7034,6 +7933,56 @@ var init_storage = __esm({
         await this.db.delete(schema.classSubjectMappings).where(eq2(schema.classSubjectMappings.classId, classId));
         return true;
       }
+      async bulkUpdateClassSubjectMappings(additions, removals) {
+        return await this.db.transaction(async (tx) => {
+          const affectedClassIds = /* @__PURE__ */ new Set();
+          let addedCount = 0;
+          let removedCount = 0;
+          for (const removal of removals) {
+            const { classId, subjectId, department } = removal;
+            if (!classId || !subjectId) continue;
+            affectedClassIds.add(classId);
+            if (department === null) {
+              const result = await tx.delete(schema.classSubjectMappings).where(
+                and2(
+                  eq2(schema.classSubjectMappings.classId, classId),
+                  eq2(schema.classSubjectMappings.subjectId, subjectId),
+                  sql`${schema.classSubjectMappings.department} IS NULL`
+                )
+              ).returning();
+              removedCount += result.length;
+            } else {
+              const result = await tx.delete(schema.classSubjectMappings).where(
+                and2(
+                  eq2(schema.classSubjectMappings.classId, classId),
+                  eq2(schema.classSubjectMappings.subjectId, subjectId),
+                  eq2(schema.classSubjectMappings.department, department)
+                )
+              ).returning();
+              removedCount += result.length;
+            }
+          }
+          for (const addition of additions) {
+            const { classId, subjectId, department, isCompulsory } = addition;
+            if (!classId || !subjectId) continue;
+            affectedClassIds.add(classId);
+            const result = await tx.insert(schema.classSubjectMappings).values({
+              classId,
+              subjectId,
+              department: department || null,
+              isCompulsory: isCompulsory || false
+            }).onConflictDoNothing().returning();
+            if (result.length > 0) {
+              addedCount++;
+            }
+          }
+          return {
+            added: addedCount,
+            removed: removedCount,
+            affectedClassIds: Array.from(affectedClassIds)
+          };
+        });
+      }
       // Department-based subject logic implementations
       async getSubjectsByCategory(category) {
         return await this.db.select().from(schema.subjects).where(
@@ -7044,24 +7993,16 @@ var init_storage = __esm({
         );
       }
       async getSubjectsForClassLevel(classLevel, department) {
-        const seniorSecondaryLevels = ["SS1", "SS2", "SS3"];
-        const isSeniorSecondary = seniorSecondaryLevels.includes(classLevel);
-        if (isSeniorSecondary && department) {
-          const categories = ["general", department.toLowerCase()];
-          return await this.db.select().from(schema.subjects).where(
-            and2(
-              inArray2(schema.subjects.category, categories),
-              eq2(schema.subjects.isActive, true)
-            )
-          );
-        } else {
-          return await this.db.select().from(schema.subjects).where(
-            and2(
-              eq2(schema.subjects.category, "general"),
-              eq2(schema.subjects.isActive, true)
-            )
-          );
+        const classesAtLevel = await this.db.select().from(schema.classes).where(eq2(schema.classes.level, classLevel)).limit(1);
+        if (classesAtLevel.length > 0) {
+          const classId = classesAtLevel[0].id;
+          const mappedSubjects = await this.getSubjectsByClassAndDepartment(classId, department);
+          if (mappedSubjects.length > 0) {
+            return mappedSubjects;
+          }
         }
+        console.log(`[SUBJECT-ASSIGNMENT] No class_subject_mappings found for level ${classLevel}, department: ${department || "none"}. Admin must assign subjects.`);
+        return [];
       }
       async autoAssignSubjectsToStudent(studentId, classId, department) {
         const classInfo = await this.getClass(classId);
@@ -7072,12 +8013,161 @@ var init_storage = __esm({
         const termId = currentTerm?.id;
         const subjects3 = await this.getSubjectsForClassLevel(classInfo.level, department);
         if (subjects3.length === 0) {
-          const generalSubjects = await this.getSubjectsByCategory("general");
-          const subjectIds2 = generalSubjects.map((s) => s.id);
-          return await this.assignSubjectsToStudent(studentId, classId, subjectIds2, termId);
+          console.log(`[AUTO-ASSIGN] No subjects found for class ${classId}, department: ${department || "none"}. Admin must assign subjects.`);
+          return [];
         }
         const subjectIds = subjects3.map((s) => s.id);
         return await this.assignSubjectsToStudent(studentId, classId, subjectIds, termId);
+      }
+      async syncStudentsWithClassMappings(classId, department) {
+        const errors = [];
+        let synced = 0;
+        try {
+          const classInfo = await this.getClass(classId);
+          if (!classInfo) {
+            return { synced: 0, errors: ["Class not found"] };
+          }
+          const isSeniorSecondary = classInfo.level && ["SS1", "SS2", "SS3", "Senior Secondary"].some(
+            (level) => classInfo.level?.toLowerCase().includes(level.toLowerCase())
+          );
+          const students3 = await this.getStudentsByClass(classId);
+          for (const student of students3) {
+            try {
+              const studentDept = student.department?.toLowerCase()?.trim() || void 0;
+              if (department && studentDept !== department.toLowerCase().trim()) {
+                continue;
+              }
+              const effectiveDept = isSeniorSecondary ? studentDept : void 0;
+              const mappedSubjects = await this.getSubjectsByClassAndDepartment(classId, effectiveDept);
+              if (mappedSubjects.length === 0) {
+                errors.push(`No subjects mapped for student ${student.id} (class ${classId}, dept: ${effectiveDept || "none"})`);
+                continue;
+              }
+              await db2.delete(schema.studentSubjectAssignments).where(eq2(schema.studentSubjectAssignments.studentId, student.id));
+              const currentTerm = await this.getCurrentTerm();
+              for (const subject of mappedSubjects) {
+                await db2.insert(schema.studentSubjectAssignments).values({
+                  studentId: student.id,
+                  classId,
+                  subjectId: subject.id,
+                  termId: currentTerm?.id || null,
+                  isActive: true
+                }).onConflictDoNothing();
+              }
+              synced++;
+            } catch (studentError) {
+              errors.push(`Failed to sync student ${student.id}: ${studentError.message}`);
+            }
+          }
+          console.log(`[SYNC] Synced ${synced} students in class ${classId}${department ? ` (${department})` : ""}`);
+          return { synced, errors };
+        } catch (error) {
+          console.error("[SYNC] Error syncing students with class mappings:", error);
+          return { synced: 0, errors: [error.message] };
+        }
+      }
+      async syncAllStudentsWithMappings() {
+        let totalSynced = 0;
+        const allErrors = [];
+        try {
+          const classes3 = await this.getClasses();
+          for (const classInfo of classes3) {
+            const result = await this.syncStudentsWithClassMappings(classInfo.id);
+            totalSynced += result.synced;
+            allErrors.push(...result.errors);
+          }
+          console.log(`[SYNC] Total synced: ${totalSynced} students across ${classes3.length} classes`);
+          return { synced: totalSynced, errors: allErrors };
+        } catch (error) {
+          console.error("[SYNC] Error syncing all students:", error);
+          return { synced: 0, errors: [error.message] };
+        }
+      }
+      async cleanupReportCardItems(studentId) {
+        try {
+          const student = await this.getStudent(studentId);
+          if (!student || !student.classId) {
+            return { removed: 0, kept: 0 };
+          }
+          const classInfo = await this.getClass(student.classId);
+          if (!classInfo) {
+            return { removed: 0, kept: 0 };
+          }
+          const isSeniorSecondary = classInfo.level && ["SS1", "SS2", "SS3", "Senior Secondary"].some(
+            (level) => classInfo.level?.toLowerCase().includes(level.toLowerCase()) || classInfo.name?.toLowerCase().includes(level.toLowerCase())
+          );
+          const studentDept = student.department?.toLowerCase()?.trim() || void 0;
+          const effectiveDept = isSeniorSecondary ? studentDept : void 0;
+          const allowedSubjects = await this.getSubjectsByClassAndDepartment(student.classId, effectiveDept);
+          const allowedSubjectIds = new Set(allowedSubjects.map((s) => s.id));
+          const reportCards3 = await db2.select().from(schema.reportCards).where(eq2(schema.reportCards.studentId, studentId));
+          let totalRemoved = 0;
+          let totalKept = 0;
+          for (const reportCard of reportCards3) {
+            const items = await db2.select().from(schema.reportCardItems).where(eq2(schema.reportCardItems.reportCardId, reportCard.id));
+            for (const item of items) {
+              if (!allowedSubjectIds.has(item.subjectId)) {
+                await db2.delete(schema.reportCardItems).where(eq2(schema.reportCardItems.id, item.id));
+                totalRemoved++;
+              } else {
+                totalKept++;
+              }
+            }
+          }
+          console.log(`[CLEANUP] Student ${studentId}: removed ${totalRemoved} items, kept ${totalKept}`);
+          return { removed: totalRemoved, kept: totalKept };
+        } catch (error) {
+          console.error(`[CLEANUP] Error cleaning up report card for student ${studentId}:`, error);
+          return { removed: 0, kept: 0 };
+        }
+      }
+      async cleanupReportCardsForClasses(classIds) {
+        let studentsProcessed = 0;
+        let totalItemsRemoved = 0;
+        const errors = [];
+        if (!classIds || classIds.length === 0) {
+          return { studentsProcessed: 0, itemsRemoved: 0, errors: [] };
+        }
+        try {
+          const students3 = await db2.select({ id: schema.students.id }).from(schema.students).where(inArray2(schema.students.classId, classIds));
+          console.log(`[CLEANUP] Processing ${students3.length} students from ${classIds.length} affected classes`);
+          for (const student of students3) {
+            try {
+              const result = await this.cleanupReportCardItems(student.id);
+              totalItemsRemoved += result.removed;
+              studentsProcessed++;
+            } catch (error) {
+              errors.push(`Failed to cleanup student ${student.id}: ${error.message}`);
+            }
+          }
+          console.log(`[CLEANUP] Processed ${studentsProcessed} students in affected classes, removed ${totalItemsRemoved} report card items`);
+          return { studentsProcessed, itemsRemoved: totalItemsRemoved, errors };
+        } catch (error) {
+          console.error("[CLEANUP] Error cleaning up report cards for classes:", error);
+          return { studentsProcessed: 0, itemsRemoved: 0, errors: [error.message] };
+        }
+      }
+      async cleanupAllReportCards() {
+        let studentsProcessed = 0;
+        let totalItemsRemoved = 0;
+        const errors = [];
+        try {
+          const students3 = await db2.select({ id: schema.students.id }).from(schema.students);
+          for (const student of students3) {
+            try {
+              const result = await this.cleanupReportCardItems(student.id);
+              totalItemsRemoved += result.removed;
+              studentsProcessed++;
+            } catch (error) {
+              errors.push(`Failed to cleanup student ${student.id}: ${error.message}`);
+            }
+          }
+          console.log(`[CLEANUP] Processed ${studentsProcessed} students, removed ${totalItemsRemoved} report card items`);
+          return { studentsProcessed, itemsRemoved: totalItemsRemoved, errors };
+        } catch (error) {
+          console.error("[CLEANUP] Error cleaning up all report cards:", error);
+          return { studentsProcessed: 0, itemsRemoved: 0, errors: [error.message] };
+        }
       }
     };
     storage = initializeStorageSync();
@@ -8196,10 +9286,10 @@ __export(auth_utils_exports, {
   isValidThsUsername: () => isValidThsUsername,
   parseUsername: () => parseUsername
 });
-import crypto from "crypto";
+import crypto2 from "crypto";
 function generateRandomString(length) {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%&*";
-  const bytes = crypto.randomBytes(length);
+  const bytes = crypto2.randomBytes(length);
   let result = "";
   for (let i = 0; i < length; i++) {
     result += chars[bytes[i] % chars.length];
@@ -8219,7 +9309,7 @@ function generateStudentUsername(nextNumber) {
   return `THS-STU-${String(nextNumber).padStart(3, "0")}`;
 }
 function generateStudentPassword(currentYear = (/* @__PURE__ */ new Date()).getFullYear().toString()) {
-  const randomHex = crypto.randomBytes(2).toString("hex").toUpperCase();
+  const randomHex = crypto2.randomBytes(2).toString("hex").toUpperCase();
   return `THS@${currentYear}#${randomHex}`;
 }
 function parseUsername(username) {
@@ -8444,847 +9534,6 @@ var init_username_generator = __esm({
       STUDENT: 4,
       PARENT: 5
     };
-  }
-});
-
-// server/realtime-service.ts
-var realtime_service_exports = {};
-__export(realtime_service_exports, {
-  realtimeService: () => realtimeService
-});
-import { Server as SocketIOServer } from "socket.io";
-import jwt from "jsonwebtoken";
-import crypto2 from "crypto";
-var JWT_SECRET, RealtimeService, realtimeService;
-var init_realtime_service = __esm({
-  "server/realtime-service.ts"() {
-    "use strict";
-    JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === "development" ? "dev-secret-key-change-in-production" : void 0);
-    RealtimeService = class {
-      constructor() {
-        this.io = null;
-        this.connectedClients = /* @__PURE__ */ new Map();
-        this.authenticatedSockets = /* @__PURE__ */ new Map();
-        this.recentEventIds = /* @__PURE__ */ new Set();
-        this.eventIdCleanupInterval = null;
-        // Duplicate session detection: Map<sessionId, ActiveExamSession>
-        this.activeExamSessions = /* @__PURE__ */ new Map();
-        // Track socket to session mapping for cleanup
-        this.socketToSession = /* @__PURE__ */ new Map();
-        this.heartbeatInterval = null;
-      }
-      initialize(httpServer) {
-        const allowedOrigins2 = [];
-        if (process.env.NODE_ENV === "development") {
-          allowedOrigins2.push(
-            "http://localhost:5173",
-            "http://localhost:5000",
-            "http://127.0.0.1:5173",
-            "http://127.0.0.1:5000"
-          );
-        }
-        if (process.env.FRONTEND_URL) {
-          allowedOrigins2.push(process.env.FRONTEND_URL);
-        }
-        if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
-          allowedOrigins2.push(`https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
-        }
-        if (process.env.REPLIT_DEV_DOMAIN) {
-          allowedOrigins2.push(`https://${process.env.REPLIT_DEV_DOMAIN}`);
-        }
-        this.io = new SocketIOServer(httpServer, {
-          cors: {
-            origin: (origin, callback) => {
-              if (!origin) return callback(null, true);
-              if (allowedOrigins2.some((allowed) => origin.startsWith(allowed) || origin.includes(".repl.co") || origin.includes(".replit.dev"))) {
-                return callback(null, true);
-              }
-              if (process.env.NODE_ENV === "development") {
-                return callback(null, true);
-              }
-              console.warn(`\u26A0\uFE0F  Socket.IO CORS blocked origin: ${origin}`);
-              callback(new Error("CORS not allowed"));
-            },
-            credentials: true,
-            methods: ["GET", "POST"]
-          },
-          path: "/socket.io/",
-          transports: ["websocket", "polling"],
-          // Production optimizations
-          pingTimeout: 6e4,
-          pingInterval: 25e3,
-          upgradeTimeout: 3e4,
-          maxHttpBufferSize: 1e6,
-          // 1MB
-          connectTimeout: 45e3
-        });
-        this.setupMiddleware();
-        this.setupEventHandlers();
-        this.startEventIdCleanup();
-        this.startHeartbeatCheck();
-        console.log("\u2705 Socket.IO Realtime Service initialized");
-        console.log(`   \u2192 CORS origins: ${allowedOrigins2.length > 0 ? allowedOrigins2.join(", ") : "dynamic (Replit)"}`);
-        console.log(`   \u2192 Environment: ${process.env.NODE_ENV || "development"}`);
-      }
-      setupMiddleware() {
-        if (!this.io) return;
-        this.io.use((socket, next) => {
-          const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.replace("Bearer ", "");
-          if (!token) {
-            console.log(`\u{1F4E1} Connection rejected: No authentication token provided (${socket.id})`);
-            return next(new Error("Authentication required"));
-          }
-          try {
-            if (!JWT_SECRET) {
-              console.warn("\u26A0\uFE0F  JWT_SECRET not configured - rejecting connection");
-              return next(new Error("Server configuration error"));
-            }
-            const decoded = jwt.verify(token, JWT_SECRET);
-            const role = decoded.roleName || decoded.role || "unknown";
-            this.authenticatedSockets.set(socket.id, {
-              id: socket.id,
-              userId: decoded.userId,
-              role,
-              authorizedClasses: decoded.authorizedClasses || [],
-              authorizedStudentIds: decoded.authorizedStudentIds || []
-            });
-            console.log(`\u{1F4E1} Authenticated socket: ${socket.id} (User: ${decoded.userId}, Role: ${role}, Classes: ${(decoded.authorizedClasses || []).length})`);
-            next();
-          } catch (error) {
-            console.warn(`\u26A0\uFE0F  Invalid token for socket ${socket.id}:`, error instanceof Error ? error.message : "Unknown error");
-            return next(new Error("Invalid or expired token"));
-          }
-        });
-      }
-      setupEventHandlers() {
-        if (!this.io) return;
-        this.io.on("connection", (socket) => {
-          const user = this.authenticatedSockets.get(socket.id);
-          console.log(`\u{1F4E1} Client connected: ${socket.id}${user ? ` (User: ${user.userId})` : " (Anonymous)"}`);
-          if (user) {
-            socket.join(`user:${user.userId}`);
-            socket.join(`role:${user.role}`);
-            console.log(`   \u2192 Auto-joined rooms: user:${user.userId}, role:${user.role}`);
-          }
-          socket.on("subscribe", (data) => {
-            this.handleSubscribe(socket, data);
-          });
-          socket.on("subscribe:table", (data) => {
-            this.handleTableSubscribe(socket, data.table);
-          });
-          socket.on("subscribe:class", (data) => {
-            this.handleClassSubscribe(socket, data.classId);
-          });
-          socket.on("subscribe:exam", (data) => {
-            this.handleExamSubscribe(socket, data.examId);
-          });
-          socket.on("subscribe:reportcard", (data) => {
-            this.handleReportCardSubscribe(socket, data.reportCardId);
-          });
-          socket.on("unsubscribe", (data) => {
-            this.handleUnsubscribe(socket, data);
-          });
-          socket.on("disconnect", () => {
-            this.handleDisconnect(socket);
-          });
-          socket.on("ping", () => {
-            socket.emit("pong", { timestamp: Date.now() });
-          });
-          socket.on("get:subscriptions", () => {
-            const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id);
-            socket.emit("subscriptions", { rooms });
-          });
-          socket.on("exam:register_session", (data) => {
-            this.handleExamSessionRegister(socket, data);
-          });
-          socket.on("exam:session_heartbeat", (data) => {
-            this.handleExamSessionHeartbeat(socket, data);
-          });
-          socket.on("exam:unregister_session", (data) => {
-            this.handleExamSessionUnregister(socket, data);
-          });
-        });
-      }
-      // EXAM SECURITY: Handle exam session registration for duplicate detection
-      handleExamSessionRegister(socket, data) {
-        const user = this.authenticatedSockets.get(socket.id);
-        if (!user) {
-          socket.emit("exam:session_error", { error: "Authentication required" });
-          return;
-        }
-        const { sessionId, examId } = data;
-        const now = /* @__PURE__ */ new Date();
-        const existingSession = this.activeExamSessions.get(sessionId);
-        if (existingSession && existingSession.socketId !== socket.id) {
-          const timeSinceLastPing = now.getTime() - existingSession.lastPing.getTime();
-          if (timeSinceLastPing < 1e4) {
-            console.log(`\u26A0\uFE0F  DUPLICATE EXAM SESSION DETECTED: Session ${sessionId}, User ${user.userId}`);
-            console.log(`   \u2192 Existing socket: ${existingSession.socketId}, New socket: ${socket.id}`);
-            socket.emit("exam:duplicate_session", {
-              sessionId,
-              examId,
-              message: "This exam session is already open in another tab or device",
-              existingSocketId: existingSession.socketId
-            });
-            this.io?.to(existingSession.socketId).emit("exam:duplicate_session", {
-              sessionId,
-              examId,
-              message: "This exam session was opened in another tab or device",
-              newSocketId: socket.id
-            });
-            return;
-          }
-          console.log(`   \u2192 Cleaning up stale exam session: ${sessionId} (socket: ${existingSession.socketId})`);
-          this.socketToSession.delete(existingSession.socketId);
-        }
-        this.activeExamSessions.set(sessionId, {
-          socketId: socket.id,
-          sessionId,
-          userId: user.userId,
-          examId,
-          registeredAt: now,
-          lastPing: now
-        });
-        this.socketToSession.set(socket.id, sessionId);
-        socket.join(`exam_session:${sessionId}`);
-        console.log(`\u{1F4CB} Exam session registered: Session ${sessionId}, User ${user.userId}, Socket ${socket.id}`);
-        socket.emit("exam:session_registered", { sessionId, examId });
-      }
-      // EXAM SECURITY: Handle session heartbeat to keep session alive
-      handleExamSessionHeartbeat(socket, data) {
-        const session2 = this.activeExamSessions.get(data.sessionId);
-        if (session2 && session2.socketId === socket.id) {
-          session2.lastPing = /* @__PURE__ */ new Date();
-          socket.emit("exam:heartbeat_ack", { sessionId: data.sessionId, timestamp: Date.now() });
-        }
-      }
-      // EXAM SECURITY: Handle session unregistration when exam ends
-      handleExamSessionUnregister(socket, data) {
-        const session2 = this.activeExamSessions.get(data.sessionId);
-        if (session2 && session2.socketId === socket.id) {
-          this.activeExamSessions.delete(data.sessionId);
-          this.socketToSession.delete(socket.id);
-          socket.leave(`exam_session:${data.sessionId}`);
-          console.log(`\u{1F4CB} Exam session unregistered: Session ${data.sessionId}, Socket ${socket.id}`);
-        }
-      }
-      handleSubscribe(socket, data) {
-        if (data.table) {
-          this.handleTableSubscribe(socket, data.table);
-        }
-        if (data.channel) {
-          socket.join(data.channel);
-          console.log(`   \u2192 Client ${socket.id} joined channel: ${data.channel}`);
-          socket.emit("subscribed", { channel: data.channel });
-        }
-        if (data.classId) {
-          this.handleClassSubscribe(socket, data.classId);
-        }
-        if (data.examId) {
-          this.handleExamSubscribe(socket, data.examId);
-        }
-        if (data.reportCardId) {
-          this.handleReportCardSubscribe(socket, data.reportCardId);
-        }
-      }
-      handleTableSubscribe(socket, table) {
-        const user = this.authenticatedSockets.get(socket.id);
-        if (!user) {
-          socket.emit("subscription_error", { type: "table", table, error: "Authentication required" });
-          return;
-        }
-        const role = this.normalizeRole(user.role);
-        const adminOnlyTables = ["users", "students", "teacher_profiles", "admin_profiles", "parent_profiles"];
-        const academicTables = ["report_cards", "report_card_items", "exam_results", "exam_sessions", "exams"];
-        const fullAccessRoles = ["super_admin", "admin"];
-        const academicRoles = ["super_admin", "admin", "teacher"];
-        if (adminOnlyTables.includes(table) && !fullAccessRoles.includes(role)) {
-          socket.emit("subscription_error", { type: "table", table, error: "Insufficient permissions for this table" });
-          console.log(`   \u26A0\uFE0F  Unauthorized table subscription attempt by ${user.userId} (role: ${role}) for table: ${table}`);
-          return;
-        }
-        if (academicTables.includes(table) && !academicRoles.includes(role)) {
-          socket.emit("subscription_error", { type: "table", table, error: "Insufficient permissions for academic table" });
-          console.log(`   \u26A0\uFE0F  Unauthorized academic table subscription attempt by ${user.userId} (role: ${role}) for table: ${table}`);
-          return;
-        }
-        const channel = `table:${table}`;
-        socket.join(channel);
-        if (!this.connectedClients.has(table)) {
-          this.connectedClients.set(table, /* @__PURE__ */ new Set());
-        }
-        this.connectedClients.get(table).add(socket.id);
-        console.log(`   \u2192 Client ${socket.id} subscribed to table: ${table}`);
-        socket.emit("subscribed", { table, channel });
-      }
-      handleClassSubscribe(socket, classId) {
-        const user = this.authenticatedSockets.get(socket.id);
-        if (!user) {
-          socket.emit("subscription_error", { type: "class", classId, error: "Authentication required" });
-          return;
-        }
-        const role = this.normalizeRole(user.role);
-        const fullAccessRoles = ["super_admin", "admin"];
-        if (fullAccessRoles.includes(role)) {
-          const channel2 = `class:${classId}`;
-          socket.join(channel2);
-          console.log(`   \u2192 Client ${socket.id} (${role}) subscribed to class: ${classId}`);
-          socket.emit("subscribed", { type: "class", classId, channel: channel2 });
-          return;
-        }
-        const authorizedClasses = user.authorizedClasses || [];
-        if (!authorizedClasses.includes(classId) && !authorizedClasses.includes(classId.toString())) {
-          socket.emit("subscription_error", {
-            type: "class",
-            classId,
-            error: "Access denied: You are not authorized for this class"
-          });
-          console.log(`   \u26A0\uFE0F  Unauthorized class subscription: ${user.userId} (role: ${role}) attempted to access class ${classId}`);
-          return;
-        }
-        const channel = `class:${classId}`;
-        socket.join(channel);
-        console.log(`   \u2192 Client ${socket.id} subscribed to class: ${classId}`);
-        socket.emit("subscribed", { type: "class", classId, channel });
-      }
-      handleExamSubscribe(socket, examId) {
-        const user = this.authenticatedSockets.get(socket.id);
-        if (!user) {
-          socket.emit("subscription_error", { type: "exam", examId, error: "Authentication required" });
-          return;
-        }
-        const role = this.normalizeRole(user.role);
-        const fullAccessRoles = ["super_admin", "admin"];
-        if (fullAccessRoles.includes(role)) {
-          const channel = `exam:${examId}`;
-          socket.join(channel);
-          console.log(`   \u2192 Client ${socket.id} (${role}) subscribed to exam: ${examId}`);
-          socket.emit("subscribed", { type: "exam", examId, channel });
-          return;
-        }
-        if (role === "teacher") {
-          const channel = `exam:${examId}`;
-          socket.join(channel);
-          console.log(`   \u2192 Client ${socket.id} (teacher) subscribed to exam: ${examId}`);
-          socket.emit("subscribed", { type: "exam", examId, channel });
-          return;
-        }
-        if (role === "student" && user.authorizedStudentIds && user.authorizedStudentIds.length > 0) {
-          const channel = `exam:${examId}`;
-          socket.join(channel);
-          console.log(`   \u2192 Client ${socket.id} (student) subscribed to exam: ${examId}`);
-          socket.emit("subscribed", { type: "exam", examId, channel });
-          return;
-        }
-        socket.emit("subscription_error", { type: "exam", examId, error: "Access denied: insufficient permissions" });
-        console.log(`   \u26A0\uFE0F  Unauthorized exam subscription: ${user.userId} (role: ${role})`);
-      }
-      handleReportCardSubscribe(socket, reportCardId) {
-        const user = this.authenticatedSockets.get(socket.id);
-        if (!user) {
-          socket.emit("subscription_error", { type: "reportcard", reportCardId, error: "Authentication required" });
-          return;
-        }
-        const role = this.normalizeRole(user.role);
-        const fullAccessRoles = ["super_admin", "admin"];
-        if (fullAccessRoles.includes(role)) {
-          const channel = `reportcard:${reportCardId}`;
-          socket.join(channel);
-          console.log(`   \u2192 Client ${socket.id} (${role}) subscribed to report card: ${reportCardId}`);
-          socket.emit("subscribed", { type: "reportcard", reportCardId, channel });
-          return;
-        }
-        if (role === "teacher") {
-          const channel = `reportcard:${reportCardId}`;
-          socket.join(channel);
-          console.log(`   \u2192 Client ${socket.id} (teacher) subscribed to report card: ${reportCardId}`);
-          socket.emit("subscribed", { type: "reportcard", reportCardId, channel });
-          return;
-        }
-        if (role === "student" && user.authorizedStudentIds && user.authorizedStudentIds.length > 0) {
-          const channel = `reportcard:${reportCardId}`;
-          socket.join(channel);
-          console.log(`   \u2192 Client ${socket.id} (student) subscribed to report card: ${reportCardId}`);
-          socket.emit("subscribed", { type: "reportcard", reportCardId, channel });
-          return;
-        }
-        if (role === "parent" && user.authorizedStudentIds && user.authorizedStudentIds.length > 0) {
-          const channel = `reportcard:${reportCardId}`;
-          socket.join(channel);
-          console.log(`   \u2192 Client ${socket.id} (parent) subscribed to report card: ${reportCardId}`);
-          socket.emit("subscribed", { type: "reportcard", reportCardId, channel });
-          return;
-        }
-        socket.emit("subscription_error", { type: "reportcard", reportCardId, error: "Access denied: insufficient permissions" });
-        console.log(`   \u26A0\uFE0F  Unauthorized report card subscription: ${user.userId} (role: ${role})`);
-      }
-      // Normalize role names to canonical lowercase slugs
-      normalizeRole(role) {
-        const roleMap = {
-          "super admin": "super_admin",
-          "superadmin": "super_admin",
-          "super_admin": "super_admin",
-          "admin": "admin",
-          "administrator": "admin",
-          "teacher": "teacher",
-          "student": "student",
-          "parent": "parent"
-        };
-        return roleMap[role.toLowerCase()] || role.toLowerCase();
-      }
-      handleUnsubscribe(socket, data) {
-        if (data.table) {
-          const channel = `table:${data.table}`;
-          socket.leave(channel);
-          if (this.connectedClients.has(data.table)) {
-            this.connectedClients.get(data.table).delete(socket.id);
-            if (this.connectedClients.get(data.table).size === 0) {
-              this.connectedClients.delete(data.table);
-            }
-          }
-          console.log(`   \u2192 Client ${socket.id} unsubscribed from table: ${data.table}`);
-          socket.emit("unsubscribed", { table: data.table });
-        }
-        if (data.channel) {
-          socket.leave(data.channel);
-          console.log(`   \u2192 Client ${socket.id} left channel: ${data.channel}`);
-          socket.emit("unsubscribed", { channel: data.channel });
-        }
-        if (data.classId) {
-          socket.leave(`class:${data.classId}`);
-          socket.emit("unsubscribed", { type: "class", classId: data.classId });
-        }
-        if (data.examId) {
-          socket.leave(`exam:${data.examId}`);
-          socket.emit("unsubscribed", { type: "exam", examId: data.examId });
-        }
-        if (data.reportCardId) {
-          socket.leave(`reportcard:${data.reportCardId}`);
-          socket.emit("unsubscribed", { type: "reportcard", reportCardId: data.reportCardId });
-        }
-      }
-      handleDisconnect(socket) {
-        const user = this.authenticatedSockets.get(socket.id);
-        console.log(`\u{1F4E1} Client disconnected: ${socket.id}${user ? ` (User: ${user.userId})` : ""}`);
-        const sessionId = this.socketToSession.get(socket.id);
-        if (sessionId) {
-          const session2 = this.activeExamSessions.get(sessionId);
-          if (session2 && session2.socketId === socket.id) {
-            this.activeExamSessions.delete(sessionId);
-            console.log(`   \u2192 Cleaned up exam session ${sessionId} on disconnect`);
-          }
-          this.socketToSession.delete(socket.id);
-        }
-        this.connectedClients.forEach((clients, table) => {
-          clients.delete(socket.id);
-          if (clients.size === 0) {
-            this.connectedClients.delete(table);
-          }
-        });
-        this.authenticatedSockets.delete(socket.id);
-      }
-      generateEventId() {
-        return crypto2.randomUUID();
-      }
-      startEventIdCleanup() {
-        this.eventIdCleanupInterval = setInterval(() => {
-          this.recentEventIds.clear();
-        }, 6e4);
-      }
-      startHeartbeatCheck() {
-        this.heartbeatInterval = setInterval(() => {
-          if (!this.io) return;
-          const now = Date.now();
-          this.authenticatedSockets.forEach((user, socketId) => {
-            const socket = this.io?.sockets.sockets.get(socketId);
-            if (!socket || socket.disconnected) {
-              this.authenticatedSockets.delete(socketId);
-              this.connectedClients.forEach((clients) => {
-                clients.delete(socketId);
-              });
-            }
-          });
-        }, 3e4);
-      }
-      emitTableChange(table, operation, data, oldData, userId) {
-        if (!this.io) {
-          console.warn("\u26A0\uFE0F  Socket.IO not initialized, cannot emit event");
-          return;
-        }
-        const eventId = this.generateEventId();
-        this.recentEventIds.add(eventId);
-        const channel = `table:${table}`;
-        const payload = {
-          eventId,
-          eventType: `${table}.${operation.toLowerCase()}`,
-          table,
-          operation,
-          data,
-          oldData,
-          timestamp: Date.now(),
-          userId
-        };
-        this.io.to(channel).emit("table_change", payload);
-        const subscriberCount = this.connectedClients.get(table)?.size || 0;
-        if (subscriberCount > 0) {
-          console.log(`\u{1F4E4} Emitted ${operation} event for table ${table} to ${subscriberCount} clients (eventId: ${eventId.slice(0, 8)}...)`);
-        }
-        return eventId;
-      }
-      emitEvent(eventType, data, rooms) {
-        if (!this.io) {
-          console.warn("\u26A0\uFE0F  Socket.IO not initialized, cannot emit event");
-          return;
-        }
-        const eventId = this.generateEventId();
-        const payload = {
-          eventId,
-          eventType,
-          data,
-          timestamp: Date.now()
-        };
-        if (rooms) {
-          const roomList = Array.isArray(rooms) ? rooms : [rooms];
-          roomList.forEach((room) => {
-            this.io.to(room).emit(eventType, payload);
-          });
-          console.log(`\u{1F4E4} Emitted ${eventType} to rooms: ${roomList.join(", ")}`);
-        } else {
-          this.io.emit(eventType, payload);
-          console.log(`\u{1F4E4} Broadcast event: ${eventType}`);
-        }
-        return eventId;
-      }
-      emitToUser(userId, eventType, data) {
-        return this.emitEvent(eventType, data, `user:${userId}`);
-      }
-      emitToRole(role, eventType, data) {
-        return this.emitEvent(eventType, data, `role:${role}`);
-      }
-      emitToClass(classId, eventType, data) {
-        return this.emitEvent(eventType, data, `class:${classId}`);
-      }
-      emitToExam(examId, eventType, data) {
-        return this.emitEvent(eventType, data, `exam:${examId}`);
-      }
-      emitToReportCard(reportCardId, eventType, data) {
-        return this.emitEvent(eventType, data, `reportcard:${reportCardId}`);
-      }
-      emitToAll(event, data) {
-        if (!this.io) {
-          console.warn("\u26A0\uFE0F  Socket.IO not initialized, cannot emit event");
-          return;
-        }
-        this.io.emit(event, data);
-        console.log(`\u{1F4E4} Broadcast event: ${event}`);
-      }
-      emitToRoom(room, event, data) {
-        if (!this.io) {
-          console.warn("\u26A0\uFE0F  Socket.IO not initialized, cannot emit event");
-          return;
-        }
-        this.io.to(room).emit(event, data);
-      }
-      emitExamEvent(examId, eventType, data) {
-        const fullEventType = `exam.${eventType}`;
-        this.emitToExam(examId, fullEventType, { ...data, examId });
-        if (data.classId) {
-          this.emitToClass(data.classId, fullEventType, { ...data, examId });
-        }
-      }
-      // Dedicated method for exam publish/unpublish events
-      emitExamPublishEvent(examId, isPublished, data, userId) {
-        const eventType = isPublished ? "exam.published" : "exam.unpublished";
-        const operation = "UPDATE";
-        this.emitTableChange("exams", operation, { ...data, id: examId, isPublished }, void 0, userId);
-        this.emitToExam(examId, eventType, { ...data, examId, isPublished });
-        this.emitToRole("teacher", eventType, { ...data, examId, isPublished });
-        this.emitToRole("admin", eventType, { ...data, examId, isPublished });
-        this.emitToRole("super_admin", eventType, { ...data, examId, isPublished });
-        if (isPublished && data.classId) {
-          this.emitToClass(data.classId.toString(), eventType, { ...data, examId, isPublished });
-        }
-        console.log(`\u{1F4E4} Emitted ${eventType} for exam ${examId}`);
-      }
-      emitReportCardEvent(reportCardId, eventType, data, userId) {
-        const fullEventType = `reportcard.${eventType}`;
-        const operation = eventType === "created" ? "INSERT" : "UPDATE";
-        this.emitTableChange("report_cards", operation, { ...data, id: reportCardId }, void 0, userId);
-        this.emitToReportCard(reportCardId, fullEventType, data);
-        this.emitToRole("teacher", fullEventType, { ...data, reportCardId });
-        this.emitToRole("admin", fullEventType, { ...data, reportCardId });
-        this.emitToRole("super_admin", fullEventType, { ...data, reportCardId });
-        if (data.studentId) {
-          this.emitToUser(data.studentId, fullEventType, data);
-        }
-        if (data.classId) {
-          this.emitToClass(data.classId.toString(), fullEventType, data);
-        }
-        if (eventType === "published" && data.studentId && data.parentIds) {
-          const parentIds = Array.isArray(data.parentIds) ? data.parentIds : [data.parentIds];
-          parentIds.forEach((parentId) => {
-            this.emitToUser(parentId, fullEventType, {
-              ...data,
-              message: "A new report card has been published for your child"
-            });
-          });
-        }
-        console.log(`\u{1F4E4} Emitted reportcard.${eventType} for report card ${reportCardId} (student: ${data.studentId || "unknown"})`);
-      }
-      // Bulk emit for status changes affecting multiple report cards
-      emitBulkReportCardStatusChange(reportCardIds, newStatus, classId, termId, userId) {
-        const eventType = newStatus === "published" ? "bulk_published" : newStatus === "finalized" ? "bulk_finalized" : "bulk_reverted";
-        const fullEventType = `reportcard.${eventType}`;
-        const data = {
-          reportCardIds,
-          newStatus,
-          classId,
-          termId,
-          count: reportCardIds.length,
-          timestamp: Date.now()
-        };
-        this.emitToRole("teacher", fullEventType, data);
-        this.emitToRole("admin", fullEventType, data);
-        this.emitToRole("super_admin", fullEventType, data);
-        this.emitToClass(classId.toString(), fullEventType, data);
-        this.emitTableChange("report_cards", "UPDATE", data, void 0, userId);
-        console.log(`\u{1F4E4} Emitted ${fullEventType} for ${reportCardIds.length} report cards in class ${classId}`);
-      }
-      emitUserEvent(userId, eventType, data, role) {
-        const fullEventType = `user.${eventType}`;
-        this.emitTableChange("users", eventType.toUpperCase(), data, void 0, userId);
-        if (role) {
-          this.emitToRole("admin", fullEventType, data);
-          this.emitToRole("super_admin", fullEventType, data);
-        }
-      }
-      emitAttendanceEvent(classId, eventType, data) {
-        const fullEventType = `attendance.${eventType}`;
-        this.emitToClass(classId, fullEventType, data);
-        this.emitTableChange("attendance", eventType === "marked" ? "INSERT" : "UPDATE", data);
-      }
-      emitNotification(userId, notification) {
-        this.emitToUser(userId, "notification", notification);
-      }
-      emitUploadProgress(userId, uploadId, progress, status, url) {
-        this.emitToUser(userId, "upload.progress", {
-          uploadId,
-          progress,
-          status,
-          url
-        });
-      }
-      // Enhanced helper methods for consistent event emission across all modules
-      emitClassEvent(classId, eventType, data, userId) {
-        const fullEventType = `class.${eventType}`;
-        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
-        this.emitTableChange("classes", operation, data, void 0, userId);
-        this.emitToRole("admin", fullEventType, data);
-        this.emitToRole("teacher", fullEventType, data);
-        if (classId) {
-          this.emitToClass(classId, fullEventType, data);
-        }
-      }
-      emitSubjectEvent(eventType, data, userId) {
-        const fullEventType = `subject.${eventType}`;
-        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
-        this.emitTableChange("subjects", operation, data, void 0, userId);
-        this.emitToRole("admin", fullEventType, data);
-        this.emitToRole("teacher", fullEventType, data);
-      }
-      emitAnnouncementEvent(eventType, data, userId) {
-        const fullEventType = `announcement.${eventType}`;
-        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
-        this.emitTableChange("announcements", operation, data, void 0, userId);
-        const VALID_ROLE_ROOMS = {
-          "student": "student",
-          "teacher": "teacher",
-          "parent": "parent",
-          "admin": "admin",
-          "superadmin": "superadmin",
-          // Case variations for safety
-          "Student": "student",
-          "Teacher": "teacher",
-          "Parent": "parent",
-          "Admin": "admin",
-          "SuperAdmin": "superadmin"
-        };
-        const ALL_AUTHENTICATED_ROLES = ["admin", "superadmin", "teacher", "student", "parent"];
-        if (data.targetRole && typeof data.targetRole === "string") {
-          const targetRoom = VALID_ROLE_ROOMS[data.targetRole];
-          if (targetRoom) {
-            this.emitToRole(targetRoom, fullEventType, data);
-            this.emitToRole("admin", fullEventType, data);
-            this.emitToRole("superadmin", fullEventType, data);
-          }
-        } else {
-          ALL_AUTHENTICATED_ROLES.forEach((role) => {
-            this.emitToRole(role, fullEventType, data);
-          });
-        }
-      }
-      emitStudentEvent(classId, eventType, data, userId) {
-        const fullEventType = `student.${eventType}`;
-        const operation = eventType === "created" || eventType === "enrolled" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
-        this.emitTableChange("students", operation, data, void 0, userId);
-        this.emitToRole("admin", fullEventType, data);
-        if (classId) {
-          this.emitToClass(classId, fullEventType, data);
-        }
-      }
-      emitGradingEvent(examId, eventType, data, userId) {
-        const fullEventType = `grading.${eventType}`;
-        this.emitTableChange("student_answers", "UPDATE", data, void 0, userId);
-        this.emitToExam(examId, fullEventType, data);
-        if (data.classId) {
-          this.emitToClass(data.classId.toString(), fullEventType, data);
-        }
-      }
-      emitMessageEvent(senderId, recipientId, eventType, data) {
-        const fullEventType = `message.${eventType}`;
-        this.emitTableChange("messages", eventType === "sent" ? "INSERT" : "UPDATE", data, void 0, senderId);
-        this.emitToUser(recipientId, fullEventType, data);
-        this.emitToUser(senderId, `message.${eventType === "sent" ? "delivered" : "read_confirmation"}`, data);
-      }
-      emitHomepageContentEvent(eventType, data, userId) {
-        const fullEventType = `homepage.${eventType}`;
-        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
-        this.emitTableChange("homepage_content", operation, data, void 0, userId);
-        this.emitToRole("admin", fullEventType, data);
-        this.emitEvent(fullEventType, { id: data.id, contentType: data.contentType });
-      }
-      emitStudyResourceEvent(classId, eventType, data, userId) {
-        const fullEventType = `study_resource.${eventType}`;
-        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
-        this.emitTableChange("study_resources", operation, data, void 0, userId);
-        this.emitToRole("teacher", fullEventType, data);
-        if (classId) {
-          this.emitToClass(classId, fullEventType, data);
-        }
-      }
-      emitGalleryEvent(eventType, data, userId) {
-        const fullEventType = `gallery.${eventType}`;
-        const operation = eventType === "created" ? "INSERT" : "DELETE";
-        this.emitTableChange("gallery", operation, data, void 0, userId);
-        this.emitToRole("admin", fullEventType, data);
-        this.emitEvent(fullEventType, { id: data.id });
-      }
-      emitExamSessionEvent(examId, sessionId, eventType, data, userId) {
-        const fullEventType = `examSession.${eventType}`;
-        this.emitTableChange("exam_sessions", eventType === "started" ? "INSERT" : "UPDATE", data, void 0, userId);
-        this.emitToExam(examId, fullEventType, { sessionId, ...data });
-        if (data.classId) {
-          this.emitToClass(data.classId.toString(), fullEventType, { sessionId, ...data });
-        }
-      }
-      emitExamResultEvent(examId, eventType, data, userId) {
-        const fullEventType = `examResult.${eventType}`;
-        const operation = eventType === "created" ? "INSERT" : "UPDATE";
-        this.emitTableChange("exam_results", operation, data, void 0, userId);
-        this.emitToExam(examId, fullEventType, data);
-        if (data.studentId) {
-          this.emitToUser(data.studentId.toString(), fullEventType, data);
-        }
-        if (data.classId) {
-          this.emitToClass(data.classId.toString(), fullEventType, data);
-        }
-      }
-      emitTeacherAssignmentEvent(eventType, data, userId) {
-        const fullEventType = `teacherAssignment.${eventType}`;
-        const operation = eventType === "created" ? "INSERT" : eventType === "updated" ? "UPDATE" : "DELETE";
-        this.emitTableChange("teacher_assignments", operation, data, void 0, userId);
-        this.emitToRole("admin", fullEventType, data);
-        if (data.teacherId) {
-          this.emitToUser(data.teacherId.toString(), fullEventType, data);
-        }
-        if (data.classId) {
-          this.emitToClass(data.classId.toString(), fullEventType, data);
-        }
-      }
-      emitParentLinkEvent(parentId, studentId, eventType, data, userId) {
-        const fullEventType = `parentLink.${eventType}`;
-        const operation = eventType === "linked" ? "INSERT" : "DELETE";
-        this.emitTableChange("parent_student_links", operation, data, void 0, userId);
-        this.emitToUser(parentId, fullEventType, data);
-        this.emitToUser(studentId, fullEventType, data);
-        this.emitToRole("admin", fullEventType, data);
-      }
-      emitSystemSettingEvent(eventType, data, userId) {
-        const fullEventType = `system.settings_${eventType}`;
-        this.emitTableChange("system_settings", "UPDATE", data, void 0, userId);
-        this.emitToRole("super_admin", fullEventType, data);
-        this.emitToRole("admin", fullEventType, data);
-        if (data.key && ["schoolName", "schoolLogo", "primaryColor", "secondaryColor"].includes(data.key)) {
-          this.emitEvent(`system.branding_${eventType}`, { key: data.key, value: data.value });
-        }
-      }
-      // Dashboard stats emission for real-time dashboard updates
-      emitDashboardStats(role, stats) {
-        this.emitToRole(role, "dashboard.stats_updated", stats);
-      }
-      // Grading settings event for real-time config updates
-      emitGradingSettingsEvent(eventType, data, userId) {
-        const fullEventType = `grading_settings.${eventType}`;
-        this.emitToRole("admin", fullEventType, data);
-        this.emitToRole("super_admin", fullEventType, data);
-        this.emitToRole("teacher", fullEventType, data);
-        this.emitEvent("grading_settings.changed", {
-          testWeight: data.testWeight,
-          examWeight: data.examWeight,
-          gradingScale: data.gradingScale,
-          timestamp: Date.now()
-        });
-        console.log(`\u{1F4E4} Emitted ${fullEventType} - Test: ${data.testWeight}%, Exam: ${data.examWeight}%`);
-      }
-      // Enhanced student-specific report card subscription
-      emitStudentReportCardUpdate(studentId, reportCardId, eventType, data) {
-        const fullEventType = `reportcard.${eventType}`;
-        this.emitToUser(studentId, fullEventType, data);
-        this.emitToReportCard(reportCardId, fullEventType, data);
-        if (data.parentId) {
-          this.emitToUser(data.parentId, fullEventType, data);
-        }
-        console.log(`\u{1F4E4} Emitted student report card update for student ${studentId}`);
-      }
-      getIO() {
-        return this.io;
-      }
-      getSubscriberCount(table) {
-        return this.connectedClients.get(table)?.size || 0;
-      }
-      getActiveSubscriptions() {
-        return Array.from(this.connectedClients.keys());
-      }
-      getConnectedUserCount() {
-        return this.authenticatedSockets.size;
-      }
-      getRoomSubscriberCount(room) {
-        if (!this.io) return 0;
-        const roomObj = this.io.sockets.adapter.rooms.get(room);
-        return roomObj ? roomObj.size : 0;
-      }
-      getStats() {
-        return {
-          totalConnections: this.io?.sockets.sockets.size || 0,
-          authenticatedUsers: this.authenticatedSockets.size,
-          tableSubscriptions: Object.fromEntries(this.connectedClients),
-          activeRooms: this.io ? Array.from(this.io.sockets.adapter.rooms.keys()).filter((r) => !this.io.sockets.sockets.has(r)) : []
-        };
-      }
-      shutdown() {
-        if (this.eventIdCleanupInterval) {
-          clearInterval(this.eventIdCleanupInterval);
-        }
-        if (this.heartbeatInterval) {
-          clearInterval(this.heartbeatInterval);
-        }
-        if (this.io) {
-          this.io.close();
-        }
-        console.log("\u{1F6D1} Socket.IO Realtime Service shut down");
-      }
-    };
-    realtimeService = new RealtimeService();
   }
 });
 
@@ -12975,6 +13224,30 @@ async function getCachedSubjects() {
     // Hot data - promoted to L1
   );
 }
+async function getCachedClassSubjectMappings(classId) {
+  const cacheKey = `visibility:class_subject_mappings:${classId}`;
+  return enhancedCache.getOrSet(
+    cacheKey,
+    async () => {
+      const mappings = await storage.getClassSubjectMappings(classId);
+      return mappings.map((m) => m.subjectId);
+    },
+    VISIBILITY_CACHE_TTL,
+    "L2"
+  );
+}
+async function getCachedClassSubjectMappingsWithDept(classId, department) {
+  const cacheKey = `visibility:class_subject_mappings:${classId}:${department || "all"}`;
+  return enhancedCache.getOrSet(
+    cacheKey,
+    async () => {
+      const mappings = await storage.getClassSubjectMappings(classId, department);
+      return mappings.map((m) => m.subjectId);
+    },
+    VISIBILITY_CACHE_TTL,
+    "L2"
+  );
+}
 async function getCachedPublishedExams() {
   return enhancedCache.getOrSet(
     "visibility:published_exams",
@@ -12987,23 +13260,17 @@ async function getCachedPublishedExams() {
     "L2"
   );
 }
-function filterExamsForStudentContext(exams3, context, subjects3) {
-  if (!exams3.length || !subjects3.length) return [];
-  const isSS = isSeniorSecondaryLevel(context.classLevel);
+function filterExamsForStudentContext(exams3, context, subjects3, mappedSubjectIds) {
+  if (!exams3.length) return [];
   const classExams = exams3.filter(
     (exam) => exam.isPublished && exam.classId === context.classId
   );
   if (classExams.length === 0) return [];
-  let validSubjectIds;
-  if (isSS && context.department) {
-    validSubjectIds = new Set(
-      subjects3.filter((s) => s.category === "general" || s.category === context.department).map((s) => s.id)
-    );
-  } else {
-    validSubjectIds = new Set(
-      subjects3.filter((s) => s.category === "general").map((s) => s.id)
-    );
+  if (!mappedSubjectIds || mappedSubjectIds.length === 0) {
+    console.log(`[EXAM-VISIBILITY] No class_subject_mappings for class ${context.classId}, dept: ${context.department || "none"}. Student cannot see any exams.`);
+    return [];
   }
+  const validSubjectIds = new Set(mappedSubjectIds);
   return classExams.filter((exam) => validSubjectIds.has(exam.subjectId));
 }
 async function getVisibleExamsForStudent(studentId) {
@@ -13012,19 +13279,22 @@ async function getVisibleExamsForStudent(studentId) {
     cacheKey,
     async () => {
       const startTime = Date.now();
-      const [context, subjects3, publishedExams] = await Promise.all([
-        getStudentExamVisibilityContext(studentId),
-        getCachedSubjects(),
-        getCachedPublishedExams()
-      ]);
+      const context = await getStudentExamVisibilityContext(studentId);
       if (!context) {
         console.log(`[EXAM-VISIBILITY] No student context found for studentId: ${studentId}`);
         return [];
       }
-      const visibleExams = filterExamsForStudentContext(publishedExams, context, subjects3);
+      const isSS = isSeniorSecondaryLevel(context.classLevel);
+      const [mappedSubjectIds, subjects3, publishedExams] = await Promise.all([
+        // For SS students with department, get department-specific mappings
+        isSS && context.department ? getCachedClassSubjectMappingsWithDept(context.classId, context.department) : getCachedClassSubjectMappings(context.classId),
+        getCachedSubjects(),
+        getCachedPublishedExams()
+      ]);
+      const visibleExams = filterExamsForStudentContext(publishedExams, context, subjects3, mappedSubjectIds);
       const duration = Date.now() - startTime;
       if (duration > 50) {
-        console.log(`[EXAM-VISIBILITY] Student ${studentId}: ${visibleExams.length}/${publishedExams.length} exams, ${duration}ms`);
+        console.log(`[EXAM-VISIBILITY] Student ${studentId}: ${visibleExams.length}/${publishedExams.length} exams (mappings: ${mappedSubjectIds.length}), ${duration}ms`);
       }
       return visibleExams;
     },
@@ -13055,7 +13325,9 @@ async function getVisibleExamsForParent(parentId) {
       ]);
       const examMap = /* @__PURE__ */ new Map();
       for (const context of validContexts) {
-        const childExams = filterExamsForStudentContext(publishedExams, context, subjects3);
+        const isSS = isSeniorSecondaryLevel(context.classLevel);
+        const mappedSubjectIds = await (isSS && context.department ? getCachedClassSubjectMappingsWithDept(context.classId, context.department) : getCachedClassSubjectMappings(context.classId));
+        const childExams = filterExamsForStudentContext(publishedExams, context, subjects3, mappedSubjectIds);
         for (const exam of childExams) {
           if (!examMap.has(exam.id)) {
             examMap.set(exam.id, exam);
@@ -13081,6 +13353,9 @@ function invalidateVisibilityCache(options) {
   }
   if (options?.classId) {
     invalidated += enhancedCache.invalidate(/^visibility:exam_students:/);
+    invalidated += enhancedCache.invalidate(new RegExp(`^visibility:class_subject_mappings:${options.classId}`));
+    invalidated += enhancedCache.invalidate(/^visibility:student_exams:/);
+    invalidated += enhancedCache.invalidate(/^visibility:parent_exams:/);
   }
   if (options?.examId) {
     invalidated += enhancedCache.invalidate("visibility:published_exams");
@@ -13092,6 +13367,155 @@ function invalidateVisibilityCache(options) {
   }
   return invalidated;
 }
+
+// server/services/subject-assignment-service.ts
+init_storage();
+init_enhanced_cache();
+var CACHE_TTL = 5 * 60 * 1e3;
+function isSeniorSecondaryLevel2(level) {
+  if (!level) return false;
+  const normalizedLevel = level.trim().toLowerCase();
+  return normalizedLevel.includes("senior secondary") || normalizedLevel.includes("senior_secondary") || /^ss\s*[123]$/i.test(normalizedLevel) || /^sss\s*[123]$/i.test(normalizedLevel);
+}
+function normalizeDepartment2(department) {
+  const normalized = (department || "").trim().toLowerCase();
+  return normalized.length > 0 ? normalized : void 0;
+}
+async function getStudentContext(studentId) {
+  const cacheKey = `subject-assignment:context:${studentId}`;
+  return enhancedCache.getOrSet(
+    cacheKey,
+    async () => {
+      const student = await storage.getStudent(studentId);
+      if (!student || !student.classId) {
+        return null;
+      }
+      const studentClass = await storage.getClass(student.classId);
+      if (!studentClass) {
+        return null;
+      }
+      return {
+        studentId,
+        classId: student.classId,
+        classLevel: studentClass.level || "",
+        department: normalizeDepartment2(student.department)
+      };
+    },
+    CACHE_TTL,
+    "L2"
+  );
+}
+async function getAllowedSubjectIdsForStudent(studentId) {
+  const cacheKey = `subject-assignment:allowed-ids:${studentId}`;
+  return enhancedCache.getOrSet(
+    cacheKey,
+    async () => {
+      const context = await getStudentContext(studentId);
+      if (!context) {
+        console.log(`[SUBJECT-ASSIGNMENT] No context found for student ${studentId}`);
+        return [];
+      }
+      return getAllowedSubjectIdsForClass(context.classId, context.classLevel, context.department);
+    },
+    CACHE_TTL,
+    "L2"
+  );
+}
+async function getAllowedSubjectIdsForClass(classId, classLevel, department) {
+  const isSS = isSeniorSecondaryLevel2(classLevel);
+  const deptKey = isSS && department ? department : "none";
+  const cacheKey = `subject-assignment:class-subjects:${classId}:${deptKey}`;
+  return enhancedCache.getOrSet(
+    cacheKey,
+    async () => {
+      if (isSS && department) {
+        const mappings2 = await storage.getClassSubjectMappings(classId, department);
+        return mappings2.map((m) => m.subjectId);
+      }
+      const mappings = await storage.getClassSubjectMappings(classId);
+      return mappings.map((m) => m.subjectId);
+    },
+    CACHE_TTL,
+    "L2"
+  );
+}
+async function getAllowedSubjectsForStudent(studentId) {
+  const cacheKey = `subject-assignment:allowed-full:${studentId}`;
+  return enhancedCache.getOrSet(
+    cacheKey,
+    async () => {
+      const context = await getStudentContext(studentId);
+      if (!context) {
+        return [];
+      }
+      const isSS = isSeniorSecondaryLevel2(context.classLevel);
+      const mappings = await storage.getClassSubjectMappings(
+        context.classId,
+        isSS ? context.department : void 0
+      );
+      if (mappings.length === 0) {
+        return [];
+      }
+      const subjects3 = await storage.getSubjects();
+      const subjectMap = new Map(subjects3.map((s) => [s.id, s]));
+      return mappings.map((m) => {
+        const subject = subjectMap.get(m.subjectId);
+        if (!subject || !subject.isActive) return null;
+        return {
+          id: subject.id,
+          name: subject.name,
+          code: subject.code,
+          category: subject.category || "general",
+          isCompulsory: m.isCompulsory || false
+        };
+      }).filter((s) => s !== null);
+    },
+    CACHE_TTL,
+    "L2"
+  );
+}
+async function canStudentAccessSubject(studentId, subjectId) {
+  const allowedIds = await getAllowedSubjectIdsForStudent(studentId);
+  return allowedIds.includes(subjectId);
+}
+function invalidateStudentCache(studentId) {
+  let invalidated = 0;
+  invalidated += enhancedCache.invalidate(`subject-assignment:context:${studentId}`);
+  invalidated += enhancedCache.invalidate(`subject-assignment:allowed-ids:${studentId}`);
+  invalidated += enhancedCache.invalidate(`subject-assignment:allowed-full:${studentId}`);
+  return invalidated;
+}
+function invalidateClassCache(classId) {
+  let invalidated = 0;
+  invalidated += enhancedCache.invalidate(new RegExp(`^subject-assignment:class-subjects:${classId}:`));
+  invalidated += enhancedCache.invalidate(/^subject-assignment:allowed-ids:/);
+  invalidated += enhancedCache.invalidate(/^subject-assignment:allowed-full:/);
+  invalidated += enhancedCache.invalidate(/^subject-assignment:context:/);
+  return invalidated;
+}
+function invalidateAllCaches() {
+  return enhancedCache.invalidate(/^subject-assignment:/);
+}
+async function getAffectedStudentIds(classId, department) {
+  const students3 = await storage.getStudentsByClass(classId);
+  if (!department) {
+    return students3.map((s) => s.id);
+  }
+  return students3.filter((s) => normalizeDepartment2(s.department) === normalizeDepartment2(department)).map((s) => s.id);
+}
+var SubjectAssignmentService = {
+  getStudentContext,
+  getAllowedSubjectIdsForStudent,
+  getAllowedSubjectIdsForClass,
+  getAllowedSubjectsForStudent,
+  canStudentAccessSubject,
+  invalidateStudentCache,
+  invalidateClassCache,
+  invalidateAllCaches,
+  getAffectedStudentIds,
+  isSeniorSecondaryLevel: isSeniorSecondaryLevel2,
+  normalizeDepartment: normalizeDepartment2
+};
 
 // server/routes.ts
 init_performance_cache();
@@ -19725,9 +20149,27 @@ Treasure-Home School Administration
       const studentClass = await storage.getClass(student.classId);
       const term = await storage.getAcademicTerm(Number(termId));
       const exams3 = await storage.getExamsByClassAndTerm(student.classId, Number(termId));
-      const classSubjectIds = new Set(exams3.map((e) => e.subjectId));
-      const allSubjects = await storage.getSubjects();
-      const classSubjects = allSubjects.filter((s) => classSubjectIds.has(s.id));
+      const classLevel = studentClass?.level ?? "";
+      const isSSS = studentClass?.name?.startsWith("SS") || classLevel.includes("Senior Secondary");
+      let mappings;
+      if (isSSS && student.department) {
+        mappings = await storage.getClassSubjectMappings(student.classId, student.department);
+      } else {
+        mappings = await storage.getClassSubjectMappings(student.classId);
+      }
+      const classSubjects = [];
+      for (const mapping of mappings) {
+        const subject = await storage.getSubject(mapping.subjectId);
+        if (subject && subject.isActive) {
+          classSubjects.push(subject);
+        }
+      }
+      if (classSubjects.length === 0) {
+        console.log(`[REPORT-CARD] No class-subject mappings for ${studentClass?.name}, falling back to exam-based subjects`);
+        const classSubjectIds = new Set(exams3.map((e) => e.subjectId));
+        const allSubjects = await storage.getSubjects();
+        classSubjects.push(...allSubjects.filter((s) => classSubjectIds.has(s.id)));
+      }
       const subjectScores = {};
       for (const subject of classSubjects) {
         subjectScores[subject.id] = {
@@ -21021,6 +21463,17 @@ Treasure-Home School Administration
         department: department || null,
         isCompulsory: isCompulsory || false
       });
+      invalidateVisibilityCache({ classId });
+      const socketIO = realtimeService.getIO();
+      if (socketIO) {
+        socketIO.emit("subject-assignments-updated", {
+          eventType: "subject-assignments-updated",
+          affectedClassIds: [classId],
+          added: 1,
+          removed: 0,
+          timestamp: (/* @__PURE__ */ new Date()).toISOString()
+        });
+      }
       res.status(201).json(mapping);
     } catch (error) {
       console.error("Error creating class-subject mapping:", error);
@@ -21053,14 +21506,112 @@ Treasure-Home School Administration
   app2.delete("/api/class-subject-mappings/:id", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
     try {
       const { id } = req.params;
+      const mappingToDelete = await storage.getClassSubjectMappingById(Number(id));
+      if (!mappingToDelete) {
+        return res.status(404).json({ message: "Mapping not found" });
+      }
       const success = await storage.deleteClassSubjectMapping(Number(id));
       if (!success) {
-        return res.status(404).json({ message: "Mapping not found" });
+        return res.status(500).json({ message: "Failed to delete mapping" });
+      }
+      invalidateVisibilityCache({ classId: mappingToDelete.classId });
+      const socketIO = realtimeService.getIO();
+      if (socketIO) {
+        socketIO.emit("subject-assignments-updated", {
+          eventType: "subject-assignments-updated",
+          affectedClassIds: [mappingToDelete.classId],
+          added: 0,
+          removed: 1,
+          timestamp: (/* @__PURE__ */ new Date()).toISOString()
+        });
       }
       res.json({ message: "Mapping deleted successfully" });
     } catch (error) {
       console.error("Error deleting class-subject mapping:", error);
       res.status(500).json({ message: error.message || "Failed to delete mapping" });
+    }
+  });
+  app2.get("/api/unified-subject-assignments", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      const allMappings = await storage.getAllClassSubjectMappings();
+      res.json(allMappings);
+    } catch (error) {
+      console.error("Error fetching unified subject assignments:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch subject assignments" });
+    }
+  });
+  app2.put("/api/unified-subject-assignments", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      const { additions, removals } = req.body;
+      if (!Array.isArray(additions) && !Array.isArray(removals)) {
+        return res.status(400).json({ message: "additions and/or removals arrays are required" });
+      }
+      const result = await storage.bulkUpdateClassSubjectMappings(
+        additions || [],
+        removals || []
+      );
+      for (const classId of result.affectedClassIds) {
+        invalidateVisibilityCache({ classId });
+        SubjectAssignmentService.invalidateClassCache(classId);
+      }
+      let totalSynced = 0;
+      const syncErrors = [];
+      for (const classId of result.affectedClassIds) {
+        const syncResult = await storage.syncStudentsWithClassMappings(classId);
+        totalSynced += syncResult.synced;
+        syncErrors.push(...syncResult.errors);
+      }
+      console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Synced ${totalSynced} students with new mappings`);
+      const cleanupResult = await storage.cleanupReportCardsForClasses(result.affectedClassIds);
+      console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Cleaned up ${cleanupResult.itemsRemoved} report card items from ${cleanupResult.studentsProcessed} students in ${result.affectedClassIds.length} affected classes`);
+      const socketIO = realtimeService.getIO();
+      if (socketIO && result.affectedClassIds.length > 0) {
+        socketIO.emit("subject-assignments-updated", {
+          eventType: "subject-assignments-updated",
+          affectedClassIds: result.affectedClassIds,
+          added: result.added,
+          removed: result.removed,
+          studentsSynced: totalSynced,
+          timestamp: (/* @__PURE__ */ new Date()).toISOString()
+        });
+        console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Emitted websocket event to all clients`);
+      }
+      console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Updated: ${result.added} added, ${result.removed} removed, ${result.affectedClassIds.length} classes affected, ${totalSynced} students synced`);
+      res.json({
+        message: "Subject assignments updated successfully",
+        added: result.added,
+        removed: result.removed,
+        affectedClasses: result.affectedClassIds.length,
+        studentsSynced: totalSynced,
+        reportCardItemsRemoved: cleanupResult.itemsRemoved,
+        syncErrors: syncErrors.length > 0 ? syncErrors : void 0
+      });
+    } catch (error) {
+      console.error("Error updating unified subject assignments:", error);
+      res.status(500).json({ message: error.message || "Failed to update subject assignments" });
+    }
+  });
+  app2.get("/api/subject-visibility/:classId", authenticateUser, async (req, res) => {
+    try {
+      const { classId } = req.params;
+      const { department } = req.query;
+      const mappings = await storage.getClassSubjectMappings(
+        Number(classId),
+        department
+      );
+      const subjectIds = mappings.map((m) => m.subjectId);
+      const subjects3 = await Promise.all(
+        subjectIds.map((id) => storage.getSubject(id))
+      );
+      const visibleSubjects = subjects3.filter(Boolean).map((subject, index3) => ({
+        ...subject,
+        isCompulsory: mappings[index3]?.isCompulsory || false,
+        department: mappings[index3]?.department
+      }));
+      res.json(visibleSubjects);
+    } catch (error) {
+      console.error("Error fetching subject visibility:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch subject visibility" });
     }
   });
   app2.get("/api/subjects/by-category/:category", authenticateUser, async (req, res) => {
@@ -21071,6 +21622,43 @@ Treasure-Home School Administration
     } catch (error) {
       console.error("Error fetching subjects by category:", error);
       res.status(500).json({ message: error.message || "Failed to fetch subjects" });
+    }
+  });
+  app2.post("/api/admin/sync-all-student-subjects", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      console.log("[ADMIN-SYNC] Starting full sync of all students with class_subject_mappings...");
+      const result = await storage.syncAllStudentsWithMappings();
+      const cleanupResult = await storage.cleanupAllReportCards();
+      invalidateVisibilityCache({ all: true });
+      SubjectAssignmentService.invalidateAllCaches();
+      console.log(`[ADMIN-SYNC] Completed: ${result.synced} students synced, ${cleanupResult.itemsRemoved} report card items removed, ${result.errors.length} errors`);
+      res.json({
+        message: "Student subject sync completed",
+        studentsSynced: result.synced,
+        reportCardItemsRemoved: cleanupResult.itemsRemoved,
+        errors: result.errors.length > 0 ? result.errors.slice(0, 20) : void 0,
+        totalErrors: result.errors.length
+      });
+    } catch (error) {
+      console.error("[ADMIN-SYNC] Error syncing students:", error);
+      res.status(500).json({ message: error.message || "Failed to sync students" });
+    }
+  });
+  app2.post("/api/admin/cleanup-report-cards", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      console.log("[ADMIN-CLEANUP] Starting report card cleanup...");
+      const result = await storage.cleanupAllReportCards();
+      console.log(`[ADMIN-CLEANUP] Completed: ${result.itemsRemoved} items removed from ${result.studentsProcessed} students`);
+      res.json({
+        message: "Report card cleanup completed",
+        studentsProcessed: result.studentsProcessed,
+        itemsRemoved: result.itemsRemoved,
+        errors: result.errors.length > 0 ? result.errors.slice(0, 20) : void 0,
+        totalErrors: result.errors.length
+      });
+    } catch (error) {
+      console.error("[ADMIN-CLEANUP] Error:", error);
+      res.status(500).json({ message: error.message || "Failed to cleanup report cards" });
     }
   });
   app2.post("/api/admin/resync-exam-score", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
@@ -21125,18 +21713,41 @@ Treasure-Home School Administration
       if (!student) {
         return res.status(404).json({ message: "Student profile not found" });
       }
-      const assignments = await storage.getStudentSubjectAssignments(student.id);
-      const enrichedAssignments = await Promise.all(assignments.map(async (assignment) => {
-        const subject = await storage.getSubject(assignment.subjectId);
+      if (!student.classId) {
+        return res.json([]);
+      }
+      const classInfo = await storage.getClass(student.classId);
+      if (!classInfo) {
+        return res.json([]);
+      }
+      const level = classInfo?.level ?? "";
+      const isSSS = classInfo?.name?.startsWith("SS") || level.includes("Senior Secondary");
+      let mappings;
+      if (isSSS && student.department) {
+        mappings = await storage.getClassSubjectMappings(student.classId, student.department);
+      } else {
+        mappings = await storage.getClassSubjectMappings(student.classId);
+      }
+      if (mappings.length === 0) {
+        console.log(`[MY-SUBJECTS] No class-subject mappings found for class ${classInfo.name}${student.department ? ` (${student.department})` : ""}`);
+        return res.json([]);
+      }
+      const enrichedSubjects = await Promise.all(mappings.map(async (mapping) => {
+        const subject = await storage.getSubject(mapping.subjectId);
         return {
-          id: assignment.id,
-          subjectId: assignment.subjectId,
+          id: mapping.id,
+          // Use mapping ID for consistency
+          subjectId: mapping.subjectId,
           subjectName: subject?.name,
           subjectCode: subject?.code,
-          category: subject?.category || "general"
+          category: subject?.category || "general",
+          isCompulsory: mapping.isCompulsory,
+          department: mapping.department
         };
       }));
-      res.json(enrichedAssignments);
+      const validSubjects = enrichedSubjects.filter((s) => s.subjectName);
+      console.log(`[MY-SUBJECTS] Returned ${validSubjects.length} subjects for student in ${classInfo.name}${student.department ? ` (${student.department})` : ""}`);
+      res.json(validSubjects);
     } catch (error) {
       console.error("Error fetching my subjects:", error);
       res.status(500).json({ message: error.message || "Failed to fetch subjects" });
@@ -21152,14 +21763,25 @@ Treasure-Home School Administration
       if (!student.classId) {
         return res.json({});
       }
-      const assignments = await storage.getStudentSubjectAssignments(student.id);
+      const classInfo = await storage.getClass(student.classId);
+      if (!classInfo) {
+        return res.json({});
+      }
+      const level = classInfo?.level ?? "";
+      const isSSS = classInfo?.name?.startsWith("SS") || level.includes("Senior Secondary");
+      let mappings;
+      if (isSSS && student.department) {
+        mappings = await storage.getClassSubjectMappings(student.classId, student.department);
+      } else {
+        mappings = await storage.getClassSubjectMappings(student.classId);
+      }
       const teacherMap = {};
-      for (const assignment of assignments) {
+      for (const mapping of mappings) {
         try {
-          const teachers = await storage.getTeachersForClassSubject(student.classId, assignment.subjectId);
+          const teachers = await storage.getTeachersForClassSubject(student.classId, mapping.subjectId);
           if (teachers && teachers.length > 0) {
             const teacher = teachers[0];
-            teacherMap[assignment.subjectId] = {
+            teacherMap[mapping.subjectId] = {
               id: teacher.id,
               firstName: teacher.firstName,
               lastName: teacher.lastName,
@@ -21186,11 +21808,22 @@ Treasure-Home School Administration
       if (!student.classId) {
         return res.json({ activeExams: {}, examCounts: {} });
       }
-      const assignments = await storage.getStudentSubjectAssignments(student.id);
-      if (assignments.length === 0) {
+      const classInfo = await storage.getClass(student.classId);
+      if (!classInfo) {
         return res.json({ activeExams: {}, examCounts: {} });
       }
-      const subjectIds = new Set(assignments.map((a) => a.subjectId));
+      const level = classInfo?.level ?? "";
+      const isSSS = classInfo?.name?.startsWith("SS") || level.includes("Senior Secondary");
+      let mappings;
+      if (isSSS && student.department) {
+        mappings = await storage.getClassSubjectMappings(student.classId, student.department);
+      } else {
+        mappings = await storage.getClassSubjectMappings(student.classId);
+      }
+      if (mappings.length === 0) {
+        return res.json({ activeExams: {}, examCounts: {} });
+      }
+      const subjectIds = new Set(mappings.map((m) => m.subjectId));
       const classExams = await storage.getExamsByClass(student.classId);
       const now = /* @__PURE__ */ new Date();
       const activeExamsBySubject = {};
@@ -21225,6 +21858,54 @@ Treasure-Home School Administration
     } catch (error) {
       console.error("Error fetching active exams:", error);
       res.status(500).json({ message: error.message || "Failed to fetch active exams" });
+    }
+  });
+  app2.get("/api/settings", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      const { key } = req.query;
+      if (key) {
+        const setting = await storage.getSetting(key);
+        if (!setting) {
+          return res.status(404).json({ message: "Setting not found" });
+        }
+        return res.json(setting);
+      }
+      const settings3 = await storage.getAllSettings();
+      res.json(settings3);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+  app2.put("/api/settings", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      const { key, value, description, dataType } = req.body;
+      if (!key || typeof key !== "string" || key.trim().length === 0) {
+        return res.status(400).json({ message: "Setting key is required and must be a non-empty string" });
+      }
+      if (value === void 0 || value === null) {
+        return res.status(400).json({ message: "Setting value is required" });
+      }
+      const userId = req.user.id;
+      const trimmedKey = key.trim();
+      const stringValue = typeof value === "string" ? value : JSON.stringify(value);
+      const existing = await storage.getSetting(trimmedKey);
+      if (existing) {
+        const updated = await storage.updateSetting(trimmedKey, stringValue, userId);
+        return res.json(updated);
+      } else {
+        const created = await storage.createSetting({
+          key: trimmedKey,
+          value: stringValue,
+          description: description || "",
+          dataType: dataType || "string",
+          updatedBy: userId
+        });
+        return res.json(created);
+      }
+    } catch (error) {
+      console.error("Error saving setting:", error);
+      res.status(500).json({ message: "Failed to save setting" });
     }
   });
   if (process.env.NODE_ENV === "production" && process.env.FRONTEND_URL) {
