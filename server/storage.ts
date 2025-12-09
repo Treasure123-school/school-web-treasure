@@ -5,6 +5,7 @@ import { calculateGrade, calculateWeightedScore, getGradingConfig, getOverallGra
 import { deleteFile } from "./cloudinary-service";
 import { DeletionService, DeletionResult, formatDeletionLog } from "./services/deletion-service";
 import { SmartDeletionManager, cleanupOrphanRecords, bulkDeleteUsers, SmartDeletionResult } from "./services/smart-deletion-manager";
+import { realtimeService } from "./realtime-service";
 import type {
   User, InsertUser, Student, InsertStudent, Class, InsertClass,
   Subject, InsertSubject, Attendance, InsertAttendance, Exam, InsertExam,
@@ -5005,10 +5006,95 @@ export class DatabaseStorage implements IStorage {
   }
 
   private async recalculateClassPositions(classId: number, termId: number): Promise<void> {
-    // Position calculation has been removed per user request
-    // Report cards now only track grades and percentages, not rankings
-    // This function is kept for backward compatibility but does nothing
-    console.log(`[REPORT-CARD] Position calculation skipped for class ${classId}, term ${termId} (feature disabled)`);
+    try {
+      console.log(`[REPORT-CARD] Calculating class positions for class ${classId}, term ${termId}`);
+      
+      // Step 1: Get all report cards for this class and term with their total scores
+      const reportCards = await db.select({
+        id: schema.reportCards.id,
+        studentId: schema.reportCards.studentId,
+        totalScore: schema.reportCards.totalScore,
+        averageScore: schema.reportCards.averageScore
+      })
+        .from(schema.reportCards)
+        .where(and(
+          eq(schema.reportCards.classId, classId),
+          eq(schema.reportCards.termId, termId)
+        ));
+      
+      if (reportCards.length === 0) {
+        console.log(`[REPORT-CARD] No report cards found for class ${classId}, term ${termId}`);
+        return;
+      }
+      
+      const totalStudentsInClass = reportCards.length;
+      
+      // Step 2: Sort by total score descending (higher score = better position)
+      // Use totalScore for ranking, fallback to averageScore if totalScore is null
+      const sortedCards = [...reportCards].sort((a, b) => {
+        const scoreA = a.totalScore ?? a.averageScore ?? 0;
+        const scoreB = b.totalScore ?? b.averageScore ?? 0;
+        return scoreB - scoreA; // Descending order
+      });
+      
+      // Step 3: Calculate positions with proper tie handling
+      // Students with same score share same position, next position skips appropriately
+      // e.g., if two students are 1st, the next student is 3rd (not 2nd)
+      const positionMap = new Map<number, number>(); // reportCardId -> position
+      
+      let lastAssignedPosition = 1;
+      let previousScore: number | null = null;
+      
+      for (let i = 0; i < sortedCards.length; i++) {
+        const card = sortedCards[i];
+        const score = card.totalScore ?? card.averageScore ?? 0;
+        
+        if (i === 0) {
+          // First student always gets position 1
+          lastAssignedPosition = 1;
+        } else if (score !== previousScore) {
+          // Different score from previous - position = current index + 1 (0-indexed to 1-indexed)
+          // This correctly skips positions for ties (e.g., after two 1st places, next is 3rd)
+          lastAssignedPosition = i + 1;
+        }
+        // If score equals previousScore, keep lastAssignedPosition (ties share same position)
+        
+        positionMap.set(card.id, lastAssignedPosition);
+        previousScore = score;
+      }
+      
+      // Step 4: Update all report cards with calculated positions
+      for (const card of reportCards) {
+        const position = positionMap.get(card.id) ?? reportCards.length;
+        
+        await db.update(schema.reportCards)
+          .set({
+            position: position,
+            totalStudentsInClass: totalStudentsInClass,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.reportCards.id, card.id));
+      }
+      
+      console.log(`[REPORT-CARD] Successfully calculated positions for ${totalStudentsInClass} students in class ${classId}, term ${termId}`);
+      
+      // Emit WebSocket event for real-time position updates
+      try {
+        realtimeService.emitTableChange('report_cards', 'UPDATE', {
+          event: 'positions_updated',
+          classId,
+          termId,
+          totalStudents: totalStudentsInClass,
+          reportCardIds: reportCards.map((rc: { id: number }) => rc.id),
+          positions: Array.from(positionMap.entries()).map(([id, pos]) => ({ reportCardId: id, position: pos }))
+        });
+      } catch (emitError) {
+        console.warn(`[REPORT-CARD] Failed to emit position update WebSocket event:`, emitError);
+      }
+      
+    } catch (error) {
+      console.error(`[REPORT-CARD] Error calculating class positions for class ${classId}, term ${termId}:`, error);
+    }
   }
 
   // Auto-sync exam score to report card (called immediately after exam submission)
