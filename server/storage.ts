@@ -4723,6 +4723,7 @@ export class DatabaseStorage implements IStorage {
       if (!reportCard) return undefined;
 
       const gradingScale = (reportCard as any).gradingScale || 'standard';
+      const gradingConfig = getGradingConfig(gradingScale);
 
       // Calculate new weighted score
       const testScore = data.testScore !== undefined ? data.testScore : item[0].testScore;
@@ -4730,7 +4731,7 @@ export class DatabaseStorage implements IStorage {
       const examScore = data.examScore !== undefined ? data.examScore : item[0].examScore;
       const examMaxScore = data.examMaxScore !== undefined ? data.examMaxScore : item[0].examMaxScore;
 
-      const weighted = calculateWeightedScore(testScore, testMaxScore, examScore, examMaxScore, gradingScale);
+      const weighted = calculateWeightedScore(testScore, testMaxScore, examScore, examMaxScore, gradingConfig);
       const gradeInfo = calculateGrade(weighted.percentage, gradingScale);
 
       const result = await db.update(schema.reportCardItems)
