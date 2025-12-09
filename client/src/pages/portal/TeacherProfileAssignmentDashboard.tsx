@@ -67,17 +67,23 @@ export default function TeacherProfileAssignmentDashboard() {
 
   if (!user) {
     return (
-
+      <div className="flex items-center justify-center h-64">
+        <div className="text-muted-foreground">Please log in to view your profile</div>
+      </div>
     );
   }
   if (isLoading) {
     return (
-
+      <div className="flex items-center justify-center h-64">
+        <div className="text-muted-foreground">Loading dashboard...</div>
+      </div>
     );
   }
   if (error) {
     return (
-
+      <div className="flex items-center justify-center h-64">
+        <div className="text-destructive">Error loading dashboard</div>
+      </div>
     );
   }
   const { profile, user: userData, assignments = [], timetable = [] } = dashboardData || {};
@@ -88,7 +94,7 @@ export default function TeacherProfileAssignmentDashboard() {
   });
 
   return (
-
+    <div className="space-y-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>

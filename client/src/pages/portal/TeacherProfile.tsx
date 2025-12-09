@@ -308,18 +308,21 @@ export default function TeacherProfile() {
 
   if (isLoading) {
     return (
-
+      <div className="flex items-center justify-center h-64">
+        <div className="text-muted-foreground">Loading profile...</div>
+      </div>
     );
   }
   if (teacherProfileError) {
     return (
-
+      <div className="flex items-center justify-center h-64">
+        <div className="text-destructive">Error loading profile</div>
+      </div>
     );
   }
 
   return (
-
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
