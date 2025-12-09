@@ -317,7 +317,7 @@ export default function TeacherReportCards() {
       return { previousFullReport };
     },
     onSuccess: (serverData) => {
-      // Reconcile with server data
+      // Reconcile item with server data
       queryClient.setQueryData(['/api/reports', selectedReportCard?.id, 'full'], (old: any) => {
         if (!old || !old.items) return old;
         return {
@@ -327,6 +327,10 @@ export default function TeacherReportCards() {
           )
         };
       });
+      
+      // Invalidate queries to refresh aggregate data (averages, totals, positions)
+      queryClient.invalidateQueries({ queryKey: ['/api/reports', selectedReportCard?.id, 'full'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/reports/class-term', selectedClass, selectedTerm] });
       
       toast({
         title: "Success",
