@@ -48,11 +48,13 @@ function extractFilePathFromUrl(url: string): string {
  */
 async function invalidateSubjectMappingsAndSync(
   affectedClassIds: number[],
-  options: { cleanupReportCards?: boolean } = {}
-): Promise<{ studentsSynced: number; reportCardItemsRemoved: number; cacheKeysInvalidated: number; syncErrors: string[] }> {
+  options: { cleanupReportCards?: boolean; addMissingSubjects?: boolean } = {}
+): Promise<{ studentsSynced: number; reportCardItemsRemoved: number; reportCardItemsAdded: number; examScoresSynced: number; cacheKeysInvalidated: number; syncErrors: string[] }> {
   let cacheKeysInvalidated = 0;
   let totalSynced = 0;
   let reportCardItemsRemoved = 0;
+  let reportCardItemsAdded = 0;
+  let examScoresSynced = 0;
   const syncErrors: string[] = [];
 
   // 1. Invalidate visibility caches (affects exam visibility)
@@ -87,9 +89,25 @@ async function invalidateSubjectMappingsAndSync(
     reportCardItemsRemoved = cleanupResult.itemsRemoved;
   }
 
-  console.log(`[SUBJECT-MAPPING-SYNC] Classes: ${affectedClassIds.length}, Students synced: ${totalSynced}, Cache invalidated: ${cacheKeysInvalidated}, Report items removed: ${reportCardItemsRemoved}, Errors: ${syncErrors.length}`);
+  // 6. FIX: Add missing subjects to existing report cards when new mappings are added
+  // This ensures report cards are updated when admin adds new subjects to class/department mappings
+  if (options.addMissingSubjects !== false && affectedClassIds.length > 0) {
+    try {
+      const addResult = await storage.addMissingSubjectsToReportCards(affectedClassIds);
+      reportCardItemsAdded = addResult.itemsAdded;
+      examScoresSynced = addResult.examScoresSynced;
+      if (addResult.errors && addResult.errors.length > 0) {
+        syncErrors.push(...addResult.errors);
+      }
+    } catch (error: any) {
+      console.error('[SUBJECT-MAPPING-SYNC] Error adding missing subjects to report cards:', error);
+      syncErrors.push(`Failed to add missing subjects: ${error.message}`);
+    }
+  }
+
+  console.log(`[SUBJECT-MAPPING-SYNC] Classes: ${affectedClassIds.length}, Students synced: ${totalSynced}, Cache invalidated: ${cacheKeysInvalidated}, Report items removed: ${reportCardItemsRemoved}, Report items added: ${reportCardItemsAdded}, Exam scores synced: ${examScoresSynced}, Errors: ${syncErrors.length}`);
   
-  return { studentsSynced: totalSynced, reportCardItemsRemoved, cacheKeysInvalidated, syncErrors };
+  return { studentsSynced: totalSynced, reportCardItemsRemoved, reportCardItemsAdded, examScoresSynced, cacheKeysInvalidated, syncErrors };
 }
 
 // Type for authenticated user
@@ -10813,6 +10831,37 @@ Treasure-Home School Administration
       } catch (error: any) {
         console.error('[ADMIN-CLEANUP] Error:', error);
         res.status(500).json({ message: error.message || 'Failed to cleanup report cards' });
+      }
+    });
+
+    // ADMIN: Repair report cards - add missing subjects and sync exam scores
+    // FIX: This addresses the bug where report cards created before a subject mapping was added
+    // don't include that subject. This function adds missing subjects and syncs any existing exam results.
+    app.post('/api/admin/repair-report-cards', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        console.log('[ADMIN-REPAIR] Starting report card repair (add missing subjects and sync exam scores)...');
+        
+        const result = await storage.repairAllReportCards();
+        
+        console.log(`[ADMIN-REPAIR] Completed: ${result.itemsAdded} items added, ${result.examScoresSynced} exam scores synced for ${result.studentsProcessed} students`);
+        
+        // Invalidate report card caches after repair
+        enhancedCache.invalidate(/^reportcard:/);
+        enhancedCache.invalidate(/^reportcards:/);
+        enhancedCache.invalidate(/^report-card/);
+        enhancedCache.invalidate(/^student-report/);
+        
+        res.json({
+          message: 'Report card repair completed',
+          studentsProcessed: result.studentsProcessed,
+          itemsAdded: result.itemsAdded,
+          examScoresSynced: result.examScoresSynced,
+          errors: result.errors.length > 0 ? result.errors.slice(0, 20) : undefined,
+          totalErrors: result.errors.length
+        });
+      } catch (error: any) {
+        console.error('[ADMIN-REPAIR] Error:', error);
+        res.status(500).json({ message: error.message || 'Failed to repair report cards' });
       }
     });
 
