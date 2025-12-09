@@ -21,7 +21,7 @@ import { generateStudentUsername, generateParentUsername, generateTeacherUsernam
 import passport from "passport";
 import session from "express-session";
 import memorystore from "memorystore";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, sql, desc } from "drizzle-orm";
 import { realtimeService } from "./realtime-service";
 import { getProfileImagePath, getHomepageImagePath } from "./storage-path-utils";
 import { uploadFileToStorage, replaceFile, deleteFileFromStorage } from "./upload-service";
@@ -10744,6 +10744,144 @@ Treasure-Home School Administration
       } catch (error: any) {
         console.error('[ADMIN-CLEANUP] Error:', error);
         res.status(500).json({ message: error.message || 'Failed to cleanup report cards' });
+      }
+    });
+
+    // ADMIN: Get all finalized report cards for approval/publishing
+    app.get('/api/admin/report-cards/finalized', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { classId, termId, status = 'finalized' } = req.query;
+        
+        // Build the query to get finalized report cards with student and class info
+        const query = db
+          .select({
+            id: schema.reportCards.id,
+            studentId: schema.reportCards.studentId,
+            studentName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
+            admissionNumber: students.admissionNumber,
+            classId: schema.reportCards.classId,
+            className: schema.classes.name,
+            termId: schema.reportCards.termId,
+            termName: schema.academicTerms.name,
+            sessionYear: schema.academicTerms.year,
+            averagePercentage: schema.reportCards.averagePercentage,
+            overallGrade: schema.reportCards.overallGrade,
+            status: schema.reportCards.status,
+            finalizedAt: schema.reportCards.finalizedAt,
+            publishedAt: schema.reportCards.publishedAt,
+            generatedAt: schema.reportCards.generatedAt,
+          })
+          .from(schema.reportCards)
+          .innerJoin(students, eq(students.id, schema.reportCards.studentId))
+          .innerJoin(users, eq(users.id, students.id))
+          .innerJoin(schema.classes, eq(schema.classes.id, schema.reportCards.classId))
+          .innerJoin(schema.academicTerms, eq(schema.academicTerms.id, schema.reportCards.termId))
+          .where(
+            and(
+              status === 'all' 
+                ? sql`${schema.reportCards.status} IN ('finalized', 'published')`
+                : eq(schema.reportCards.status, status as string),
+              classId ? eq(schema.reportCards.classId, Number(classId)) : sql`1=1`,
+              termId ? eq(schema.reportCards.termId, Number(termId)) : sql`1=1`
+            )
+          )
+          .orderBy(desc(schema.reportCards.finalizedAt));
+        
+        const results = await query;
+        
+        // Get statistics
+        const allReports = await db
+          .select({
+            status: schema.reportCards.status,
+            count: sql<number>`count(*)`
+          })
+          .from(schema.reportCards)
+          .where(
+            and(
+              classId ? eq(schema.reportCards.classId, Number(classId)) : sql`1=1`,
+              termId ? eq(schema.reportCards.termId, Number(termId)) : sql`1=1`
+            )
+          )
+          .groupBy(schema.reportCards.status);
+        
+        const stats = {
+          draft: 0,
+          finalized: 0,
+          published: 0
+        };
+        
+        allReports.forEach((r: any) => {
+          if (r.status in stats) {
+            stats[r.status as keyof typeof stats] = Number(r.count);
+          }
+        });
+        
+        res.json({
+          reportCards: results,
+          statistics: stats
+        });
+      } catch (error: any) {
+        console.error('[ADMIN-FINALIZED] Error fetching finalized report cards:', error);
+        res.status(500).json({ message: error.message || 'Failed to fetch report cards' });
+      }
+    });
+
+    // ADMIN: Bulk publish report cards
+    app.post('/api/admin/report-cards/bulk-publish', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { reportCardIds } = req.body;
+        
+        if (!reportCardIds || !Array.isArray(reportCardIds) || reportCardIds.length === 0) {
+          return res.status(400).json({ message: 'Report card IDs are required' });
+        }
+        
+        const results = await Promise.all(
+          reportCardIds.map(async (id: number) => {
+            try {
+              const result = await storage.updateReportCardStatusOptimized(id, 'published', req.user!.id);
+              return { id, success: true, result };
+            } catch (error: any) {
+              return { id, success: false, error: error.message };
+            }
+          })
+        );
+        
+        const successCount = results.filter(r => r.success).length;
+        const failedCount = results.filter(r => !r.success).length;
+        
+        res.json({
+          message: `${successCount} report cards published successfully${failedCount > 0 ? `, ${failedCount} failed` : ''}`,
+          results,
+          successCount,
+          failedCount
+        });
+      } catch (error: any) {
+        console.error('[ADMIN-BULK-PUBLISH] Error:', error);
+        res.status(500).json({ message: error.message || 'Failed to publish report cards' });
+      }
+    });
+
+    // ADMIN: Reject report card (revert to draft)
+    app.post('/api/admin/report-cards/:id/reject', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { id } = req.params;
+        const { reason } = req.body;
+        
+        // Revert to draft status
+        const result = await storage.updateReportCardStatusOptimized(Number(id), 'draft', req.user!.id);
+        
+        if (!result) {
+          return res.status(404).json({ message: 'Report card not found' });
+        }
+        
+        res.json({
+          message: 'Report card rejected and reverted to draft',
+          reportCard: result.reportCard,
+          reason
+        });
+      } catch (error: any) {
+        console.error('[ADMIN-REJECT] Error:', error);
+        res.status(500).json({ message: error.message || 'Failed to reject report card' });
       }
     });
 
