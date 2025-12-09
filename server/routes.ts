@@ -39,6 +39,59 @@ function extractFilePathFromUrl(url: string): string {
   return url.startsWith('/') ? url.substring(1) : url;
 }
 
+/**
+ * CRITICAL: Shared helper for comprehensive cache invalidation and student sync
+ * when class-subject mappings are modified. This ensures admin changes propagate
+ * instantly to exams, report cards, and student visibility.
+ * 
+ * Called by: POST/DELETE/PUT class-subject-mapping endpoints
+ */
+async function invalidateSubjectMappingsAndSync(
+  affectedClassIds: number[],
+  options: { cleanupReportCards?: boolean } = {}
+): Promise<{ studentsSynced: number; reportCardItemsRemoved: number; cacheKeysInvalidated: number; syncErrors: string[] }> {
+  let cacheKeysInvalidated = 0;
+  let totalSynced = 0;
+  let reportCardItemsRemoved = 0;
+  const syncErrors: string[] = [];
+
+  // 1. Invalidate visibility caches (affects exam visibility)
+  for (const classId of affectedClassIds) {
+    cacheKeysInvalidated += invalidateVisibilityCache({ classId });
+  }
+
+  // 2. Invalidate subject assignment caches (affects subject visibility)
+  for (const classId of affectedClassIds) {
+    cacheKeysInvalidated += SubjectAssignmentService.invalidateClassCache(classId);
+  }
+
+  // 3. Invalidate ALL report card related caches comprehensively
+  // Match EXACT patterns used in enhanced-cache.ts:
+  cacheKeysInvalidated += enhancedCache.invalidate(/^reportcard:/);        // reportcard:{id}
+  cacheKeysInvalidated += enhancedCache.invalidate(/^reportcards:/);       // reportcards:student:*, reportcards:class:*
+  cacheKeysInvalidated += enhancedCache.invalidate(/^report-card/);        // any report-card* patterns
+  cacheKeysInvalidated += enhancedCache.invalidate(/^student-report/);     // student-report* patterns
+
+  // 4. Sync students with new mappings so changes take effect immediately
+  for (const classId of affectedClassIds) {
+    const syncResult = await storage.syncStudentsWithClassMappings(classId);
+    totalSynced += syncResult.synced;
+    if (syncResult.errors && syncResult.errors.length > 0) {
+      syncErrors.push(...syncResult.errors);
+    }
+  }
+
+  // 5. Cleanup report cards for affected classes (remove items for unassigned subjects)
+  if (options.cleanupReportCards && affectedClassIds.length > 0) {
+    const cleanupResult = await storage.cleanupReportCardsForClasses(affectedClassIds);
+    reportCardItemsRemoved = cleanupResult.itemsRemoved;
+  }
+
+  console.log(`[SUBJECT-MAPPING-SYNC] Classes: ${affectedClassIds.length}, Students synced: ${totalSynced}, Cache invalidated: ${cacheKeysInvalidated}, Report items removed: ${reportCardItemsRemoved}, Errors: ${syncErrors.length}`);
+  
+  return { studentsSynced: totalSynced, reportCardItemsRemoved, cacheKeysInvalidated, syncErrors };
+}
+
 // Type for authenticated user
 interface AuthenticatedUser {
   id: string;
@@ -10498,10 +10551,11 @@ Treasure-Home School Administration
           isCompulsory: isCompulsory || false
         });
         
-        // Invalidate visibility cache for this class (affects exam visibility)
-        invalidateVisibilityCache({ classId });
+        // CRITICAL: Use shared helper for comprehensive cache invalidation and sync
+        const syncResult = await invalidateSubjectMappingsAndSync([classId], { cleanupReportCards: false });
+        console.log(`[CLASS-SUBJECT-MAPPING] Created mapping for class ${classId}`);
         
-        // Emit websocket event for real-time propagation
+        // Emit websocket event for real-time UI propagation
         const socketIO = realtimeService.getIO();
         if (socketIO) {
           socketIO.emit('subject-assignments-updated', {
@@ -10509,6 +10563,7 @@ Treasure-Home School Administration
             affectedClassIds: [classId],
             added: 1,
             removed: 0,
+            studentsSynced: syncResult.studentsSynced,
             timestamp: new Date().toISOString()
           });
         }
@@ -10561,28 +10616,36 @@ Treasure-Home School Administration
           return res.status(404).json({ message: 'Mapping not found' });
         }
         
+        const classId = mappingToDelete.classId;
         const success = await storage.deleteClassSubjectMapping(Number(id));
         
         if (!success) {
           return res.status(500).json({ message: 'Failed to delete mapping' });
         }
         
-        // Invalidate visibility cache for this class (affects exam visibility)
-        invalidateVisibilityCache({ classId: mappingToDelete.classId });
+        // CRITICAL: Use shared helper for comprehensive cache invalidation, sync, and cleanup
+        const syncResult = await invalidateSubjectMappingsAndSync([classId], { cleanupReportCards: true });
+        console.log(`[CLASS-SUBJECT-MAPPING] Deleted mapping for class ${classId}`);
         
-        // Emit websocket event for real-time propagation
+        // Emit websocket event for real-time UI propagation
         const socketIO = realtimeService.getIO();
         if (socketIO) {
           socketIO.emit('subject-assignments-updated', {
             eventType: 'subject-assignments-updated',
-            affectedClassIds: [mappingToDelete.classId],
+            affectedClassIds: [classId],
             added: 0,
             removed: 1,
+            studentsSynced: syncResult.studentsSynced,
+            reportCardItemsRemoved: syncResult.reportCardItemsRemoved,
             timestamp: new Date().toISOString()
           });
         }
         
-        res.json({ message: 'Mapping deleted successfully' });
+        res.json({ 
+          message: 'Mapping deleted successfully',
+          studentsSynced: syncResult.studentsSynced,
+          reportCardItemsRemoved: syncResult.reportCardItemsRemoved
+        });
       } catch (error: any) {
         console.error('Error deleting class-subject mapping:', error);
         res.status(500).json({ message: error.message || 'Failed to delete mapping' });
@@ -10619,26 +10682,12 @@ Treasure-Home School Administration
           removals || []
         );
 
-        // Invalidate visibility cache for all affected classes
-        for (const classId of result.affectedClassIds) {
-          invalidateVisibilityCache({ classId });
-          SubjectAssignmentService.invalidateClassCache(classId);
-        }
-
-        // CRITICAL: Sync all students in affected classes with the new mappings
-        // This ensures student_subject_assignments match class_subject_mappings
-        let totalSynced = 0;
-        const syncErrors: string[] = [];
-        for (const classId of result.affectedClassIds) {
-          const syncResult = await storage.syncStudentsWithClassMappings(classId);
-          totalSynced += syncResult.synced;
-          syncErrors.push(...syncResult.errors);
-        }
-        console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Synced ${totalSynced} students with new mappings`);
-
-        // CRITICAL: Cleanup report cards for ONLY affected classes (not all students)
-        const cleanupResult = await storage.cleanupReportCardsForClasses(result.affectedClassIds);
-        console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Cleaned up ${cleanupResult.itemsRemoved} report card items from ${cleanupResult.studentsProcessed} students in ${result.affectedClassIds.length} affected classes`);
+        // CRITICAL: Use shared helper for comprehensive cache invalidation, sync, and cleanup
+        const syncResult = await invalidateSubjectMappingsAndSync(
+          result.affectedClassIds, 
+          { cleanupReportCards: result.removed > 0 } // Only cleanup if subjects were removed
+        );
+        console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Updated: ${result.added} added, ${result.removed} removed, ${result.affectedClassIds.length} classes affected`);
 
         // Emit websocket event for real-time propagation to all connected clients
         const socketIO = realtimeService.getIO();
@@ -10648,22 +10697,21 @@ Treasure-Home School Administration
             affectedClassIds: result.affectedClassIds,
             added: result.added,
             removed: result.removed,
-            studentsSynced: totalSynced,
+            studentsSynced: syncResult.studentsSynced,
+            reportCardItemsRemoved: syncResult.reportCardItemsRemoved,
             timestamp: new Date().toISOString()
           });
           console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Emitted websocket event to all clients`);
         }
-
-        console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Updated: ${result.added} added, ${result.removed} removed, ${result.affectedClassIds.length} classes affected, ${totalSynced} students synced`);
 
         res.json({ 
           message: 'Subject assignments updated successfully',
           added: result.added,
           removed: result.removed,
           affectedClasses: result.affectedClassIds.length,
-          studentsSynced: totalSynced,
-          reportCardItemsRemoved: cleanupResult.itemsRemoved,
-          syncErrors: syncErrors.length > 0 ? syncErrors : undefined
+          studentsSynced: syncResult.studentsSynced,
+          reportCardItemsRemoved: syncResult.reportCardItemsRemoved,
+          syncErrors: syncResult.syncErrors.length > 0 ? syncResult.syncErrors : undefined
         });
       } catch (error: any) {
         console.error('Error updating unified subject assignments:', error);
