@@ -10929,6 +10929,79 @@ Treasure-Home School Administration
       }
     });
 
+    // ADMIN: Resync report card items when exam subject has been changed
+    // This endpoint allows admin to manually trigger a resync for exams whose subjects were changed
+    // before the automatic sync fix was implemented (useful for fixing historical data)
+    app.post('/api/admin/resync-report-card-subjects', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { examIds, newSubjectId } = req.body;
+        
+        // Validate input
+        if (!examIds || !Array.isArray(examIds) || examIds.length === 0) {
+          return res.status(400).json({ message: 'examIds must be a non-empty array of exam IDs' });
+        }
+        
+        if (!newSubjectId || typeof newSubjectId !== 'number') {
+          return res.status(400).json({ message: 'newSubjectId must be a valid subject ID number' });
+        }
+        
+        // Verify the new subject exists
+        const subject = await storage.getSubject(newSubjectId);
+        if (!subject) {
+          return res.status(404).json({ message: `Subject with ID ${newSubjectId} not found` });
+        }
+        
+        console.log(`[ADMIN-RESYNC-SUBJECTS] User ${req.user!.id} requested resync for ${examIds.length} exams to subject ${newSubjectId} (${subject.name})`);
+        
+        const results: Array<{ examId: number; updated: number; errors: string[] }> = [];
+        let totalUpdated = 0;
+        const allErrors: string[] = [];
+        
+        for (const examId of examIds) {
+          try {
+            // Verify the exam exists
+            const exam = await storage.getExamById(Number(examId));
+            if (!exam) {
+              results.push({ examId: Number(examId), updated: 0, errors: [`Exam ${examId} not found`] });
+              allErrors.push(`Exam ${examId} not found`);
+              continue;
+            }
+            
+            // Get the exam's current subject for logging
+            const oldSubjectId = exam.subjectId;
+            
+            // Sync report card items for this exam
+            const syncResult = await storage.syncReportCardItemsOnExamSubjectChange(
+              Number(examId),
+              oldSubjectId,
+              newSubjectId
+            );
+            
+            results.push({ examId: Number(examId), updated: syncResult.updated, errors: syncResult.errors });
+            totalUpdated += syncResult.updated;
+            allErrors.push(...syncResult.errors);
+            
+          } catch (examError: any) {
+            console.error(`[ADMIN-RESYNC-SUBJECTS] Error syncing exam ${examId}:`, examError);
+            results.push({ examId: Number(examId), updated: 0, errors: [examError.message] });
+            allErrors.push(`Exam ${examId}: ${examError.message}`);
+          }
+        }
+        
+        console.log(`[ADMIN-RESYNC-SUBJECTS] Complete. Total items updated: ${totalUpdated}, Errors: ${allErrors.length}`);
+        
+        res.json({
+          message: `Report card items resynced for ${examIds.length} exams`,
+          totalUpdated,
+          results,
+          errors: allErrors
+        });
+      } catch (error: any) {
+        console.error('[ADMIN-RESYNC-SUBJECTS] Error:', error);
+        res.status(500).json({ message: error.message || 'Failed to resync report card subjects' });
+      }
+    });
+
     // ==================== STUDENT PORTAL SUBJECT ROUTES ====================
 
     // Get current student's info (for student portal)
