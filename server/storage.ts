@@ -520,6 +520,9 @@ export interface IStorage {
   cleanupReportCardItems(studentId: string): Promise<{removed: number; kept: number}>;
   cleanupReportCardsForClasses(classIds: number[]): Promise<{studentsProcessed: number; itemsRemoved: number; errors: string[]}>;
   cleanupAllReportCards(): Promise<{studentsProcessed: number; itemsRemoved: number; errors: string[]}>;
+  
+  // Sync report card items when exam subject changes
+  syncReportCardItemsOnExamSubjectChange(examId: number, oldSubjectId: number, newSubjectId: number): Promise<{updated: number; errors: string[]}>;
 
   // Smart deletion methods
   validateDeletion(userId: string): Promise<{
@@ -7165,6 +7168,32 @@ export class DatabaseStorage implements IStorage {
     } catch (error: any) {
       console.error('[CLEANUP] Error cleaning up all report cards:', error);
       return { studentsProcessed: 0, itemsRemoved: 0, errors: [error.message] };
+    }
+  }
+
+  async syncReportCardItemsOnExamSubjectChange(examId: number, oldSubjectId: number, newSubjectId: number): Promise<{updated: number; errors: string[]}> {
+    const errors: string[] = [];
+    
+    try {
+      console.log(`[SYNC] Syncing report card items for exam ${examId}: subject ${oldSubjectId} -> ${newSubjectId}`);
+      
+      const testExamResult = await db.update(schema.reportCardItems)
+        .set({ subjectId: newSubjectId })
+        .where(eq(schema.reportCardItems.testExamId, examId));
+      
+      const examExamResult = await db.update(schema.reportCardItems)
+        .set({ subjectId: newSubjectId })
+        .where(eq(schema.reportCardItems.examExamId, examId));
+      
+      const testExamCount = (testExamResult as any)?.rowCount || (testExamResult as any)?.changes || 0;
+      const examExamCount = (examExamResult as any)?.rowCount || (examExamResult as any)?.changes || 0;
+      const updated = testExamCount + examExamCount;
+      
+      console.log(`[SYNC] Updated ${updated} report card items for exam ${examId} (testExamId: ${testExamCount}, examExamId: ${examExamCount})`);
+      return { updated, errors };
+    } catch (error: any) {
+      console.error(`[SYNC] Error syncing report card items for exam ${examId}:`, error);
+      return { updated: 0, errors: [error.message] };
     }
   }
 }

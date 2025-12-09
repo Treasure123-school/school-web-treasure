@@ -1999,6 +1999,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: 'Failed to update exam' });
       }
       
+      // CRITICAL: When exam subject changes, sync report card items to use new subject
+      // This ensures report cards reflect the updated exam subject
+      let reportCardSyncResult = { updated: 0, errors: [] as string[] };
+      if (sanitizedData.subjectId !== undefined && sanitizedData.subjectId !== existingExam.subjectId) {
+        console.log(`[EXAM-UPDATE] Subject changed from ${existingExam.subjectId} to ${sanitizedData.subjectId} for exam ${examId}. Syncing report cards...`);
+        try {
+          reportCardSyncResult = await storage.syncReportCardItemsOnExamSubjectChange(
+            examId,
+            existingExam.subjectId,
+            sanitizedData.subjectId
+          );
+          console.log(`[EXAM-UPDATE] Report card sync complete: ${reportCardSyncResult.updated} items updated`);
+        } catch (syncError: any) {
+          console.error(`[EXAM-UPDATE] Failed to sync report card items:`, syncError?.message);
+          // Don't fail the request, just log the error - exam was still updated
+        }
+      }
+      
       // Invalidate exam visibility cache when exam is updated
       invalidateVisibilityCache({ examId: exam.id });
       
@@ -2008,7 +2026,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         realtimeService.emitToClass(exam.classId.toString(), 'exam.updated', exam);
       }
       
-      res.json(exam);
+      res.json({ 
+        ...exam, 
+        reportCardSync: reportCardSyncResult.updated > 0 ? reportCardSyncResult : undefined 
+      });
     } catch (error) {
       res.status(500).json({ message: 'Failed to update exam' });
     }
