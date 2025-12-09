@@ -10570,7 +10570,8 @@ Treasure-Home School Administration
         });
         
         // CRITICAL: Use shared helper for comprehensive cache invalidation and sync
-        const syncResult = await invalidateSubjectMappingsAndSync([classId], { cleanupReportCards: false });
+        // FIX: Explicitly set addMissingSubjects: true to ensure new mappings are added to existing report cards
+        const syncResult = await invalidateSubjectMappingsAndSync([classId], { cleanupReportCards: false, addMissingSubjects: true });
         console.log(`[CLASS-SUBJECT-MAPPING] Created mapping for class ${classId}`);
         
         // Emit websocket event for real-time UI propagation
@@ -10701,9 +10702,10 @@ Treasure-Home School Administration
         );
 
         // CRITICAL: Use shared helper for comprehensive cache invalidation, sync, and cleanup
+        // FIX: Explicitly set addMissingSubjects when subjects are added to ensure report cards are updated
         const syncResult = await invalidateSubjectMappingsAndSync(
           result.affectedClassIds, 
-          { cleanupReportCards: result.removed > 0 } // Only cleanup if subjects were removed
+          { cleanupReportCards: result.removed > 0, addMissingSubjects: result.added > 0 }
         );
         console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Updated: ${result.added} added, ${result.removed} removed, ${result.affectedClassIds.length} classes affected`);
 
@@ -10717,6 +10719,7 @@ Treasure-Home School Administration
             removed: result.removed,
             studentsSynced: syncResult.studentsSynced,
             reportCardItemsRemoved: syncResult.reportCardItemsRemoved,
+            reportCardItemsAdded: syncResult.reportCardItemsAdded,
             timestamp: new Date().toISOString()
           });
           console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Emitted websocket event to all clients`);
@@ -10729,6 +10732,7 @@ Treasure-Home School Administration
           affectedClasses: result.affectedClassIds.length,
           studentsSynced: syncResult.studentsSynced,
           reportCardItemsRemoved: syncResult.reportCardItemsRemoved,
+          reportCardItemsAdded: syncResult.reportCardItemsAdded,
           syncErrors: syncResult.syncErrors.length > 0 ? syncResult.syncErrors : undefined
         });
       } catch (error: any) {
