@@ -5241,6 +5241,61 @@ export class DatabaseStorage implements IStorage {
         }
       } else {
         reportCardId = reportCard[0].id;
+        
+        // ALSO check existing report cards for missing subjects and add them
+        // This ensures students get all their assigned subjects even if report card was created before assignments
+        const existingItems = await db.select({ subjectId: schema.reportCardItems.subjectId })
+          .from(schema.reportCardItems)
+          .where(eq(schema.reportCardItems.reportCardId, reportCardId));
+        
+        const existingSubjectIds = new Set(existingItems.map((item: { subjectId: number }) => item.subjectId));
+        
+        // Get student's class and department info
+        const studentClass = await db.select()
+          .from(schema.classes)
+          .where(eq(schema.classes.id, classId))
+          .limit(1);
+        
+        const isSeniorSecondary = studentClass.length > 0 && 
+          (studentClass[0].level || '').trim().toLowerCase() === 'senior secondary';
+        const rawDepartment = (student[0].department || '').trim().toLowerCase();
+        const studentDepartment = rawDepartment.length > 0 ? rawDepartment : undefined;
+        
+        // Get all subjects that should be assigned
+        const studentSubjectAssignments = await db.select({ subjectId: schema.studentSubjectAssignments.subjectId })
+          .from(schema.studentSubjectAssignments)
+          .where(and(
+            eq(schema.studentSubjectAssignments.studentId, studentId),
+            eq(schema.studentSubjectAssignments.classId, classId),
+            eq(schema.studentSubjectAssignments.isActive, true)
+          ));
+        
+        let assignedSubjectIds: number[] = [];
+        
+        if (studentSubjectAssignments.length > 0) {
+          assignedSubjectIds = studentSubjectAssignments.map((a: { subjectId: number }) => a.subjectId);
+        } else {
+          const relevantSubjects = await this.getSubjectsByClassAndDepartment(classId, studentDepartment);
+          assignedSubjectIds = relevantSubjects.map(s => s.id);
+        }
+        
+        // Find and add missing subjects
+        const missingSubjectIds = assignedSubjectIds.filter(id => !existingSubjectIds.has(id));
+        
+        if (missingSubjectIds.length > 0) {
+          console.log(`[REPORT-CARD-SYNC] Adding ${missingSubjectIds.length} missing subjects to existing report card ${reportCardId} for student ${studentId}`);
+          
+          for (const missingSubjectId of missingSubjectIds) {
+            await db.insert(schema.reportCardItems)
+              .values({
+                reportCardId,
+                subjectId: missingSubjectId,
+                totalMarks: 100,
+                obtainedMarks: 0,
+                percentage: 0
+              });
+          }
+        }
       }
 
       // 4. Find the report card item for this subject
