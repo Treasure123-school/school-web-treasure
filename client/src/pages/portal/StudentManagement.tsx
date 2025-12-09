@@ -588,6 +588,7 @@ export default function StudentManagement() {
   });
 
   return (
+    <>
       <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
         {/* Page Header - Fully Responsive */}
         <div className="flex flex-col gap-3">
@@ -1736,6 +1737,6 @@ export default function StudentManagement() {
           )}
         </CardContent>
       </Card>
-
+    </>
   );
 }

@@ -67,17 +67,28 @@ export default function TeacherProfileAssignmentDashboard() {
 
   if (!user) {
     return (
-
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-muted-foreground">Please log in to view this page.</p>
+      </div>
     );
   }
   if (isLoading) {
     return (
-
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
     );
   }
   if (error) {
     return (
-
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center text-destructive">
+          <p>Error loading dashboard. Please try again.</p>
+        </div>
+      </div>
     );
   }
   const { profile, user: userData, assignments = [], timetable = [] } = dashboardData || {};
@@ -88,7 +99,7 @@ export default function TeacherProfileAssignmentDashboard() {
   });
 
   return (
-
+    <div className="space-y-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
