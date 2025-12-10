@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import html2canvas from 'html2canvas';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -137,6 +138,34 @@ export default function TeacherReportCards() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState('overview');
   const [remarks, setRemarks] = useState({ teacher: '', principal: '' });
+  const [isDownloading, setIsDownloading] = useState(false);
+  const reportCardRef = useRef<HTMLDivElement>(null);
+
+  const handleDownloadAsImage = async () => {
+    if (!reportCardRef.current || !selectedReportCard) return;
+    
+    setIsDownloading(true);
+    try {
+      const canvas = await html2canvas(reportCardRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+      
+      const link = document.createElement('a');
+      const studentName = (fullReportCard as { studentName?: string })?.studentName || 'student';
+      link.download = `report-card-${studentName.replace(/\s+/g, '-')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      
+      toast({ title: "Success", description: "Report card downloaded as image" });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to download report card", variant: "destructive" });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
   const [sortField, setSortField] = useState<SortField>('position');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -1400,10 +1429,12 @@ export default function TeacherReportCards() {
                     <Button 
                       variant="outline" 
                       size="icon"
-                      aria-label="Download report card"
+                      onClick={handleDownloadAsImage}
+                      disabled={isDownloading}
+                      aria-label="Download report card as image"
                       data-testid="button-download"
                     >
-                      <Download className="w-4 h-4" />
+                      {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                     </Button>
                     {/* Refresh Scores */}
                     <Button
@@ -1463,7 +1494,7 @@ export default function TeacherReportCards() {
 
               {/* Scrollable Report Card - Uses native overflow for better mobile support */}
               <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
-                <div className="p-2 sm:p-3 md:p-4">
+                <div ref={reportCardRef} className="p-2 sm:p-3 md:p-4 bg-background">
                   {/* Professional Report Card Component */}
                   <ProfessionalReportCard
                   reportCard={{
@@ -1510,6 +1541,7 @@ export default function TeacherReportCards() {
                   }}
                   canEditRemarks={fullReportCard.status === 'draft'}
                   isLoading={updateRemarksMutation.isPending}
+                  hideActionButtons={true}
                   />
                 </div>
               </div>

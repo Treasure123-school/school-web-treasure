@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import html2canvas from 'html2canvas';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -74,6 +75,33 @@ export default function AdminResultPublishing() {
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [isDownloading, setIsDownloading] = useState(false);
+  const reportCardRef = useRef<HTMLDivElement>(null);
+
+  const handleDownloadAsImage = async () => {
+    if (!reportCardRef.current || !viewingReportCard) return;
+    
+    setIsDownloading(true);
+    try {
+      const canvas = await html2canvas(reportCardRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+      
+      const link = document.createElement('a');
+      link.download = `report-card-${viewingReportCard.studentName?.replace(/\s+/g, '-')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      
+      toast({ title: "Success", description: "Report card downloaded as image" });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to download report card", variant: "destructive" });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const { data: classes = [] } = useQuery({
     queryKey: ['/api/classes'],
@@ -722,10 +750,12 @@ export default function AdminResultPublishing() {
                     <Button 
                       variant="outline" 
                       size="icon"
-                      aria-label="Download report card"
+                      onClick={handleDownloadAsImage}
+                      disabled={isDownloading}
+                      aria-label="Download report card as image"
                       data-testid="button-download"
                     >
-                      <Download className="w-4 h-4" />
+                      {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                     </Button>
                     {fullReportCard.status === 'finalized' && (
                       <>
@@ -779,7 +809,7 @@ export default function AdminResultPublishing() {
 
               {/* Scrollable Report Card - Uses native overflow for better mobile support */}
               <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
-                <div className="p-2 sm:p-3 md:p-4">
+                <div ref={reportCardRef} className="p-2 sm:p-3 md:p-4 bg-background">
                   <ProfessionalReportCard
                     reportCard={{
                       id: fullReportCard.id,
@@ -817,6 +847,7 @@ export default function AdminResultPublishing() {
                     examWeight={60}
                     canEditRemarks={false}
                     isLoading={false}
+                    hideActionButtons={true}
                   />
                 </div>
               </div>

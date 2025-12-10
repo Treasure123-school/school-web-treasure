@@ -131,6 +131,7 @@ interface ProfessionalReportCardProps {
   onSaveRemarks?: (teacherRemarks: string, principalRemarks: string) => void;
   canEditRemarks?: boolean;
   isLoading?: boolean;
+  hideActionButtons?: boolean;
 }
 
 const RATING_LABELS = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
@@ -209,7 +210,8 @@ export function ProfessionalReportCard({
   onEditSubject,
   onSaveRemarks,
   canEditRemarks = false,
-  isLoading = false
+  isLoading = false,
+  hideActionButtons = false
 }: ProfessionalReportCardProps) {
   const [isSubjectsOpen, setIsSubjectsOpen] = useState(true);
   const [isAffectiveOpen, setIsAffectiveOpen] = useState(true);
@@ -294,17 +296,19 @@ export function ProfessionalReportCard({
         <h2 className="text-center text-lg font-semibold mt-4 mb-2">STUDENT ACADEMIC REPORT</h2>
       </div>
 
-      {/* Action Buttons - Screen only */}
-      <div className="flex flex-wrap items-center gap-2 mb-4 print:hidden">
-        <Button variant="outline" size="sm" onClick={handlePrint} data-testid="button-print">
-          <Printer className="w-4 h-4 mr-2" />
-          <span className="hidden sm:inline">Print</span>
-        </Button>
-        <Button variant="outline" size="sm" onClick={handleExportPDF} data-testid="button-export-pdf">
-          <Download className="w-4 h-4 mr-2" />
-          <span className="hidden sm:inline">Export PDF</span>
-        </Button>
-      </div>
+      {/* Action Buttons - Screen only, hidden when parent provides action bar */}
+      {!hideActionButtons && (
+        <div className="flex flex-wrap items-center gap-2 mb-4 print:hidden">
+          <Button variant="outline" size="sm" onClick={handlePrint} data-testid="button-print">
+            <Printer className="w-4 h-4 mr-2" />
+            <span className="hidden sm:inline">Print</span>
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExportPDF} data-testid="button-export-pdf">
+            <Download className="w-4 h-4 mr-2" />
+            <span className="hidden sm:inline">Export PDF</span>
+          </Button>
+        </div>
+      )}
 
       {/* Section 1: Student Information */}
       <Card className="mb-4 print:shadow-none print:border-2">
