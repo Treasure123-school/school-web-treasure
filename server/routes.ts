@@ -8776,8 +8776,6 @@ Treasure-Home School Administration
           return res.status(400).json({ message: 'Term ID is required' });
         }
 
-        const { calculateGrade, calculateWeightedScore } = await import('./grading-config');
-
         const student = await storage.getStudent(studentId);
         if (!student) {
           return res.status(404).json({ message: 'Student not found' });
@@ -8807,21 +8805,20 @@ Treasure-Home School Administration
         }
         // Admin and Super Admin can view any student's report card
 
-        // For students and parents, check if there's a published report card
-        // Teachers, admins can see regardless of status
-        if (req.user!.roleId === ROLES.STUDENT || req.user!.roleId === ROLES.PARENT) {
-          const existingReportCard = await db.select({ status: schema.reportCards.status })
-            .from(schema.reportCards)
-            .where(
-              and(
-                eq(schema.reportCards.studentId, studentId),
-                eq(schema.reportCards.termId, Number(termId)),
-                eq(schema.reportCards.status, 'published')
-              )
+        // Check for published report card in the database
+        const publishedReportCard = await db.select()
+          .from(schema.reportCards)
+          .where(
+            and(
+              eq(schema.reportCards.studentId, studentId),
+              eq(schema.reportCards.termId, Number(termId))
             )
-            .limit(1);
-          
-          if (!existingReportCard.length) {
+          )
+          .limit(1);
+
+        // For students and parents, require published status
+        if (req.user!.roleId === ROLES.STUDENT || req.user!.roleId === ROLES.PARENT) {
+          if (!publishedReportCard.length || publishedReportCard[0].status !== 'published') {
             return res.status(404).json({ 
               message: 'Report card not yet published. Please check back later.',
               status: 'not_published'
@@ -8836,10 +8833,155 @@ Treasure-Home School Administration
 
         const studentClass = await storage.getClass(student.classId);
         const term = await storage.getAcademicTerm(Number(termId));
+
+        // If we have a published report card, use the stored data with all computed fields
+        if (publishedReportCard.length > 0) {
+          const dbReportCard = publishedReportCard[0];
+          
+          // Fetch report card items (subjects) from the database
+          const reportCardItems = await db.select({
+            id: schema.reportCardItems.id,
+            subjectId: schema.reportCardItems.subjectId,
+            subjectName: schema.subjects.name,
+            testScore: schema.reportCardItems.testScore,
+            testMaxScore: schema.reportCardItems.testMaxScore,
+            testWeightedScore: schema.reportCardItems.testWeightedScore,
+            examScore: schema.reportCardItems.examScore,
+            examMaxScore: schema.reportCardItems.examMaxScore,
+            examWeightedScore: schema.reportCardItems.examWeightedScore,
+            totalMarks: schema.reportCardItems.totalMarks,
+            obtainedMarks: schema.reportCardItems.obtainedMarks,
+            percentage: schema.reportCardItems.percentage,
+            grade: schema.reportCardItems.grade,
+            remarks: schema.reportCardItems.remarks,
+            teacherRemarks: schema.reportCardItems.teacherRemarks
+          })
+            .from(schema.reportCardItems)
+            .innerJoin(schema.subjects, eq(schema.reportCardItems.subjectId, schema.subjects.id))
+            .where(eq(schema.reportCardItems.reportCardId, dbReportCard.id))
+            .orderBy(schema.subjects.name);
+
+          // Get class statistics for this term (highest, lowest, average scores)
+          const classReportCards = await db.select({
+            totalScore: schema.reportCards.totalScore,
+            averagePercentage: schema.reportCards.averagePercentage
+          })
+            .from(schema.reportCards)
+            .where(
+              and(
+                eq(schema.reportCards.classId, student.classId!),
+                eq(schema.reportCards.termId, Number(termId))
+              )
+            );
+
+          // Calculate class statistics using stored values from report_cards table
+          // PRIORITY: Use database-stored averagePercentage values directly for consistency with admin view
+          const totalStudentsInClass = dbReportCard.totalStudentsInClass || classReportCards.length;
+          const validScores = classReportCards
+            .filter((r: { averagePercentage: number | null }) => r.averagePercentage !== null)
+            .map((r: { averagePercentage: number | null }) => r.averagePercentage ?? 0);
+          
+          const classHighest = validScores.length > 0 ? Math.max(...validScores) : 0;
+          const classLowest = validScores.length > 0 ? Math.min(...validScores) : 0;
+          const classAverage = validScores.length > 0 ? validScores.reduce((a: number, b: number) => a + b, 0) / validScores.length : 0;
+
+          // Map items to the expected format
+          const items = reportCardItems.map((item: any) => ({
+            id: item.id,
+            subjectId: item.subjectId,
+            subjectName: item.subjectName,
+            testScore: item.testWeightedScore ?? item.testScore ?? 0,
+            testMaxScore: item.testMaxScore || 40,
+            examScore: item.examWeightedScore ?? item.examScore ?? 0,
+            examMaxScore: item.examMaxScore || 60,
+            totalMarks: item.totalMarks || 100,
+            obtainedMarks: item.obtainedMarks ?? 0,
+            percentage: item.percentage ?? 0,
+            grade: item.grade || '-',
+            remarks: item.remarks || item.teacherRemarks || '-',
+            hasData: (item.obtainedMarks ?? 0) > 0 || (item.testWeightedScore ?? 0) > 0 || (item.examWeightedScore ?? 0) > 0
+          }));
+
+          // Calculate total score from items
+          const totalObtained = items.reduce((sum: number, item: any) => sum + (item.obtainedMarks || 0), 0);
+          const totalMax = items.length * 100;
+
+          const reportCard = {
+            id: dbReportCard.id,
+            status: dbReportCard.status,
+            student: {
+              id: studentId,
+              name: `${user.firstName} ${user.lastName}`,
+              admissionNumber: student.admissionNumber,
+              className: studentClass?.name || 'Unknown',
+              classLevel: studentClass?.level || 'Unknown',
+              department: student.department
+            },
+            term: term ? {
+              id: term.id,
+              name: term.name,
+              year: term.year,
+              startDate: term.startDate,
+              endDate: term.endDate
+            } : null,
+            items,
+            subjects: items, // Keep for backwards compatibility
+            totalScore: dbReportCard.totalScore ?? totalObtained,
+            averageScore: dbReportCard.averageScore ?? Math.round(totalObtained / (items.length || 1)),
+            averagePercentage: dbReportCard.averagePercentage ?? Math.round((totalObtained / totalMax) * 100),
+            overallGrade: dbReportCard.overallGrade || '-',
+            position: dbReportCard.position,
+            totalStudentsInClass: totalStudentsInClass,
+            totalStudents: totalStudentsInClass,
+            classStatistics: {
+              highestScore: Math.round(classHighest),
+              lowestScore: Math.round(classLowest),
+              classAverage: Math.round(classAverage * 10) / 10,
+              totalStudents: totalStudentsInClass
+            },
+            teacherRemarks: dbReportCard.teacherRemarks,
+            principalRemarks: dbReportCard.principalRemarks,
+            attendance: {
+              timesSchoolOpened: 0,
+              timesPresent: 0,
+              timesAbsent: 0,
+              attendancePercentage: 0
+            },
+            affectiveTraits: {
+              punctuality: 0,
+              neatness: 0,
+              attentiveness: 0,
+              teamwork: 0,
+              leadership: 0,
+              assignments: 0,
+              classParticipation: 0
+            },
+            psychomotorSkills: {
+              sports: 0,
+              handwriting: 0,
+              musicalSkills: 0,
+              creativity: 0
+            },
+            summary: {
+              percentage: dbReportCard.averagePercentage ?? Math.round((totalObtained / totalMax) * 100),
+              grade: dbReportCard.overallGrade || '-',
+              remarks: dbReportCard.teacherRemarks || '-',
+              subjectsCount: items.length,
+              subjectsWithData: items.filter((s: any) => s.hasData).length
+            },
+            generatedAt: dbReportCard.generatedAt?.toISOString() || new Date().toISOString(),
+            publishedAt: dbReportCard.publishedAt?.toISOString()
+          };
+
+          return res.json(reportCard);
+        }
+
+        // Fallback: If no report card exists in database, calculate from exam results
+        // This is only for teachers/admins previewing before generation
+        const { calculateGrade, calculateWeightedScore } = await import('./grading-config');
         const exams = await storage.getExamsByClassAndTerm(student.classId, Number(termId));
         
         // PRIMARY SOURCE: Use class_subject_mappings as the single source of truth for report card subjects
-        // This ensures report cards show the same subjects as the admin configured
         const classLevel = studentClass?.level ?? '';
         const isSSS = studentClass?.name?.startsWith('SS') || classLevel.includes('Senior Secondary');
         
@@ -8859,9 +9001,8 @@ Treasure-Home School Administration
           }
         }
         
-        // Fallback to exam-based subjects if no mappings exist (backwards compatibility)
+        // Fallback to exam-based subjects if no mappings exist
         if (classSubjects.length === 0) {
-          console.log(`[REPORT-CARD] No class-subject mappings for ${studentClass?.name}, falling back to exam-based subjects`);
           const classSubjectIds = new Set(exams.map(e => e.subjectId));
           const allSubjects = await storage.getSubjects();
           classSubjects.push(...allSubjects.filter(s => classSubjectIds.has(s.id)));
@@ -8869,7 +9010,6 @@ Treasure-Home School Administration
 
         const subjectScores: Record<number, { testScores: number[], testMax: number[], examScores: number[], examMax: number[], subjectName: string, hasData: boolean }> = {};
 
-        // Initialize with all class subjects from mappings
         for (const subject of classSubjects) {
           subjectScores[subject.id] = {
             testScores: [],
@@ -8885,8 +9025,6 @@ Treasure-Home School Administration
           if (!subjectScores[exam.subjectId]) continue;
           const result = await storage.getExamResultByExamAndStudent(exam.id, studentId);
           if (result && result.marksObtained !== null) {
-            // Use the actual max score from the exam session, not the exam's totalMarks
-            // This correctly handles exams where not all configured questions were used
             const actualMaxScore = result.maxScore || exam.totalMarks;
             subjectScores[exam.subjectId].hasData = true;
             if (exam.examType === 'test' || exam.examType === 'quiz') {
@@ -8910,39 +9048,40 @@ Treasure-Home School Administration
           const examScore = scores.examScores.reduce((a, b) => a + b, 0);
           const examMax = scores.examMax.reduce((a, b) => a + b, 0);
 
-          // Calculate weighted score - subjects without data get 0%
           const weighted = calculateWeightedScore(testScore, testMax, examScore, examMax);
           const gradeInfo = calculateGrade(weighted.percentage);
 
           subjects.push({
             subjectId,
             subjectName: scores.subjectName,
-            testScore,
-            testMax: testMax || 40,
-            examScore,
-            examMax: examMax || 60,
-            totalScore: testScore + examScore,
+            testScore: weighted.testWeighted,
+            testMaxScore: 40,
+            examScore: weighted.examWeighted,
+            examMaxScore: 60,
+            obtainedMarks: weighted.weightedScore,
+            totalMarks: 100,
             percentage: weighted.percentage,
             grade: gradeInfo.grade,
             remarks: gradeInfo.remarks,
             hasData: scores.hasData
           });
 
-          // Include all subjects in total (missing data contributes 0)
           totalWeightedPercentage += weighted.percentage;
         }
 
-        // Calculate average across ALL subjects (including those with 0)
         const overallPercentage = totalSubjects > 0 ? totalWeightedPercentage / totalSubjects : 0;
         const overallGradeInfo = calculateGrade(overallPercentage);
+        const totalObtained = subjects.reduce((sum, s) => sum + (s.obtainedMarks || 0), 0);
 
         const reportCard = {
+          status: 'draft',
           student: {
             id: studentId,
             name: `${user.firstName} ${user.lastName}`,
             admissionNumber: student.admissionNumber,
             className: studentClass?.name || 'Unknown',
-            classLevel: studentClass?.level || 'Unknown'
+            classLevel: studentClass?.level || 'Unknown',
+            department: student.department
           },
           term: term ? {
             id: term.id,
@@ -8951,7 +9090,21 @@ Treasure-Home School Administration
             startDate: term.startDate,
             endDate: term.endDate
           } : null,
+          items: subjects,
           subjects,
+          totalScore: totalObtained,
+          averageScore: Math.round(totalObtained / (subjects.length || 1)),
+          averagePercentage: Math.round(overallPercentage),
+          overallGrade: overallGradeInfo.grade,
+          position: null,
+          totalStudentsInClass: 0,
+          totalStudents: 0,
+          classStatistics: {
+            highestScore: 0,
+            lowestScore: 0,
+            classAverage: 0,
+            totalStudents: 0
+          },
           summary: {
             percentage: Math.round(overallPercentage * 10) / 10,
             grade: overallGradeInfo.grade,
