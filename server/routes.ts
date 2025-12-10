@@ -9920,6 +9920,22 @@ Treasure-Home School Administration
           });
         }
         
+        // Fetch the updated report card with recalculated totals for the response
+        // This allows the frontend to update its cache without a separate refetch
+        let reportCardTotals: { totalScore: number; averageScore: number; averagePercentage: number; overallGrade: string; position?: number } | undefined;
+        if (updatedItem.reportCardId) {
+          const updatedReportCard = await storage.getReportCard(updatedItem.reportCardId) as any;
+          if (updatedReportCard) {
+            reportCardTotals = {
+              totalScore: updatedReportCard.totalScore ?? 0,
+              averageScore: updatedReportCard.averageScore ?? 0,
+              averagePercentage: updatedReportCard.averagePercentage ?? 0,
+              overallGrade: updatedReportCard.overallGrade ?? '',
+              position: updatedReportCard.position ?? undefined
+            };
+          }
+        }
+        
         // Emit realtime event for score override
         realtimeService.emitTableChange('report_card_items', 'UPDATE', updatedItem, undefined, userId);
         
@@ -9932,7 +9948,8 @@ Treasure-Home School Administration
             examScore: updatedItem.examScore,
             grade: updatedItem.grade,
             percentage: updatedItem.percentage,
-            overriddenBy: userId
+            overriddenBy: userId,
+            reportCardTotals
           }, userId);
         }
         
@@ -9940,7 +9957,8 @@ Treasure-Home School Administration
           ...updatedItem,
           message: 'Score updated successfully',
           canEditTest,
-          canEditExam
+          canEditExam,
+          reportCardTotals
         });
       } catch (error: any) {
         console.error('Error overriding score:', error);

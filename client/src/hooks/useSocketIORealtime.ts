@@ -12,6 +12,12 @@ interface UseSocketIORealtimeOptions {
   examId?: string | number;
   reportCardId?: string | number;
   onEvent?: (event: RealtimeEvent) => void;
+  /**
+   * If true, skip automatic cache invalidation for this subscription.
+   * Use this when you handle cache updates manually via mutations with optimistic updates.
+   * Default is false (normal cache invalidation behavior).
+   */
+  skipCacheInvalidation?: boolean;
 }
 
 interface RealtimeEvent {
@@ -190,6 +196,7 @@ export function useSocketIORealtime({
   examId,
   reportCardId,
   onEvent,
+  skipCacheInvalidation = false,
 }: UseSocketIORealtimeOptions) {
   const socketRef = useRef<Socket | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -263,14 +270,22 @@ export function useSocketIORealtime({
         if (table && event.table === table) {
           handleEvent(event);
           console.log(`📥 Received ${event.operation} event for table: ${table}`);
-          queryClient.invalidateQueries({ queryKey: filteredQueryKey });
+          
+          // Only skip invalidation if explicitly opted in (e.g., when using optimistic updates)
+          if (!skipCacheInvalidation) {
+            queryClient.invalidateQueries({ queryKey: filteredQueryKey });
+          }
         }
       };
 
       const handleCustomEvent = (eventType: string) => (payload: any) => {
         handleEvent(payload);
         console.log(`📥 Received ${eventType} event`);
-        queryClient.invalidateQueries({ queryKey: filteredQueryKey });
+        
+        // Only skip invalidation if explicitly opted in (e.g., when using optimistic updates)
+        if (!skipCacheInvalidation) {
+          queryClient.invalidateQueries({ queryKey: filteredQueryKey });
+        }
       };
 
       if (socket.connected) {
@@ -353,7 +368,7 @@ export function useSocketIORealtime({
         setIsFallbackMode(false);
       }
     }
-  }, [table, channel, classId, examId, reportCardId, enabled, fallbackPollingInterval, handleEvent, JSON.stringify(Array.isArray(queryKey) ? queryKey : [queryKey])]);
+  }, [table, channel, classId, examId, reportCardId, enabled, fallbackPollingInterval, handleEvent, skipCacheInvalidation, JSON.stringify(Array.isArray(queryKey) ? queryKey : [queryKey])]);
 
   return { isFallbackMode, isConnected, lastEventTimestamp };
 }

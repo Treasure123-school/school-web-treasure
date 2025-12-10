@@ -154,12 +154,14 @@ export default function TeacherReportCards() {
   const examWeight = gradingConfig?.dbSettings?.examWeight ?? STANDARD_GRADING_SCALE.examWeight;
 
   // Real-time subscription for report card updates - scoped to class
-  // The hook automatically invalidates the queryKey when events are received
+  // Skip cache invalidation because we use optimistic updates in mutations
+  // which handle cache updates directly from server response
   const { isConnected: realtimeConnected } = useSocketIORealtime({
     table: 'report_cards',
     queryKey: ['/api/reports/class-term', selectedClass, selectedTerm],
     enabled: !!selectedClass && !!selectedTerm,
     classId: selectedClass,
+    skipCacheInvalidation: true, // Prevents flicker by not invalidating cache on socket events
   });
 
   if (!user) {
@@ -350,19 +352,49 @@ export default function TeacherReportCards() {
       const reportCardId = context?.reportCardId || selectedReportCard?.id;
       
       // Reconcile item with authoritative server data (includes recalculated totals)
+      // DO NOT call invalidateQueries here - it causes flicker by triggering refetch with potentially stale data
       queryClient.setQueryData(['/api/reports', reportCardId, 'full'], (old: any) => {
         if (!old || !old.items) return old;
-        return {
+        
+        // Also update report card level aggregates if server returned them
+        const updatedReportCard = {
           ...old,
+          // If server returns updated report card totals, use them
+          ...(serverData.reportCardTotals ? {
+            totalScore: serverData.reportCardTotals.totalScore,
+            averageScore: serverData.reportCardTotals.averageScore,
+            averagePercentage: serverData.reportCardTotals.averagePercentage,
+            overallGrade: serverData.reportCardTotals.overallGrade
+          } : {}),
           items: old.items.map((item: any) => 
-            item.id === serverData.id ? { ...item, ...serverData } : item
+            item.id === serverData.id ? { 
+              ...item, 
+              ...serverData,
+              // Preserve permission flags from the old item
+              canEditTest: item.canEditTest,
+              canEditExam: item.canEditExam,
+              canEditRemarks: item.canEditRemarks
+            } : item
           )
         };
+        return updatedReportCard;
       });
       
-      // Invalidate queries to refresh aggregate data (averages, totals, positions)
-      queryClient.invalidateQueries({ queryKey: ['/api/reports', reportCardId, 'full'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/reports/class-term', selectedClass, selectedTerm] });
+      // Update the class-term list cache with new position if available
+      // Use setQueryData instead of invalidate to prevent flicker
+      if (serverData.reportCardTotals?.position !== undefined) {
+        queryClient.setQueryData(['/api/reports/class-term', selectedClass, selectedTerm], (old: any) => {
+          if (!old || !Array.isArray(old)) return old;
+          return old.map((rc: any) => 
+            rc.id === reportCardId ? { 
+              ...rc, 
+              averagePercentage: serverData.reportCardTotals?.averagePercentage ?? rc.averagePercentage,
+              overallGrade: serverData.reportCardTotals?.overallGrade ?? rc.overallGrade,
+              position: serverData.reportCardTotals?.position ?? rc.position
+            } : rc
+          );
+        });
+      }
       
       toast({
         title: "Success",
