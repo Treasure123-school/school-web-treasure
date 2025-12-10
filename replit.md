@@ -99,3 +99,17 @@ System optimized to handle 500-1000 concurrent users with excellent performance:
 - **Deployment**: Render (Backend), Vercel (Frontend)
 - **Real-time Communication**: Socket.IO with optimization layer
 - **Caching**: In-memory (L1) + Redis-ready (L2)
+
+## Recent Changes (December 2025)
+
+### Report Card Score Override Optimization
+Fixed real-time update flicker issue in Teacher Report-Card Preview page:
+- **Backend Enhancement**: `/api/reports/items/:itemId/override` endpoint now returns recalculated report card totals (totalScore, averageScore, averagePercentage, overallGrade, position) in the response
+- **Socket.IO Hook**: Added `skipCacheInvalidation` option to `useSocketIORealtime` hook for components using optimistic updates
+- **TeacherReportCards**: Uses optimistic updates with server response reconciliation to prevent flicker
+- **Authorization**: Edit buttons properly hidden based on `canEditTest`/`canEditExam` flags from backend permissions
+
+### Key Files Modified
+- `server/routes.ts` - Override endpoint returns recalculated totals
+- `client/src/hooks/useSocketIORealtime.ts` - Added skipCacheInvalidation opt-in flag
+- `client/src/pages/portal/TeacherReportCards.tsx` - Uses skipCacheInvalidation to prevent flicker
