@@ -1,20 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { Slider } from '@/components/ui/slider';
 import { 
   Settings, 
   School, 
@@ -24,7 +26,6 @@ import {
   Users,
   Save,
   RefreshCw,
-  AlertTriangle,
   CheckCircle,
   GraduationCap,
   Scale,
@@ -32,15 +33,19 @@ import {
   Loader2,
   Plus,
   Edit,
-  Trash2
+  Trash2,
+  Phone,
+  Mail,
+  Globe,
+  MapPin,
+  Calendar,
+  Building2,
+  ChevronRight,
+  Menu,
+  Percent
 } from 'lucide-react';
-import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger 
-} from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 interface GradingBoundary {
   id: number;
@@ -78,19 +83,9 @@ const notificationSettingsSchema = z.object({
   announcementNotifications: z.boolean(),
 });
 
-const gradingSettingsSchema = z.object({
-  testWeight: z.number().min(0).max(100),
-  examWeight: z.number().min(0).max(100),
-  defaultGradingScale: z.string().min(1, 'Grading scale is required'),
-}).refine(data => data.testWeight + data.examWeight === 100, {
-  message: 'Test and exam weights must add up to 100%',
-  path: ['testWeight'],
-});
-
 type SchoolSettings = z.infer<typeof schoolSettingsSchema>;
 type SecuritySettings = z.infer<typeof securitySettingsSchema>;
 type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
-type GradingSettings = z.infer<typeof gradingSettingsSchema>;
 
 interface GradingConfigResponse {
   testWeight: number;
@@ -107,6 +102,15 @@ interface GradingConfigResponse {
     }>;
   }>;
 }
+
+const settingsNavItems = [
+  { id: 'school', label: 'School Info', icon: School, description: 'Basic school details' },
+  { id: 'grading', label: 'Grading', icon: GraduationCap, description: 'Grade scales & weights' },
+  { id: 'security', label: 'Security', icon: Shield, description: 'Password & session' },
+  { id: 'notifications', label: 'Notifications', icon: Bell, description: 'Alert preferences' },
+  { id: 'system', label: 'System', icon: Database, description: 'Status & maintenance' },
+  { id: 'users', label: 'Users', icon: Users, description: 'Role permissions' },
+];
 
 function GradingBoundariesSection() {
   const { toast } = useToast();
@@ -256,16 +260,20 @@ function GradingBoundariesSection() {
   });
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-2">
-        <CardTitle className="flex items-center">
-          <GraduationCap className="w-5 h-5 mr-2" />
-          Grading Boundaries
-        </CardTitle>
+    <>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div>
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <GraduationCap className="w-5 h-5" />
+            Grading Boundaries
+          </h3>
+          <p className="text-sm text-muted-foreground">Define grade ranges and points</p>
+        </div>
         <div className="flex gap-2 flex-wrap">
           {boundaries.length === 0 && (
             <Button
               variant="outline"
+              size="sm"
               onClick={() => createDefaultBoundariesMutation.mutate()}
               disabled={createDefaultBoundariesMutation.isPending}
               data-testid="button-create-defaults"
@@ -274,76 +282,70 @@ function GradingBoundariesSection() {
               Create Default Scale
             </Button>
           )}
-          <Button onClick={() => { resetForm(); setIsDialogOpen(true); }} data-testid="button-add-boundary">
+          <Button size="sm" onClick={() => { resetForm(); setIsDialogOpen(true); }} data-testid="button-add-boundary">
             <Plus className="w-4 h-4 mr-2" />
             Add Boundary
           </Button>
         </div>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : boundaries.length === 0 ? (
-          <div className="text-center py-8">
-            <GraduationCap className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground mb-4">No grading boundaries configured yet.</p>
-            <p className="text-sm text-muted-foreground">Click "Create Default Scale" to set up the standard A-F grading scale, or add custom boundaries.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Grade</TableHead>
-                  <TableHead>Score Range</TableHead>
-                  <TableHead>Grade Point</TableHead>
-                  <TableHead>Remark</TableHead>
-                  <TableHead>Scale Name</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : boundaries.length === 0 ? (
+        <div className="text-center py-8 bg-muted/30 rounded-lg">
+          <GraduationCap className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+          <p className="text-muted-foreground mb-2">No grading boundaries configured yet.</p>
+          <p className="text-sm text-muted-foreground">Click "Create Default Scale" to set up the standard A-F grading scale.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Grade</TableHead>
+                <TableHead>Score Range</TableHead>
+                <TableHead className="hidden sm:table-cell">Grade Point</TableHead>
+                <TableHead className="hidden md:table-cell">Remark</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {boundaries.map((boundary) => (
+                <TableRow key={boundary.id} data-testid={`row-boundary-${boundary.id}`}>
+                  <TableCell className="font-semibold">
+                    <Badge variant="outline">{boundary.grade}</Badge>
+                  </TableCell>
+                  <TableCell>{boundary.minScore} - {boundary.maxScore}%</TableCell>
+                  <TableCell className="hidden sm:table-cell">{boundary.gradePoint?.toFixed(1) || '-'}</TableCell>
+                  <TableCell className="hidden md:table-cell text-muted-foreground">{boundary.remark || '-'}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleEdit(boundary)}
+                        data-testid={`button-edit-boundary-${boundary.id}`}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleDelete(boundary.id)}
+                        data-testid={`button-delete-boundary-${boundary.id}`}
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {boundaries.map((boundary) => (
-                  <TableRow key={boundary.id} data-testid={`row-boundary-${boundary.id}`}>
-                    <TableCell className="font-semibold">
-                      <Badge variant="outline">{boundary.grade}</Badge>
-                    </TableCell>
-                    <TableCell>{boundary.minScore} - {boundary.maxScore}%</TableCell>
-                    <TableCell>{boundary.gradePoint?.toFixed(1) || '-'}</TableCell>
-                    <TableCell className="text-muted-foreground">{boundary.remark || '-'}</TableCell>
-                    <TableCell>
-                      {boundary.name}
-                      {boundary.isDefault && <Badge className="ml-2" variant="secondary">Default</Badge>}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleEdit(boundary)}
-                          data-testid={`button-edit-boundary-${boundary.id}`}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleDelete(boundary.id)}
-                          data-testid={`button-delete-boundary-${boundary.id}`}
-                        >
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
@@ -471,7 +473,7 @@ function GradingBoundariesSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </>
   );
 }
 
@@ -509,82 +511,101 @@ function ClassPositionSettings() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          <Scale className="w-5 h-5 mr-2" />
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <Scale className="w-5 h-5" />
           Class Position Calculation
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="positioningMethod">Position Calculation Method</Label>
+        </h3>
+        <p className="text-sm text-muted-foreground">Choose how student rankings are calculated</p>
+      </div>
+
+      <div className="space-y-3">
+        <Select
+          value={positioningMethod}
+          onValueChange={setPositioningMethod}
+          disabled={isLoading}
+        >
+          <SelectTrigger data-testid="select-positioning-method">
+            <SelectValue placeholder="Select method" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="average" data-testid="option-average">
+              Average Score (Recommended)
+            </SelectItem>
+            <SelectItem value="total" data-testid="option-total">
+              Total Marks
+            </SelectItem>
+          </SelectContent>
+        </Select>
+
+        <div className="bg-muted/50 rounded-lg p-3 flex items-start gap-2">
+          <Info className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
           <p className="text-sm text-muted-foreground">
-            Choose how student class positions are calculated. This affects ranking on report cards.
+            {positioningMethod === 'average' 
+              ? 'Students are ranked by average percentage. Fair when students take different numbers of subjects.'
+              : 'Students are ranked by total marks. May not be fair when students take different numbers of subjects.'}
           </p>
-          <Select
-            value={positioningMethod}
-            onValueChange={setPositioningMethod}
-            disabled={isLoading}
-          >
-            <SelectTrigger data-testid="select-positioning-method">
-              <SelectValue placeholder="Select method" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="average" data-testid="option-average">
-                Average Score (Recommended)
-              </SelectItem>
-              <SelectItem value="total" data-testid="option-total">
-                Total Marks
-              </SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
-        <div className="bg-muted/50 rounded-md p-4 space-y-2">
-          <div className="flex items-start gap-2">
-            <Info className="w-4 h-4 mt-0.5 text-muted-foreground" />
-            <div className="text-sm">
-              {positioningMethod === 'average' ? (
-                <div>
-                  <p className="font-medium">Average Score Method</p>
-                  <p className="text-muted-foreground">
-                    Students are ranked by their average percentage score. This is fair when students in different departments take different numbers of subjects.
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <p className="font-medium">Total Marks Method</p>
-                  <p className="text-muted-foreground">
-                    Students are ranked by their total marks obtained. This may not be fair when students take different numbers of subjects.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <Button 
+          onClick={handleSave} 
+          disabled={savePositioningMethodMutation.isPending}
+          size="sm"
+          data-testid="button-save-positioning"
+        >
+          {savePositioningMethodMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+          <Save className="w-4 h-4 mr-2" />
+          Save
+        </Button>
+      </div>
+    </div>
+  );
+}
 
-        <div className="flex justify-end">
-          <Button 
-            onClick={handleSave} 
-            disabled={savePositioningMethodMutation.isPending}
-            data-testid="button-save-positioning"
-          >
-            {savePositioningMethodMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            <Save className="w-4 h-4 mr-2" />
-            Save Changes
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+function SettingsNavItem({ 
+  item, 
+  isActive, 
+  onClick 
+}: { 
+  item: typeof settingsNavItems[0]; 
+  isActive: boolean; 
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors",
+        isActive 
+          ? "bg-primary text-primary-foreground" 
+          : "hover-elevate"
+      )}
+      data-testid={`nav-${item.id}`}
+    >
+      <item.icon className="w-5 h-5 shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-sm">{item.label}</p>
+        <p className={cn(
+          "text-xs truncate",
+          isActive ? "text-primary-foreground/70" : "text-muted-foreground"
+        )}>
+          {item.description}
+        </p>
+      </div>
+      <ChevronRight className={cn(
+        "w-4 h-4 shrink-0",
+        isActive ? "text-primary-foreground/70" : "text-muted-foreground"
+      )} />
+    </button>
   );
 }
 
 export default function SettingsManagement() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('school');
+  const [activeSection, setActiveSection] = useState('school');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  // Form handlers for different settings categories
   const schoolForm = useForm<SchoolSettings>({
     resolver: zodResolver(schoolSettingsSchema),
     defaultValues: {
@@ -618,32 +639,20 @@ export default function SettingsManagement() {
     },
   });
 
-  // State for grading weight slider
   const [testWeight, setTestWeight] = useState(40);
   const [selectedScale, setSelectedScale] = useState('standard');
 
-  // Fetch grading config from API
-  const { data: gradingConfig, isLoading: isLoadingGrading } = useQuery<GradingConfigResponse>({
+  const { data: gradingConfig } = useQuery<GradingConfigResponse>({
     queryKey: ['/api/grading-config'],
   });
 
-  // Update local state when config is fetched
-  useState(() => {
+  useEffect(() => {
     if (gradingConfig) {
       setTestWeight(gradingConfig.testWeight);
       setSelectedScale(gradingConfig.defaultGradingScale);
     }
-  });
+  }, [gradingConfig]);
 
-  // Effect to update state when grading config loads
-  if (gradingConfig && testWeight === 40 && selectedScale === 'standard') {
-    if (gradingConfig.testWeight !== 40 || gradingConfig.defaultGradingScale !== 'standard') {
-      setTestWeight(gradingConfig.testWeight);
-      setSelectedScale(gradingConfig.defaultGradingScale);
-    }
-  }
-
-  // Mock settings state (in real app, this would come from API)
   const [systemStatus] = useState({
     database: 'Connected',
     storage: 'Healthy',
@@ -651,31 +660,15 @@ export default function SettingsManagement() {
     backups: 'Up to date',
   });
 
-  // Save settings mutations with instant feedback
   const saveSchoolSettingsMutation = useMutation({
     mutationFn: async (data: SchoolSettings) => {
-      // Mock API call - in real app, would save to backend
       return new Promise(resolve => setTimeout(resolve, 1000));
     },
-    onMutate: () => {
-      // INSTANT FEEDBACK: Show saving toast immediately
-      toast({
-        title: "Saving...",
-        description: "Updating school settings",
-      });
-    },
     onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "School settings updated successfully",
-      });
+      toast({ title: "Success", description: "School settings updated successfully" });
     },
     onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update school settings",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to update school settings", variant: "destructive" });
     },
   });
 
@@ -683,25 +676,11 @@ export default function SettingsManagement() {
     mutationFn: async (data: SecuritySettings) => {
       return new Promise(resolve => setTimeout(resolve, 1000));
     },
-    onMutate: () => {
-      // INSTANT FEEDBACK: Show saving toast immediately
-      toast({
-        title: "Saving...",
-        description: "Updating security settings",
-      });
-    },
     onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Security settings updated successfully",
-      });
+      toast({ title: "Success", description: "Security settings updated successfully" });
     },
     onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update security settings",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to update security settings", variant: "destructive" });
     },
   });
 
@@ -709,219 +688,289 @@ export default function SettingsManagement() {
     mutationFn: async (data: NotificationSettings) => {
       return new Promise(resolve => setTimeout(resolve, 1000));
     },
-    onMutate: () => {
-      // INSTANT FEEDBACK: Show saving toast immediately
-      toast({
-        title: "Saving...",
-        description: "Updating notification settings",
-      });
-    },
     onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Notification settings updated successfully",
-      });
+      toast({ title: "Success", description: "Notification settings updated successfully" });
     },
     onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update notification settings",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to update notification settings", variant: "destructive" });
     },
   });
 
-  const onSchoolSubmit = (data: SchoolSettings) => {
-    saveSchoolSettingsMutation.mutate(data);
-  };
-
-  const onSecuritySubmit = (data: SecuritySettings) => {
-    saveSecuritySettingsMutation.mutate(data);
-  };
-
-  const onNotificationSubmit = (data: NotificationSettings) => {
-    saveNotificationSettingsMutation.mutate(data);
-  };
-
   const handleDatabaseBackup = () => {
-    toast({
-      title: "Backup Started",
-      description: "Database backup has been initiated...",
-    });
+    toast({ title: "Backup Started", description: "Database backup has been initiated..." });
   };
 
   const handleSystemMaintenance = () => {
-    toast({
-      title: "Maintenance Mode",
-      description: "System maintenance mode activated",
-    });
+    toast({ title: "Maintenance Mode", description: "System maintenance mode activated" });
   };
 
-  return (
-    <div className="space-y-6" data-testid="settings-management">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">System Settings</h1>
-        <div className="flex space-x-2">
-          <Button 
-            variant="outline" 
-            onClick={handleDatabaseBackup}
-            data-testid="button-backup"
-          >
-            <Database className="w-4 h-4 mr-2" />
-            Backup Database
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={handleSystemMaintenance}
-            data-testid="button-maintenance"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Maintenance
-          </Button>
-        </div>
-      </div>
+  const handleNavClick = (sectionId: string) => {
+    setActiveSection(sectionId);
+    setMobileNavOpen(false);
+  };
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6" data-testid="tabs-settings">
-          <TabsTrigger value="school" data-testid="tab-school">
-            <School className="w-4 h-4 mr-2" />
-            School
-          </TabsTrigger>
-          <TabsTrigger value="grading" data-testid="tab-grading">
-            <GraduationCap className="w-4 h-4 mr-2" />
-            Grading
-          </TabsTrigger>
-          <TabsTrigger value="security" data-testid="tab-security">
-            <Shield className="w-4 h-4 mr-2" />
-            Security
-          </TabsTrigger>
-          <TabsTrigger value="notifications" data-testid="tab-notifications">
-            <Bell className="w-4 h-4 mr-2" />
-            Notifications
-          </TabsTrigger>
-          <TabsTrigger value="system" data-testid="tab-system">
-            <Database className="w-4 h-4 mr-2" />
-            System
-          </TabsTrigger>
-          <TabsTrigger value="users" data-testid="tab-user-management">
-            <Users className="w-4 h-4 mr-2" />
-            Users
-          </TabsTrigger>
-        </TabsList>
+  const activeNavItem = settingsNavItems.find(item => item.id === activeSection);
 
-        <TabsContent value="school" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <School className="w-5 h-5 mr-2" />
-                School Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={schoolForm.handleSubmit(onSchoolSubmit)} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div>
-                    <Label htmlFor="schoolName">School Name *</Label>
-                    <Input 
-                      id="schoolName" 
-                      {...schoolForm.register('schoolName')}
-                      data-testid="input-school-name"
-                    />
-                    {schoolForm.formState.errors.schoolName && (
-                      <p className="text-sm text-red-500 mt-1">
-                        {schoolForm.formState.errors.schoolName.message}
-                      </p>
-                    )}
+  const renderContent = () => {
+    switch (activeSection) {
+      case 'school':
+        return (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Building2 className="w-5 h-5" />
+                  Basic Information
+                </CardTitle>
+                <CardDescription>School name and academic year</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={schoolForm.handleSubmit((data) => saveSchoolSettingsMutation.mutate(data))} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="schoolName">School Name *</Label>
+                      <Input 
+                        id="schoolName" 
+                        {...schoolForm.register('schoolName')}
+                        data-testid="input-school-name"
+                      />
+                      {schoolForm.formState.errors.schoolName && (
+                        <p className="text-sm text-destructive">{schoolForm.formState.errors.schoolName.message}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="academicYear" className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4" />
+                        Academic Year *
+                      </Label>
+                      <Input 
+                        id="academicYear" 
+                        {...schoolForm.register('academicYear')}
+                        data-testid="input-academic-year"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="academicYear">Academic Year *</Label>
-                    <Input 
-                      id="academicYear" 
-                      {...schoolForm.register('academicYear')}
-                      data-testid="input-academic-year"
+                  <div className="flex justify-end">
+                    <Button type="submit" size="sm" disabled={saveSchoolSettingsMutation.isPending} data-testid="button-save-basic">
+                      <Save className="w-4 h-4 mr-2" />
+                      {saveSchoolSettingsMutation.isPending ? 'Saving...' : 'Save'}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <MapPin className="w-5 h-5" />
+                  Location
+                </CardTitle>
+                <CardDescription>School address details</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="schoolAddress">Full Address *</Label>
+                    <Textarea 
+                      id="schoolAddress" 
+                      {...schoolForm.register('schoolAddress')}
+                      rows={2}
+                      data-testid="textarea-school-address"
                     />
                   </div>
-                </div>
+                  <div className="flex justify-end">
+                    <Button type="button" size="sm" onClick={schoolForm.handleSubmit((data) => saveSchoolSettingsMutation.mutate(data))} disabled={saveSchoolSettingsMutation.isPending} data-testid="button-save-location">
+                      <Save className="w-4 h-4 mr-2" />
+                      Save
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
 
-                <div>
-                  <Label htmlFor="schoolAddress">School Address *</Label>
-                  <Textarea 
-                    id="schoolAddress" 
-                    {...schoolForm.register('schoolAddress')}
-                    rows={3}
-                    data-testid="textarea-school-address"
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Phone className="w-5 h-5" />
+                  Contact Information
+                </CardTitle>
+                <CardDescription>Phone, email, and website</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phoneNumber" className="flex items-center gap-2">
+                        <Phone className="w-4 h-4" />
+                        Phone
+                      </Label>
+                      <Input 
+                        id="phoneNumber" 
+                        {...schoolForm.register('phoneNumber')}
+                        data-testid="input-phone-number"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="flex items-center gap-2">
+                        <Mail className="w-4 h-4" />
+                        Email
+                      </Label>
+                      <Input 
+                        id="email" 
+                        type="email"
+                        {...schoolForm.register('email')}
+                        data-testid="input-email"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="website" className="flex items-center gap-2">
+                        <Globe className="w-4 h-4" />
+                        Website
+                      </Label>
+                      <Input 
+                        id="website" 
+                        {...schoolForm.register('website')}
+                        data-testid="input-website"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button type="button" size="sm" onClick={schoolForm.handleSubmit((data) => saveSchoolSettingsMutation.mutate(data))} disabled={saveSchoolSettingsMutation.isPending} data-testid="button-save-contact">
+                      <Save className="w-4 h-4 mr-2" />
+                      Save
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      case 'grading':
+        return (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Percent className="w-5 h-5" />
+                  Assessment Weights
+                </CardTitle>
+                <CardDescription>Configure how test and exam scores are weighted</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium">Test Weight: {testWeight}%</span>
+                    <span className="font-medium">Exam Weight: {100 - testWeight}%</span>
+                  </div>
+                  <Slider
+                    value={[testWeight]}
+                    onValueChange={(value) => setTestWeight(value[0])}
+                    min={0}
+                    max={100}
+                    step={5}
+                    className="w-full"
+                    data-testid="slider-test-weight"
                   />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>More weight on tests</span>
+                    <span>More weight on exams</span>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                  <div>
-                    <Label htmlFor="phoneNumber">Phone Number</Label>
-                    <Input 
-                      id="phoneNumber" 
-                      {...schoolForm.register('phoneNumber')}
-                      data-testid="input-phone-number"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="email">Email</Label>
-                    <Input 
-                      id="email" 
-                      type="email"
-                      {...schoolForm.register('email')}
-                      data-testid="input-email"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="website">Website</Label>
-                    <Input 
-                      id="website" 
-                      {...schoolForm.register('website')}
-                      data-testid="input-website"
-                    />
-                  </div>
+                <Separator />
+
+                <div className="space-y-3">
+                  <Label htmlFor="defaultScale">Default Grading Scale</Label>
+                  <Select value={selectedScale} onValueChange={setSelectedScale}>
+                    <SelectTrigger data-testid="select-default-scale">
+                      <SelectValue placeholder="Select grading scale" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Standard (A-F)</SelectItem>
+                      <SelectItem value="percentage">Percentage Based</SelectItem>
+                      <SelectItem value="custom">Custom Scale</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="flex justify-end">
-                  <Button 
-                    type="submit" 
-                    disabled={saveSchoolSettingsMutation.isPending}
-                    data-testid="button-save-school"
-                  >
+                  <Button size="sm" data-testid="button-save-grading-weights">
                     <Save className="w-4 h-4 mr-2" />
-                    {saveSchoolSettingsMutation.isPending ? 'Saving...' : 'Save Changes'}
+                    Save Weights
                   </Button>
                 </div>
-              </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
+              </CardContent>
+            </Card>
 
-        <TabsContent value="grading" className="space-y-4">
-          <ClassPositionSettings />
-          <GradingBoundariesSection />
-        </TabsContent>
+            <Card>
+              <CardContent className="pt-6">
+                <ClassPositionSettings />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <GradingBoundariesSection />
+              </CardContent>
+            </Card>
+          </div>
+        );
 
-        <TabsContent value="security" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Shield className="w-5 h-5 mr-2" />
-                Security Settings
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={securityForm.handleSubmit(onSecuritySubmit)} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div>
-                    <Label htmlFor="passwordMinLength">Password Minimum Length</Label>
-                    <Input 
-                      id="passwordMinLength" 
-                      type="number"
-                      {...securityForm.register('passwordMinLength', { valueAsNumber: true })}
-                      data-testid="input-password-min-length"
-                    />
+      case 'security':
+        return (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Shield className="w-5 h-5" />
+                  Password Policy
+                </CardTitle>
+                <CardDescription>Password requirements and login rules</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={securityForm.handleSubmit((data) => saveSecuritySettingsMutation.mutate(data))} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="passwordMinLength">Minimum Password Length</Label>
+                      <Input 
+                        id="passwordMinLength" 
+                        type="number"
+                        {...securityForm.register('passwordMinLength', { valueAsNumber: true })}
+                        data-testid="input-password-min-length"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="loginAttempts">Maximum Login Attempts</Label>
+                      <Input 
+                        id="loginAttempts" 
+                        type="number"
+                        {...securityForm.register('loginAttempts', { valueAsNumber: true })}
+                        data-testid="input-login-attempts"
+                      />
+                    </div>
                   </div>
-                  <div>
+                  <div className="flex justify-end">
+                    <Button type="submit" size="sm" disabled={saveSecuritySettingsMutation.isPending} data-testid="button-save-password">
+                      <Save className="w-4 h-4 mr-2" />
+                      Save
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Settings className="w-5 h-5" />
+                  Session Settings
+                </CardTitle>
+                <CardDescription>Session timeout and authentication options</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form className="space-y-4">
+                  <div className="space-y-2">
                     <Label htmlFor="sessionTimeout">Session Timeout (minutes)</Label>
                     <Input 
                       id="sessionTimeout" 
@@ -930,141 +979,64 @@ export default function SettingsManagement() {
                       data-testid="input-session-timeout"
                     />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div>
-                    <Label htmlFor="loginAttempts">Maximum Login Attempts</Label>
-                    <Input 
-                      id="loginAttempts" 
-                      type="number"
-                      {...securityForm.register('loginAttempts', { valueAsNumber: true })}
-                      data-testid="input-login-attempts"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2 pt-6">
+                  <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                    <div>
+                      <Label htmlFor="twoFactorAuth" className="text-base font-medium">Two-Factor Authentication</Label>
+                      <p className="text-sm text-muted-foreground">Require 2FA for all users</p>
+                    </div>
                     <Switch 
                       id="twoFactorAuth"
                       {...securityForm.register('twoFactorAuth')}
                       data-testid="switch-two-factor"
                     />
-                    <Label htmlFor="twoFactorAuth">Enable Two-Factor Authentication</Label>
                   </div>
-                </div>
+                  <div className="flex justify-end">
+                    <Button type="button" size="sm" onClick={securityForm.handleSubmit((data) => saveSecuritySettingsMutation.mutate(data))} disabled={saveSecuritySettingsMutation.isPending} data-testid="button-save-session">
+                      <Save className="w-4 h-4 mr-2" />
+                      Save
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        );
 
-                <div className="flex justify-end">
-                  <Button 
-                    type="submit" 
-                    disabled={saveSecuritySettingsMutation.isPending}
-                    data-testid="button-save-security"
-                  >
-                    <Save className="w-4 h-4 mr-2" />
-                    {saveSecuritySettingsMutation.isPending ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="notifications" className="space-y-4">
+      case 'notifications':
+        return (
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Bell className="w-5 h-5 mr-2" />
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Bell className="w-5 h-5" />
                 Notification Preferences
               </CardTitle>
+              <CardDescription>Choose which notifications to receive</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={notificationForm.handleSubmit(onNotificationSubmit)} className="space-y-4">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="emailNotifications" className="text-base font-medium">
-                        Email Notifications
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Receive notifications via email
-                      </p>
+              <form onSubmit={notificationForm.handleSubmit((data) => saveNotificationSettingsMutation.mutate(data))} className="space-y-4">
+                <div className="space-y-3">
+                  {[
+                    { id: 'emailNotifications', label: 'Email Notifications', desc: 'Receive notifications via email' },
+                    { id: 'smsNotifications', label: 'SMS Notifications', desc: 'Receive notifications via SMS' },
+                    { id: 'attendanceAlerts', label: 'Attendance Alerts', desc: 'Get notified about attendance issues' },
+                    { id: 'gradeAlerts', label: 'Grade Alerts', desc: 'Get notified about grade updates' },
+                    { id: 'announcementNotifications', label: 'Announcements', desc: 'Get notified about new announcements' },
+                  ].map((item) => (
+                    <div key={item.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                      <div>
+                        <Label htmlFor={item.id} className="text-base font-medium">{item.label}</Label>
+                        <p className="text-sm text-muted-foreground">{item.desc}</p>
+                      </div>
+                      <Switch 
+                        id={item.id}
+                        {...notificationForm.register(item.id as keyof NotificationSettings)}
+                        data-testid={`switch-${item.id}`}
+                      />
                     </div>
-                    <Switch 
-                      id="emailNotifications"
-                      {...notificationForm.register('emailNotifications')}
-                      data-testid="switch-email-notifications"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="smsNotifications" className="text-base font-medium">
-                        SMS Notifications
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Receive notifications via SMS
-                      </p>
-                    </div>
-                    <Switch 
-                      id="smsNotifications"
-                      {...notificationForm.register('smsNotifications')}
-                      data-testid="switch-sms-notifications"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="attendanceAlerts" className="text-base font-medium">
-                        Attendance Alerts
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Get notified about attendance issues
-                      </p>
-                    </div>
-                    <Switch 
-                      id="attendanceAlerts"
-                      {...notificationForm.register('attendanceAlerts')}
-                      data-testid="switch-attendance-alerts"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="gradeAlerts" className="text-base font-medium">
-                        Grade Alerts
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Get notified about grade updates
-                      </p>
-                    </div>
-                    <Switch 
-                      id="gradeAlerts"
-                      {...notificationForm.register('gradeAlerts')}
-                      data-testid="switch-grade-alerts"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="announcementNotifications" className="text-base font-medium">
-                        Announcement Notifications
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Get notified about new announcements
-                      </p>
-                    </div>
-                    <Switch 
-                      id="announcementNotifications"
-                      {...notificationForm.register('announcementNotifications')}
-                      data-testid="switch-announcement-notifications"
-                    />
-                  </div>
+                  ))}
                 </div>
-
-                <div className="flex justify-end">
-                  <Button 
-                    type="submit" 
-                    disabled={saveNotificationSettingsMutation.isPending}
-                    data-testid="button-save-notifications"
-                  >
+                <div className="flex justify-end pt-2">
+                  <Button type="submit" size="sm" disabled={saveNotificationSettingsMutation.isPending} data-testid="button-save-notifications">
                     <Save className="w-4 h-4 mr-2" />
                     {saveNotificationSettingsMutation.isPending ? 'Saving...' : 'Save Changes'}
                   </Button>
@@ -1072,131 +1044,192 @@ export default function SettingsManagement() {
               </form>
             </CardContent>
           </Card>
-        </TabsContent>
+        );
 
-        <TabsContent value="system" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Database className="w-5 h-5 mr-2" />
-                System Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-medium">Database</p>
-                    <p className="text-sm text-muted-foreground">PostgreSQL Connection</p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                    <span className="text-sm font-medium text-green-600">
-                      {systemStatus.database}
-                    </span>
-                  </div>
+      case 'system':
+        return (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Database className="w-5 h-5" />
+                  System Status
+                </CardTitle>
+                <CardDescription>Current system health overview</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    { label: 'Database', desc: 'PostgreSQL Connection', status: systemStatus.database },
+                    { label: 'Storage', desc: 'File System Health', status: systemStatus.storage },
+                    { label: 'Cache', desc: 'Redis Cache Status', status: systemStatus.cache },
+                    { label: 'Backups', desc: 'Last Backup Status', status: systemStatus.backups },
+                  ].map((item) => (
+                    <div key={item.label} className="flex items-center justify-between p-3 rounded-lg border">
+                      <div>
+                        <p className="font-medium text-sm">{item.label}</p>
+                        <p className="text-xs text-muted-foreground">{item.desc}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-500" />
+                        <span className="text-xs font-medium text-green-600">{item.status}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
+              </CardContent>
+            </Card>
 
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-medium">Storage</p>
-                    <p className="text-sm text-muted-foreground">File System Health</p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                    <span className="text-sm font-medium text-green-600">
-                      {systemStatus.storage}
-                    </span>
-                  </div>
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Settings className="w-5 h-5" />
+                  System Actions
+                </CardTitle>
+                <CardDescription>Database backup and maintenance</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button variant="outline" onClick={handleDatabaseBackup} data-testid="button-backup" className="flex-1">
+                    <Database className="w-4 h-4 mr-2" />
+                    Backup Database
+                  </Button>
+                  <Button variant="outline" onClick={handleSystemMaintenance} data-testid="button-maintenance" className="flex-1">
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Maintenance Mode
+                  </Button>
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
 
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-medium">Cache</p>
-                    <p className="text-sm text-muted-foreground">Redis Cache Status</p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                    <span className="text-sm font-medium text-green-600">
-                      {systemStatus.cache}
-                    </span>
-                  </div>
+      case 'users':
+        return (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Users className="w-5 h-5" />
+                  Default User Roles
+                </CardTitle>
+                <CardDescription>Default permissions for each role</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { role: 'Students', permission: 'View Only', color: 'text-blue-600' },
+                    { role: 'Teachers', permission: 'Read/Write', color: 'text-green-600' },
+                    { role: 'Parents', permission: 'View Children', color: 'text-purple-600' },
+                    { role: 'Admin', permission: 'Full Access', color: 'text-red-600' },
+                  ].map((item) => (
+                    <div key={item.role} className="text-center p-3 rounded-lg bg-muted/30">
+                      <div className={cn("text-lg font-bold", item.color)}>{item.role}</div>
+                      <div className="text-xs text-muted-foreground">{item.permission}</div>
+                    </div>
+                  ))}
                 </div>
+              </CardContent>
+            </Card>
 
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-medium">Backups</p>
-                    <p className="text-sm text-muted-foreground">Last Backup Status</p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                    <span className="text-sm font-medium text-green-600">
-                      {systemStatus.backups}
-                    </span>
-                  </div>
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Settings className="w-5 h-5" />
+                  Registration Settings
+                </CardTitle>
+                <CardDescription>Control user registration options</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {[
+                    { id: 'studentReg', label: 'Allow self-registration for students' },
+                    { id: 'teacherApproval', label: 'Require admin approval for teacher accounts' },
+                    { id: 'parentPortal', label: 'Enable parent portal registration' },
+                  ].map((item) => (
+                    <div key={item.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                      <span className="text-sm">{item.label}</span>
+                      <Switch defaultChecked={true} data-testid={`switch-${item.id}`} />
+                    </div>
+                  ))}
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-6 h-full" data-testid="settings-management">
+      <div className="lg:hidden">
+        <Button
+          variant="outline"
+          onClick={() => setMobileNavOpen(!mobileNavOpen)}
+          className="w-full justify-between"
+          data-testid="button-mobile-nav"
+        >
+          <span className="flex items-center gap-2">
+            {activeNavItem && <activeNavItem.icon className="w-4 h-4" />}
+            {activeNavItem?.label || 'Settings'}
+          </span>
+          <Menu className="w-4 h-4" />
+        </Button>
+
+        {mobileNavOpen && (
+          <Card className="mt-2">
+            <CardContent className="p-2">
+              <div className="space-y-1">
+                {settingsNavItems.map((item) => (
+                  <SettingsNavItem
+                    key={item.id}
+                    item={item}
+                    isActive={activeSection === item.id}
+                    onClick={() => handleNavClick(item.id)}
+                  />
+                ))}
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        )}
+      </div>
 
-        <TabsContent value="users" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Users className="w-5 h-5 mr-2" />
-                User Management Settings
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="p-4 border rounded-lg">
-                  <h3 className="font-medium mb-2">Default User Roles</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Configure default permissions for new user registrations
-                  </p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">Students</div>
-                      <div className="text-sm text-muted-foreground">View Only</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">Teachers</div>
-                      <div className="text-sm text-muted-foreground">Read/Write</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-purple-600">Parents</div>
-                      <div className="text-sm text-muted-foreground">View Children</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-red-600">Admin</div>
-                      <div className="text-sm text-muted-foreground">Full Access</div>
-                    </div>
-                  </div>
-                </div>
+      <div className="hidden lg:block w-64 shrink-0">
+        <Card className="sticky top-4">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-2">
+            <div className="space-y-1">
+              {settingsNavItems.map((item) => (
+                <SettingsNavItem
+                  key={item.id}
+                  item={item}
+                  isActive={activeSection === item.id}
+                  onClick={() => handleNavClick(item.id)}
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-                <div className="p-4 border rounded-lg">
-                  <h3 className="font-medium mb-2">Registration Settings</h3>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span>Allow self-registration for students</span>
-                      <Switch defaultChecked={true} data-testid="switch-student-registration" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Require admin approval for teacher accounts</span>
-                      <Switch defaultChecked={true} data-testid="switch-teacher-approval" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Enable parent portal registration</span>
-                      <Switch defaultChecked={true} data-testid="switch-parent-registration" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <div className="flex-1 min-w-0">
+        <div className="mb-4">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            {activeNavItem && <activeNavItem.icon className="w-6 h-6" />}
+            {activeNavItem?.label} Settings
+          </h1>
+          <p className="text-muted-foreground text-sm">{activeNavItem?.description}</p>
+        </div>
+        {renderContent()}
+      </div>
     </div>
   );
 }
