@@ -200,7 +200,6 @@ export default function PortalLayout({ children, userRole, userName, userInitial
             items: [
               { href: '/portal/admin/exams', icon: Eye, label: 'Exam System' },
               { href: `/portal/${userRole}/settings`, icon: Settings, label: 'Settings' },
-              { href: `/portal/${userRole}/recovery-tools`, icon: Shield, label: 'Recovery Tools' },
               { href: `/portal/${userRole}/profile-completion`, icon: UserCheck, label: 'Profile Completion' },
             ]
           },

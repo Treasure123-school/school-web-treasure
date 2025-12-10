@@ -68,12 +68,6 @@ const schoolSettingsSchema = z.object({
   schoolLogo: z.string().optional(),
 });
 
-const securitySettingsSchema = z.object({
-  passwordMinLength: z.number().min(6, 'Minimum 6 characters required'),
-  sessionTimeout: z.number().min(15, 'Minimum 15 minutes required'),
-  twoFactorAuth: z.boolean(),
-  loginAttempts: z.number().min(3, 'Minimum 3 attempts required'),
-});
 
 const notificationSettingsSchema = z.object({
   emailNotifications: z.boolean(),
@@ -84,7 +78,6 @@ const notificationSettingsSchema = z.object({
 });
 
 type SchoolSettings = z.infer<typeof schoolSettingsSchema>;
-type SecuritySettings = z.infer<typeof securitySettingsSchema>;
 type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
 
 interface GradingConfigResponse {
@@ -106,10 +99,8 @@ interface GradingConfigResponse {
 const settingsNavItems = [
   { id: 'school', label: 'School Info', icon: School, description: 'Basic school details' },
   { id: 'grading', label: 'Grading', icon: GraduationCap, description: 'Grade scales & weights' },
-  { id: 'security', label: 'Security', icon: Shield, description: 'Password & session' },
   { id: 'notifications', label: 'Notifications', icon: Bell, description: 'Alert preferences' },
-  { id: 'system', label: 'System', icon: Database, description: 'Status & maintenance' },
-  { id: 'users', label: 'Users', icon: Users, description: 'Role permissions' },
+  { id: 'system', label: 'System', icon: Database, description: 'Status & maintenance (view only)' },
 ];
 
 function GradingBoundariesSection() {
@@ -618,16 +609,6 @@ export default function SettingsManagement() {
     },
   });
 
-  const securityForm = useForm<SecuritySettings>({
-    resolver: zodResolver(securitySettingsSchema),
-    defaultValues: {
-      passwordMinLength: 8,
-      sessionTimeout: 60,
-      twoFactorAuth: false,
-      loginAttempts: 5,
-    },
-  });
-
   const notificationForm = useForm<NotificationSettings>({
     resolver: zodResolver(notificationSettingsSchema),
     defaultValues: {
@@ -669,18 +650,6 @@ export default function SettingsManagement() {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to update school settings", variant: "destructive" });
-    },
-  });
-
-  const saveSecuritySettingsMutation = useMutation({
-    mutationFn: async (data: SecuritySettings) => {
-      return new Promise(resolve => setTimeout(resolve, 1000));
-    },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Security settings updated successfully" });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to update security settings", variant: "destructive" });
     },
   });
 
@@ -917,91 +886,6 @@ export default function SettingsManagement() {
           </div>
         );
 
-      case 'security':
-        return (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Shield className="w-5 h-5" />
-                  Password Policy
-                </CardTitle>
-                <CardDescription>Password requirements and login rules</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={securityForm.handleSubmit((data) => saveSecuritySettingsMutation.mutate(data))} className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="passwordMinLength">Minimum Password Length</Label>
-                      <Input 
-                        id="passwordMinLength" 
-                        type="number"
-                        {...securityForm.register('passwordMinLength', { valueAsNumber: true })}
-                        data-testid="input-password-min-length"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="loginAttempts">Maximum Login Attempts</Label>
-                      <Input 
-                        id="loginAttempts" 
-                        type="number"
-                        {...securityForm.register('loginAttempts', { valueAsNumber: true })}
-                        data-testid="input-login-attempts"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button type="submit" size="sm" disabled={saveSecuritySettingsMutation.isPending} data-testid="button-save-password">
-                      <Save className="w-4 h-4 mr-2" />
-                      Save
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Settings className="w-5 h-5" />
-                  Session Settings
-                </CardTitle>
-                <CardDescription>Session timeout and authentication options</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="sessionTimeout">Session Timeout (minutes)</Label>
-                    <Input 
-                      id="sessionTimeout" 
-                      type="number"
-                      {...securityForm.register('sessionTimeout', { valueAsNumber: true })}
-                      data-testid="input-session-timeout"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
-                    <div>
-                      <Label htmlFor="twoFactorAuth" className="text-base font-medium">Two-Factor Authentication</Label>
-                      <p className="text-sm text-muted-foreground">Require 2FA for all users</p>
-                    </div>
-                    <Switch 
-                      id="twoFactorAuth"
-                      {...securityForm.register('twoFactorAuth')}
-                      data-testid="switch-two-factor"
-                    />
-                  </div>
-                  <div className="flex justify-end">
-                    <Button type="button" size="sm" onClick={securityForm.handleSubmit((data) => saveSecuritySettingsMutation.mutate(data))} disabled={saveSecuritySettingsMutation.isPending} data-testid="button-save-session">
-                      <Save className="w-4 h-4 mr-2" />
-                      Save
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          </div>
-        );
-
       case 'notifications':
         return (
           <Card>
@@ -1098,60 +982,6 @@ export default function SettingsManagement() {
                     <RefreshCw className="w-4 h-4 mr-2" />
                     Maintenance Mode
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        );
-
-      case 'users':
-        return (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Users className="w-5 h-5" />
-                  Default User Roles
-                </CardTitle>
-                <CardDescription>Default permissions for each role</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {[
-                    { role: 'Students', permission: 'View Only', color: 'text-blue-600' },
-                    { role: 'Teachers', permission: 'Read/Write', color: 'text-green-600' },
-                    { role: 'Parents', permission: 'View Children', color: 'text-purple-600' },
-                    { role: 'Admin', permission: 'Full Access', color: 'text-red-600' },
-                  ].map((item) => (
-                    <div key={item.role} className="text-center p-3 rounded-lg bg-muted/30">
-                      <div className={cn("text-lg font-bold", item.color)}>{item.role}</div>
-                      <div className="text-xs text-muted-foreground">{item.permission}</div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Settings className="w-5 h-5" />
-                  Registration Settings
-                </CardTitle>
-                <CardDescription>Control user registration options</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {[
-                    { id: 'studentReg', label: 'Allow self-registration for students' },
-                    { id: 'teacherApproval', label: 'Require admin approval for teacher accounts' },
-                    { id: 'parentPortal', label: 'Enable parent portal registration' },
-                  ].map((item) => (
-                    <div key={item.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                      <span className="text-sm">{item.label}</span>
-                      <Switch defaultChecked={true} data-testid={`switch-${item.id}`} />
-                    </div>
-                  ))}
                 </div>
               </CardContent>
             </Card>
