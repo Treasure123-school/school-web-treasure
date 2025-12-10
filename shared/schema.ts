@@ -143,8 +143,15 @@ export const academicTerms = sqliteTable("academic_terms", {
   startDate: text("start_date").notNull(), // YYYY-MM-DD format
   endDate: text("end_date").notNull(),
   isCurrent: integer("is_current", { mode: "boolean" }).notNull().default(false),
+  status: text("status").notNull().default('upcoming'), // upcoming, active, completed, archived
+  isLocked: integer("is_locked", { mode: "boolean" }).notNull().default(false),
+  description: text("description"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-});
+}, (table) => ({
+  academicTermsYearIdx: index("academic_terms_year_idx").on(table.year),
+  academicTermsStatusIdx: index("academic_terms_status_idx").on(table.status),
+  academicTermsCurrentIdx: index("academic_terms_current_idx").on(table.isCurrent),
+}));
 
 // Classes table
 export const classes = sqliteTable("classes", {

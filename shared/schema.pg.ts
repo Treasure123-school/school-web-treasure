@@ -131,8 +131,15 @@ export const academicTerms = pgTable("academic_terms", {
   startDate: varchar("start_date", { length: 10 }).notNull(),
   endDate: varchar("end_date", { length: 10 }).notNull(),
   isCurrent: boolean("is_current").notNull().default(false),
+  status: varchar("status", { length: 20 }).notNull().default('upcoming'),
+  isLocked: boolean("is_locked").notNull().default(false),
+  description: text("description"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  academicTermsYearIdx: index("academic_terms_year_idx").on(table.year),
+  academicTermsStatusIdx: index("academic_terms_status_idx").on(table.status),
+  academicTermsCurrentIdx: index("academic_terms_current_idx").on(table.isCurrent),
+}));
 
 // Classes table
 export const classes = pgTable("classes", {

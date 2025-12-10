@@ -4460,6 +4460,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get terms grouped by academic year - must be before /:id routes
+  app.get('/api/terms/grouped', authenticateUser, async (req, res) => {
+    try {
+      const terms = await storage.getAcademicTerms();
+      
+      // Group terms by academic year
+      const grouped: { [year: string]: any[] } = {};
+      for (const term of terms) {
+        if (!grouped[term.year]) {
+          grouped[term.year] = [];
+        }
+        grouped[term.year].push(term);
+      }
+
+      // Sort each group by term order (First, Second, Third)
+      const termOrder = ['First Term', 'Second Term', 'Third Term'];
+      for (const year of Object.keys(grouped)) {
+        grouped[year].sort((a, b) => {
+          const aIndex = termOrder.findIndex(t => a.name.includes(t.replace(' Term', '')));
+          const bIndex = termOrder.findIndex(t => b.name.includes(t.replace(' Term', '')));
+          return aIndex - bIndex;
+        });
+      }
+
+      // Convert to array sorted by year (newest first)
+      const result = Object.entries(grouped)
+        .sort((a, b) => b[0].localeCompare(a[0]))
+        .map(([year, terms]) => ({ year, terms }));
+
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || 'Failed to fetch grouped terms' });
+    }
+  });
+
   app.post('/api/terms', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
 
@@ -4493,6 +4528,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existingTerm) {
         return res.status(404).json({ message: 'Academic term not found' });
       }
+
+      // Check if term is locked (unless we're unlocking it)
+      if ((existingTerm as any).isLocked && req.body.isLocked !== false) {
+        return res.status(403).json({ message: 'This term is locked and cannot be edited. Unlock it first.' });
+      }
+
       const term = await storage.updateAcademicTerm(termId, req.body);
       
       // Emit realtime event for term update
@@ -4571,6 +4612,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(term);
     } catch (error: any) {
       res.status(500).json({ message: error.message || 'Failed to mark term as current' });
+    }
+  });
+
+  // Toggle lock status for academic term - admin only
+  app.put('/api/terms/:id/toggle-lock', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const termId = parseInt(req.params.id);
+
+      if (isNaN(termId)) {
+        return res.status(400).json({ message: 'Invalid term ID' });
+      }
+
+      const existingTerm = await storage.getAcademicTerm(termId);
+      if (!existingTerm) {
+        return res.status(404).json({ message: 'Academic term not found' });
+      }
+
+      const newLockStatus = !(existingTerm as any).isLocked;
+      const term = await storage.updateAcademicTerm(termId, { isLocked: newLockStatus });
+      
+      realtimeService.emitTableChange('academic_terms', 'UPDATE', term, existingTerm, req.user!.id);
+      realtimeService.emitToRole('admin', 'term.lock_changed', term);
+      realtimeService.emitToRole('teacher', 'term.lock_changed', term);
+      
+      res.json(term);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || 'Failed to toggle term lock status' });
+    }
+  });
+
+  // Update term status - admin only
+  app.put('/api/terms/:id/status', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const termId = parseInt(req.params.id);
+      const { status } = req.body;
+
+      if (isNaN(termId)) {
+        return res.status(400).json({ message: 'Invalid term ID' });
+      }
+
+      const validStatuses = ['upcoming', 'active', 'completed', 'archived'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: 'Invalid status. Must be: upcoming, active, completed, or archived' });
+      }
+
+      const existingTerm = await storage.getAcademicTerm(termId);
+      if (!existingTerm) {
+        return res.status(404).json({ message: 'Academic term not found' });
+      }
+
+      // If setting to active, also mark as current
+      const updateData: any = { status };
+      if (status === 'active') {
+        updateData.isCurrent = true;
+        // Set other terms to not current
+        const allTerms = await storage.getAcademicTerms();
+        for (const t of allTerms) {
+          if (t.id !== termId && t.isCurrent) {
+            await storage.updateAcademicTerm(t.id, { isCurrent: false });
+          }
+        }
+      } else if (status === 'archived') {
+        updateData.isLocked = true;
+        updateData.isCurrent = false;
+      } else if (status === 'completed') {
+        updateData.isCurrent = false;
+      }
+
+      const term = await storage.updateAcademicTerm(termId, updateData);
+      
+      realtimeService.emitTableChange('academic_terms', 'UPDATE', term, existingTerm, req.user!.id);
+      realtimeService.emitEvent('term.status_changed', term);
+      
+      res.json(term);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || 'Failed to update term status' });
     }
   });
 
