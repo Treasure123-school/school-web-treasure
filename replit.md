@@ -125,7 +125,19 @@ Fixed critical issue where student/parent portal displayed incorrect report card
 - **Class Statistics**: Now correctly uses `report_cards.averagePercentage` from all published cards in the same class/term, properly including legitimate 0% scores in calculations
 - **Data Flow**: When a report card is published, student view now matches admin view exactly
 
+### Academic Session Display Fix (December 2025)
+Fixed bug where report cards showed malformed session like "2025/20251" instead of "2024/2025":
+- **Root Cause**: JavaScript string concatenation - when `term.year` was "2025", doing `term.year + 1` produced "20251" (string concat) instead of 2026 (numeric addition)
+- **Database Fix**: Academic terms now store year in proper YYYY/YYYY format (e.g., "2024/2025")
+- **Code Fix**: Backend endpoints now use `term.year` directly instead of computing `${term.year}/${term.year + 1}`
+- **Validation Added**: 
+  - Backend: POST/PUT `/api/terms` routes validate year format (YYYY/YYYY with consecutive years)
+  - Frontend: `AcademicTermsManagement.tsx` shows inline validation error with visual feedback
+- **Admin Control**: Admins can modify academic sessions anytime via Portal → Academic Terms Management
+
 ### Key Files Modified
-- `server/routes.ts` - Override endpoint returns recalculated totals; Student report card endpoint uses published data
+- `server/routes.ts` - Override endpoint returns recalculated totals; Student report card endpoint uses published data; Academic term validation
+- `server/storage.ts` - Fixed academicSession computation to use stored year directly
 - `client/src/hooks/useSocketIORealtime.ts` - Added skipCacheInvalidation opt-in flag
 - `client/src/pages/portal/TeacherReportCards.tsx` - Uses skipCacheInvalidation to prevent flicker
+- `client/src/pages/portal/AcademicTermsManagement.tsx` - Added year format validation with error display
