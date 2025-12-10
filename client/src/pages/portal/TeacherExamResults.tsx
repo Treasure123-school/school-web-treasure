@@ -82,10 +82,18 @@ export default function TeacherExamResults() {
 
   const currentExam = exams.find((e) => e.id === examId);
 
-  const { data: examResults = [], isLoading, refetch } = useQuery<EnrichedExamResult[]>({
+  const { data: rawExamResults = [], isLoading, refetch } = useQuery<EnrichedExamResult[]>({
     queryKey: ['/api/exam-results/exam', examId],
     enabled: !!examId,
   });
+  
+  // Normalize exam results to ensure consistent score/maxScore values
+  // This fixes display issues with legacy data where maxScore might be null
+  const examResults = rawExamResults.map(result => ({
+    ...result,
+    score: result.score ?? 0,
+    maxScore: result.maxScore ?? currentExam?.totalMarks ?? 60 // Default to exam's total marks or 60
+  }));
 
   const { data: subjects = [] } = useQuery<Subject[]>({
     queryKey: ['/api/subjects'],
@@ -233,12 +241,13 @@ export default function TeacherExamResults() {
     ? examResults.reduce((sum: number, r) => sum + calculateCombinedScores(r).percentage, 0) / totalSubmissions
     : 0;
 
+  // Show exam scores (out of 60) in the score range, not total scores
   const highestScore = totalSubmissions > 0
-    ? Math.max(...examResults.map((r) => calculateCombinedScores(r).totalScore))
+    ? Math.max(...examResults.map((r) => r.score ?? 0))
     : 0;
 
   const lowestScore = totalSubmissions > 0
-    ? Math.min(...examResults.map((r) => calculateCombinedScores(r).totalScore))
+    ? Math.min(...examResults.map((r) => r.score ?? 0))
     : 0;
 
   const passCount = examResults.filter((r) => calculateCombinedScores(r).percentage >= 50).length;
@@ -508,9 +517,9 @@ export default function TeacherExamResults() {
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-xs mb-3">
                           <div>
-                            <span className="text-muted-foreground">Total Score</span>
+                            <span className="text-muted-foreground">Exam Score</span>
                             <p className="font-medium" data-testid={`text-score-mobile-${index}`}>
-                              {totalScore}/{totalMaxScore}
+                              {result.score ?? 0}/{result.maxScore ?? 60}
                             </p>
                           </div>
                           <div>
