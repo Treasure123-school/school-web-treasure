@@ -30,6 +30,7 @@ import {
   Award,
   BarChart3,
   Printer,
+  Download,
   Save,
   Send,
   Clock,
@@ -1330,143 +1331,141 @@ export default function TeacherReportCards() {
           </Tabs>
         )}
 
-      {/* View Report Card Dialog */}
+      {/* View Report Card Dialog - Fully Responsive for all screen sizes */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] p-4 sm:p-6">
-          <DialogHeader className="pb-4 border-b">
-            <div className="flex items-start gap-4">
-              <Avatar className="h-12 w-12 sm:h-16 sm:w-16 border-2 border-primary/20">
-                {fullReportCard?.studentPhoto ? (
-                  <AvatarImage src={fullReportCard.studentPhoto} alt={fullReportCard?.studentName} />
-                ) : null}
-                <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
-                  {fullReportCard?.studentName?.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || <User className="w-6 h-6" />}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <DialogTitle className="flex items-center gap-2 text-base sm:text-xl">
-                  <span className="truncate">{fullReportCard?.studentName}</span>
+        <DialogContent 
+          className="w-[98vw] sm:w-[95vw] md:w-[90vw] lg:w-[85vw] max-w-5xl max-h-[85dvh] sm:max-h-[88dvh] md:max-h-[90dvh] p-0 flex flex-col overflow-hidden"
+          style={{ margin: 'auto' }}
+        >
+          <DialogHeader className="px-3 py-2 sm:px-4 sm:py-3 border-b shrink-0 bg-background">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <DialogTitle className="flex items-center gap-2 text-sm sm:text-base md:text-lg">
+                  <FileText className="w-4 h-4 shrink-0" />
+                  <span className="truncate">Report Card Preview</span>
                 </DialogTitle>
-                <div className="flex flex-wrap items-center gap-2 mt-1">
-                  <Badge variant="outline" className="font-mono text-xs bg-primary/5">
-                    {fullReportCard?.studentUsername || fullReportCard?.admissionNumber || '-'}
-                  </Badge>
-                  <span className="text-xs sm:text-sm text-muted-foreground">
-                    {fullReportCard?.className}
-                  </span>
-                  <span className="text-muted-foreground">-</span>
-                  <span className="text-xs sm:text-sm text-muted-foreground">
-                    {fullReportCard?.termName}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-xs text-muted-foreground">
-                    Grading: Test {testWeight}% | Exam {examWeight}%
-                  </span>
-                </div>
+                <DialogDescription className="text-xs sm:text-sm truncate mt-0.5">
+                  {fullReportCard?.studentName} - {fullReportCard?.className} - {fullReportCard?.termName}
+                </DialogDescription>
               </div>
             </div>
           </DialogHeader>
           
           {loadingFullReport ? (
-            <div className="text-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
-              <p>Loading report card...</p>
+            <div className="flex-1 flex items-center justify-center min-h-[200px]">
+              <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin" />
             </div>
           ) : fullReportCard ? (
-            <ScrollArea className="h-[calc(90vh-140px)] min-h-[300px]">
-              <div className="space-y-4 pr-2 sm:pr-4 pb-6">
-                {/* Status Actions Bar */}
-                <div className="flex flex-wrap items-center gap-2 p-2 bg-muted/50 rounded-md">
-                  {/* Status indicator */}
-                  <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
-                    {fullReportCard.status === 'draft' ? (
-                      <><Unlock className="w-3 h-3 sm:w-4 sm:h-4" /> <span className="hidden xs:inline">Editing enabled</span></>
-                    ) : (
-                      <><Lock className="w-3 h-3 sm:w-4 sm:h-4" /> <span className="hidden xs:inline">Editing locked</span></>
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              {/* Action Bar - Responsive */}
+              <div className="px-2 py-2 sm:px-4 sm:py-3 border-b bg-muted/30 shrink-0">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    {/* Status Badge */}
+                    {fullReportCard.status === 'draft' && (
+                      <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800 text-xs">
+                        <Clock className="w-3 h-3 mr-1" />
+                        Draft
+                      </Badge>
                     )}
+                    {fullReportCard.status === 'finalized' && (
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800 text-xs">
+                        <FileCheck className="w-3 h-3 mr-1" />
+                        Awaiting Approval
+                      </Badge>
+                    )}
+                    {fullReportCard.status === 'published' && (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 text-xs">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Published
+                      </Badge>
+                    )}
+                    <span className="text-xs text-muted-foreground hidden md:inline">
+                      {fullReportCard.status === 'draft' ? 'Editing enabled' : 
+                       fullReportCard.status === 'finalized' ? 'Awaiting admin approval' : 
+                       'Visible to students and parents'}
+                    </span>
                   </div>
-                  
-                  <div className="ml-auto flex items-center gap-2">
+                  <div className="flex items-center gap-1 sm:gap-1.5">
+                    {/* Print/Download icons */}
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => window.print()}
+                      aria-label="Print report card"
+                      data-testid="button-print"
+                    >
+                      <Printer className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      aria-label="Download report card"
+                      data-testid="button-download"
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
                     {/* Refresh Scores */}
                     <Button
                       variant="outline"
-                      size="sm"
+                      size="icon"
                       onClick={() => autoPopulateMutation.mutate(fullReportCard.id)}
                       disabled={autoPopulateMutation.isPending || fullReportCard.status !== 'draft'}
-                      className="text-xs sm:text-sm"
+                      aria-label="Refresh scores"
                       data-testid="button-refresh-scores"
                     >
                       {autoPopulateMutation.isPending ? (
-                        <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin" />
+                        <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
-                        <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                        <RefreshCw className="w-4 h-4" />
                       )}
-                      <span className="hidden sm:inline">Refresh</span>
                     </Button>
                     
-                    {/* Status Change Dropdown */}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button 
-                          variant="default" 
-                          size="sm"
-                          className="text-xs sm:text-sm"
-                          data-testid="button-status-menu"
-                        >
-                          {fullReportCard.status === 'draft' && <FilePen className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />}
-                          {fullReportCard.status === 'finalized' && <FileCheck className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />}
-                          {fullReportCard.status === 'published' && <Send className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />}
-                          <span className="hidden sm:inline">Change Status</span>
-                          <span className="sm:hidden">Status</span>
-                          <MoreVertical className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
-                        {fullReportCard.status === 'draft' && (
-                          <DropdownMenuItem 
-                            onClick={() => updateStatusMutation.mutate({ 
-                              reportCardId: fullReportCard.id, 
-                              status: 'finalized',
-                              classId: selectedClass,
-                              termId: selectedTerm
-                            })}
-                            className="cursor-pointer"
-                            data-testid="menu-finalize"
-                          >
-                            <FileCheck className="w-4 h-4 mr-2 text-blue-500" />
-                            <span>Finalize Report Card</span>
-                          </DropdownMenuItem>
-                        )}
-                        
-                        {fullReportCard.status === 'finalized' && (
-                          <DropdownMenuItem 
-                            disabled
-                            className="cursor-default text-muted-foreground"
-                            data-testid="menu-awaiting-approval"
-                          >
-                            <Clock className="w-4 h-4 mr-2 text-blue-500" />
-                            <span>Awaiting Admin Approval</span>
-                          </DropdownMenuItem>
-                        )}
-                        
-                        {fullReportCard.status === 'published' && (
-                          <DropdownMenuItem 
-                            disabled
-                            className="cursor-default text-muted-foreground"
-                            data-testid="menu-published-status"
-                          >
-                            <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
-                            <span>Published by Admin</span>
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {/* Status Change Actions */}
+                    {fullReportCard.status === 'draft' && (
+                      <Button 
+                        onClick={() => updateStatusMutation.mutate({ 
+                          reportCardId: fullReportCard.id, 
+                          status: 'finalized',
+                          classId: selectedClass,
+                          termId: selectedTerm
+                        })}
+                        disabled={updateStatusMutation.isPending}
+                        size="sm"
+                        className="text-xs sm:text-sm h-9"
+                        data-testid="button-finalize"
+                      >
+                        <Send className="w-4 h-4 sm:mr-1.5" />
+                        <span className="hidden sm:inline">Finalize</span>
+                      </Button>
+                    )}
+                    {fullReportCard.status === 'finalized' && (
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateStatusMutation.mutate({ 
+                          reportCardId: fullReportCard.id, 
+                          status: 'draft',
+                          classId: selectedClass,
+                          termId: selectedTerm
+                        })}
+                        disabled={updateStatusMutation.isPending}
+                        className="text-xs sm:text-sm h-9 text-amber-600 hover:text-amber-700"
+                        data-testid="button-revert-draft"
+                      >
+                        <Undo2 className="w-4 h-4 sm:mr-1.5" />
+                        <span className="hidden sm:inline">Revert to Draft</span>
+                      </Button>
+                    )}
                   </div>
                 </div>
+              </div>
 
-                {/* Professional Report Card Component */}
-                <ProfessionalReportCard
+              {/* Scrollable Report Card - Uses native overflow for better mobile support */}
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+                <div className="p-2 sm:p-3 md:p-4">
+                  {/* Professional Report Card Component */}
+                  <ProfessionalReportCard
                   reportCard={{
                     id: fullReportCard.id,
                     studentId: fullReportCard.studentId,
@@ -1511,13 +1510,14 @@ export default function TeacherReportCards() {
                   }}
                   canEditRemarks={fullReportCard.status === 'draft'}
                   isLoading={updateRemarksMutation.isPending}
-                />
+                  />
+                </div>
               </div>
-            </ScrollArea>
+            </div>
           ) : (
-            <div className="text-center py-8">
-              <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p>Failed to load report card</p>
+            <div className="flex-1 flex flex-col items-center justify-center p-4 min-h-[200px]">
+              <AlertCircle className="w-10 h-10 sm:w-12 sm:h-12 text-muted-foreground mb-3 sm:mb-4" />
+              <p className="text-xs sm:text-sm text-muted-foreground text-center">Failed to load report card details</p>
             </div>
           )}
         </DialogContent>
