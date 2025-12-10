@@ -12,6 +12,13 @@ import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { 
   FileText, 
   CheckCircle, 
@@ -23,8 +30,10 @@ import {
   RefreshCw,
   FileCheck,
   AlertTriangle,
-  Users,
-  GraduationCap
+  GraduationCap,
+  MoreVertical,
+  Printer,
+  Download
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ProfessionalReportCard } from '@/components/ui/professional-report-card';
@@ -123,7 +132,7 @@ export default function AdminResultPublishing() {
       refetch();
       queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
@@ -143,7 +152,7 @@ export default function AdminResultPublishing() {
       refetch();
       queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
@@ -165,7 +174,7 @@ export default function AdminResultPublishing() {
       refetch();
       queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
@@ -206,13 +215,13 @@ export default function AdminResultPublishing() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'draft':
-        return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" /> Draft</Badge>;
+        return <Badge variant="secondary" className="text-xs"><Clock className="w-3 h-3 mr-1" /> Draft</Badge>;
       case 'finalized':
-        return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"><FileCheck className="w-3 h-3 mr-1" /> Awaiting Approval</Badge>;
+        return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 text-xs"><FileCheck className="w-3 h-3 mr-1" /> Awaiting Approval</Badge>;
       case 'published':
-        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"><CheckCircle className="w-3 h-3 mr-1" /> Published</Badge>;
+        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs"><CheckCircle className="w-3 h-3 mr-1" /> Published</Badge>;
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return <Badge variant="secondary" className="text-xs">{status}</Badge>;
     }
   };
 
@@ -220,49 +229,49 @@ export default function AdminResultPublishing() {
   const allFinalizedSelected = finalizedCount > 0 && selectedReportCards.length === finalizedCount;
 
   return (
-    <div className="space-y-6 p-4 md:p-6" data-testid="page-admin-result-publishing">
+    <div className="space-y-4 p-3 sm:p-4 md:p-6" data-testid="page-admin-result-publishing">
       <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-page-title">
-            <FileText className="w-6 h-6" />
+          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2" data-testid="text-page-title">
+            <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
             Result Publishing
           </h1>
-          <p className="text-muted-foreground">
-            Review and publish finalized report cards submitted by teachers
+          <p className="text-sm text-muted-foreground">
+            Review and publish finalized report cards
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Awaiting Approval</p>
-                  <p className="text-2xl font-bold text-amber-600" data-testid="stat-finalized">{statistics.finalized}</p>
+            <CardContent className="p-3 sm:pt-6 sm:px-6">
+              <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-2">
+                <div className="text-center sm:text-left">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Awaiting</p>
+                  <p className="text-xl sm:text-2xl font-bold text-amber-600" data-testid="stat-finalized">{statistics.finalized}</p>
                 </div>
-                <FileCheck className="w-8 h-8 text-amber-500" />
+                <FileCheck className="hidden sm:block w-8 h-8 text-amber-500" />
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Published</p>
-                  <p className="text-2xl font-bold text-green-600" data-testid="stat-published">{statistics.published}</p>
+            <CardContent className="p-3 sm:pt-6 sm:px-6">
+              <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-2">
+                <div className="text-center sm:text-left">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Published</p>
+                  <p className="text-xl sm:text-2xl font-bold text-green-600" data-testid="stat-published">{statistics.published}</p>
                 </div>
-                <CheckCircle className="w-8 h-8 text-green-500" />
+                <CheckCircle className="hidden sm:block w-8 h-8 text-green-500" />
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">In Draft</p>
-                  <p className="text-2xl font-bold text-gray-600" data-testid="stat-draft">{statistics.draft}</p>
+            <CardContent className="p-3 sm:pt-6 sm:px-6">
+              <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-2">
+                <div className="text-center sm:text-left">
+                  <p className="text-xs sm:text-sm text-muted-foreground">In Draft</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-600" data-testid="stat-draft">{statistics.draft}</p>
                 </div>
-                <Clock className="w-8 h-8 text-gray-500" />
+                <Clock className="hidden sm:block w-8 h-8 text-gray-500" />
               </div>
             </CardContent>
           </Card>
@@ -270,84 +279,93 @@ export default function AdminResultPublishing() {
       </div>
 
       <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <CardTitle>Report Cards</CardTitle>
-              <CardDescription>
-                {statusFilter === 'finalized' ? 'Finalized report cards awaiting your approval' : 
-                 statusFilter === 'published' ? 'Published report cards' : 'All report cards'}
-              </CardDescription>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Select value={selectedClass} onValueChange={setSelectedClass}>
-                <SelectTrigger className="w-[150px]" data-testid="select-class">
-                  <SelectValue placeholder="All Classes" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Classes</SelectItem>
-                  {classes.map((c: any) => (
-                    <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={selectedTerm} onValueChange={setSelectedTerm}>
-                <SelectTrigger className="w-[150px]" data-testid="select-term">
-                  <SelectValue placeholder="All Terms" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Terms</SelectItem>
-                  {terms.map((t: any) => (
-                    <SelectItem key={t.id} value={t.id.toString()}>{t.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[160px]" data-testid="select-status">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="finalized">Awaiting Approval</SelectItem>
-                  <SelectItem value="published">Published</SelectItem>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                </SelectContent>
-              </Select>
+        <CardHeader className="p-3 sm:p-6">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <CardTitle className="text-base sm:text-lg">Report Cards</CardTitle>
+                <CardDescription className="text-xs sm:text-sm truncate">
+                  {statusFilter === 'finalized' ? 'Awaiting your approval' : 
+                   statusFilter === 'published' ? 'Published report cards' : 'All report cards'}
+                </CardDescription>
+              </div>
               <Button 
                 variant="outline" 
                 size="icon" 
                 onClick={() => refetch()}
+                className="shrink-0"
+                aria-label="Refresh report cards"
                 data-testid="button-refresh"
               >
                 <RefreshCw className="w-4 h-4" />
               </Button>
             </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={selectedClass} onValueChange={setSelectedClass}>
+                <SelectTrigger className="w-full sm:w-[140px]" data-testid="select-class">
+                  <SelectValue placeholder="All Classes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Classes</SelectItem>
+                  {classes.map((c: { id: number; name: string }) => (
+                    <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedTerm} onValueChange={setSelectedTerm}>
+                <SelectTrigger className="w-[calc(50%-4px)] sm:w-[130px]" data-testid="select-term">
+                  <SelectValue placeholder="All Terms" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Terms</SelectItem>
+                  {terms.map((t: { id: number; name: string }) => (
+                    <SelectItem key={t.id} value={t.id.toString()}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[calc(50%-4px)] sm:w-[140px]" data-testid="select-status">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="finalized">Awaiting</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
+                  <SelectItem value="all">All Status</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
           {selectedReportCards.length > 0 && (
-            <div className="flex items-center gap-2 mb-4 p-3 bg-muted rounded-md">
-              <span className="text-sm">{selectedReportCards.length} selected</span>
-              <Button 
-                size="sm" 
-                onClick={() => bulkPublishMutation.mutate(selectedReportCards)}
-                disabled={bulkPublishMutation.isPending}
-                data-testid="button-bulk-publish"
-              >
-                {bulkPublishMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4 mr-2" />
-                )}
-                Publish Selected
-              </Button>
-              <Button 
-                size="sm" 
-                variant="outline"
-                onClick={() => setSelectedReportCards([])}
-                data-testid="button-clear-selection"
-              >
-                Clear Selection
-              </Button>
+            <div className="flex flex-wrap items-center gap-2 mb-4 p-2 sm:p-3 bg-muted rounded-md">
+              <span className="text-xs sm:text-sm font-medium">{selectedReportCards.length} selected</span>
+              <div className="flex gap-2 ml-auto">
+                <Button 
+                  size="sm" 
+                  onClick={() => bulkPublishMutation.mutate(selectedReportCards)}
+                  disabled={bulkPublishMutation.isPending}
+                  className="text-xs sm:text-sm"
+                  data-testid="button-bulk-publish"
+                >
+                  {bulkPublishMutation.isPending ? (
+                    <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin" />
+                  ) : (
+                    <Send className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                  )}
+                  <span className="hidden sm:inline">Publish Selected</span>
+                  <span className="sm:hidden">Publish</span>
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setSelectedReportCards([])}
+                  className="text-xs sm:text-sm"
+                  data-testid="button-clear-selection"
+                >
+                  Clear
+                </Button>
+              </div>
             </div>
           )}
 
@@ -358,240 +376,357 @@ export default function AdminResultPublishing() {
           ) : reportCards.length === 0 ? (
             <div className="text-center py-12">
               <GraduationCap className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 {statusFilter === 'finalized' 
                   ? 'No report cards awaiting approval' 
-                  : 'No report cards found matching your filters'}
+                  : 'No report cards found'}
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {statusFilter === 'finalized' && (
-                      <TableHead className="w-12">
-                        <Checkbox 
-                          checked={allFinalizedSelected}
-                          onCheckedChange={handleSelectAll}
-                          data-testid="checkbox-select-all"
-                        />
-                      </TableHead>
-                    )}
-                    <TableHead>Student</TableHead>
-                    <TableHead>Class</TableHead>
-                    <TableHead>Term</TableHead>
-                    <TableHead>Average</TableHead>
-                    <TableHead>Grade</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Finalized</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {reportCards.map((rc) => (
-                    <TableRow key={rc.id} data-testid={`row-report-${rc.id}`}>
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
                       {statusFilter === 'finalized' && (
-                        <TableCell>
-                          {rc.status === 'finalized' && (
-                            <Checkbox 
-                              checked={selectedReportCards.includes(rc.id)}
-                              onCheckedChange={(checked) => handleSelectOne(rc.id, !!checked)}
-                              data-testid={`checkbox-select-${rc.id}`}
-                            />
-                          )}
-                        </TableCell>
+                        <TableHead className="w-12">
+                          <Checkbox 
+                            checked={allFinalizedSelected}
+                            onCheckedChange={handleSelectAll}
+                            data-testid="checkbox-select-all"
+                          />
+                        </TableHead>
                       )}
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{rc.studentName}</p>
-                          <p className="text-xs text-muted-foreground">{rc.admissionNumber}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>{rc.className}</TableCell>
-                      <TableCell>
-                        <div>
-                          <p>{rc.termName}</p>
-                          <p className="text-xs text-muted-foreground">{rc.sessionYear}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className={(rc.averagePercentage || 0) >= 50 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
-                          {rc.averagePercentage || 0}%
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{rc.overallGrade || '-'}</Badge>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(rc.status)}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {rc.finalizedAt ? format(new Date(rc.finalizedAt), 'MMM d, yyyy') : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button 
-                            size="icon" 
-                            variant="ghost" 
-                            onClick={() => handleViewReportCard(rc)}
-                            data-testid={`button-view-${rc.id}`}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          {rc.status === 'finalized' && (
-                            <>
-                              <Button 
-                                size="sm" 
-                                onClick={() => publishMutation.mutate(rc.id)}
-                                disabled={publishMutation.isPending}
-                                data-testid={`button-publish-${rc.id}`}
-                              >
-                                {publishMutation.isPending ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <Send className="w-4 h-4" />
-                                )}
-                              </Button>
-                              <Button 
-                                size="icon" 
-                                variant="ghost"
-                                onClick={() => handleReject(rc.id)}
-                                data-testid={`button-reject-${rc.id}`}
-                              >
-                                <XCircle className="w-4 h-4 text-red-500" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
+                      <TableHead>Student</TableHead>
+                      <TableHead>Class</TableHead>
+                      <TableHead>Term</TableHead>
+                      <TableHead>Average</TableHead>
+                      <TableHead>Grade</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Finalized</TableHead>
+                      <TableHead className="w-20 text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {reportCards.map((rc) => (
+                      <TableRow key={rc.id} data-testid={`row-report-${rc.id}`}>
+                        {statusFilter === 'finalized' && (
+                          <TableCell>
+                            {rc.status === 'finalized' && (
+                              <Checkbox 
+                                checked={selectedReportCards.includes(rc.id)}
+                                onCheckedChange={(checked) => handleSelectOne(rc.id, !!checked)}
+                                data-testid={`checkbox-select-${rc.id}`}
+                              />
+                            )}
+                          </TableCell>
+                        )}
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-sm">{rc.studentName}</p>
+                            <p className="text-xs text-muted-foreground">{rc.admissionNumber}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm">{rc.className}</TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="text-sm">{rc.termName}</p>
+                            <p className="text-xs text-muted-foreground">{rc.sessionYear}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className={`text-sm font-semibold ${(rc.averagePercentage || 0) >= 50 ? 'text-green-600' : 'text-red-600'}`}>
+                            {rc.averagePercentage || 0}%
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">{rc.overallGrade || '-'}</Badge>
+                        </TableCell>
+                        <TableCell>{getStatusBadge(rc.status)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {rc.finalizedAt ? format(new Date(rc.finalizedAt), 'MMM d, yyyy') : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" aria-label="Report card actions" data-testid={`button-actions-${rc.id}`}>
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleViewReportCard(rc)}>
+                                <Eye className="w-4 h-4 mr-2" />
+                                Preview
+                              </DropdownMenuItem>
+                              {rc.status === 'finalized' && (
+                                <>
+                                  <DropdownMenuItem 
+                                    onClick={() => publishMutation.mutate(rc.id)}
+                                    disabled={publishMutation.isPending}
+                                  >
+                                    <Send className="w-4 h-4 mr-2" />
+                                    Approve & Publish
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => handleReject(rc.id)}
+                                    className="text-red-600"
+                                  >
+                                    <XCircle className="w-4 h-4 mr-2" />
+                                    Reject
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3">
+                {statusFilter === 'finalized' && finalizedCount > 0 && (
+                  <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                    <Checkbox 
+                      checked={allFinalizedSelected}
+                      onCheckedChange={handleSelectAll}
+                      data-testid="checkbox-select-all-mobile"
+                    />
+                    <span className="text-xs text-muted-foreground">Select all</span>
+                  </div>
+                )}
+                {reportCards.map((rc) => (
+                  <Card key={rc.id} className="overflow-hidden" data-testid={`card-report-${rc.id}`}>
+                    <CardContent className="p-3">
+                      <div className="flex items-start gap-3">
+                        {statusFilter === 'finalized' && rc.status === 'finalized' && (
+                          <Checkbox 
+                            checked={selectedReportCards.includes(rc.id)}
+                            onCheckedChange={(checked) => handleSelectOne(rc.id, !!checked)}
+                            className="mt-1"
+                            data-testid={`checkbox-select-mobile-${rc.id}`}
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate">{rc.studentName}</p>
+                              <p className="text-xs text-muted-foreground">{rc.admissionNumber}</p>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" aria-label="Report card actions" className="shrink-0 -mt-1 -mr-1">
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleViewReportCard(rc)}>
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  Preview
+                                </DropdownMenuItem>
+                                {rc.status === 'finalized' && (
+                                  <>
+                                    <DropdownMenuItem 
+                                      onClick={() => publishMutation.mutate(rc.id)}
+                                      disabled={publishMutation.isPending}
+                                    >
+                                      <Send className="w-4 h-4 mr-2" />
+                                      Approve & Publish
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem 
+                                      onClick={() => handleReject(rc.id)}
+                                      className="text-red-600"
+                                    >
+                                      <XCircle className="w-4 h-4 mr-2" />
+                                      Reject
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <Badge variant="outline" className="text-xs">{rc.className}</Badge>
+                            <Badge variant="outline" className="text-xs">{rc.termName}</Badge>
+                            <span className={`text-xs font-semibold ${(rc.averagePercentage || 0) >= 50 ? 'text-green-600' : 'text-red-600'}`}>
+                              {rc.averagePercentage || 0}% ({rc.overallGrade || '-'})
+                            </span>
+                          </div>
+                          <div className="mt-2 flex items-center justify-between">
+                            {getStatusBadge(rc.status)}
+                            <span className="text-xs text-muted-foreground">
+                              {rc.finalizedAt ? format(new Date(rc.finalizedAt), 'MMM d') : '-'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
 
+      {/* Preview Dialog - Fully Responsive */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              Report Card Preview
-            </DialogTitle>
-            <DialogDescription>
-              {viewingReportCard?.studentName} - {viewingReportCard?.className} - {viewingReportCard?.termName}
-            </DialogDescription>
+        <DialogContent className="w-[95vw] max-w-4xl h-[95vh] sm:h-[90vh] p-0 flex flex-col">
+          <DialogHeader className="p-3 sm:p-4 pb-2 border-b shrink-0">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <FileText className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                  <span className="truncate">Report Card Preview</span>
+                </DialogTitle>
+                <DialogDescription className="text-xs sm:text-sm truncate">
+                  {viewingReportCard?.studentName} - {viewingReportCard?.className} - {viewingReportCard?.termName}
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
-          
+
           {loadingFullReport ? (
-            <div className="flex items-center justify-center py-12">
+            <div className="flex-1 flex items-center justify-center">
               <Loader2 className="w-8 h-8 animate-spin" />
             </div>
           ) : fullReportCard ? (
-            <ScrollArea className="h-[calc(90vh-200px)]">
-              <div className="space-y-4 pr-4">
-                <div className="flex items-center justify-between p-3 bg-muted rounded-md">
+            <div className="flex-1 overflow-hidden flex flex-col">
+              {/* Action Bar - Responsive */}
+              <div className="p-3 sm:p-4 border-b bg-muted/30 shrink-0">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     {getStatusBadge(fullReportCard.status)}
+                    <span className="text-xs text-muted-foreground hidden sm:inline">
+                      {fullReportCard.status === 'finalized' ? 'Ready for publishing' : ''}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    {/* Print/Download icons */}
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => window.print()}
+                      aria-label="Print report card"
+                      data-testid="button-print"
+                    >
+                      <Printer className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      aria-label="Download report card"
+                      data-testid="button-download"
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
                     {fullReportCard.status === 'finalized' && (
-                      <span className="text-sm text-muted-foreground">
-                        Ready for publishing
-                      </span>
+                      <>
+                        <Button 
+                          onClick={() => {
+                            publishMutation.mutate(fullReportCard.id);
+                            setIsViewDialogOpen(false);
+                          }}
+                          disabled={publishMutation.isPending}
+                          className="text-xs sm:text-sm"
+                          data-testid="button-publish-dialog"
+                        >
+                          <Send className="w-4 h-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Approve & Publish</span>
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          size="icon"
+                          onClick={() => {
+                            setIsViewDialogOpen(false);
+                            handleReject(fullReportCard.id);
+                          }}
+                          aria-label="Reject report card"
+                          className="text-red-600 hover:text-red-700"
+                          data-testid="button-reject-dialog"
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </Button>
+                      </>
                     )}
                   </div>
-                  {fullReportCard.status === 'finalized' && (
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        onClick={() => {
-                          publishMutation.mutate(fullReportCard.id);
-                          setIsViewDialogOpen(false);
-                        }}
-                        disabled={publishMutation.isPending}
-                        data-testid="button-publish-dialog"
-                      >
-                        <Send className="w-4 h-4 mr-2" />
-                        Approve & Publish
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        onClick={() => {
-                          setIsViewDialogOpen(false);
-                          handleReject(fullReportCard.id);
-                        }}
-                        data-testid="button-reject-dialog"
-                      >
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Reject
-                      </Button>
-                    </div>
-                  )}
                 </div>
-
-                <ProfessionalReportCard
-                  reportCard={{
-                    id: fullReportCard.id,
-                    studentId: fullReportCard.studentId,
-                    studentName: fullReportCard.studentName,
-                    studentPhoto: fullReportCard.studentPhoto,
-                    admissionNumber: fullReportCard.studentUsername || fullReportCard.admissionNumber,
-                    className: fullReportCard.className,
-                    termName: fullReportCard.termName,
-                    academicSession: fullReportCard.sessionYear || '2024/2025',
-                    averagePercentage: fullReportCard.averagePercentage || 0,
-                    overallGrade: fullReportCard.overallGrade || '-',
-                    position: fullReportCard.position || 0,
-                    totalStudentsInClass: fullReportCard.totalStudentsInClass || 0,
-                    totalScore: fullReportCard.totalScore,
-                    items: fullReportCard.items || [],
-                    teacherRemarks: fullReportCard.teacherRemarks,
-                    principalRemarks: fullReportCard.principalRemarks,
-                    status: fullReportCard.status,
-                    generatedAt: fullReportCard.generatedAt,
-                    classStatistics: {
-                      highestScore: 0,
-                      lowestScore: 0,
-                      classAverage: 0,
-                      totalStudents: fullReportCard.totalStudentsInClass || 0
-                    },
-                    attendance: {
-                      timesSchoolOpened: 0,
-                      timesPresent: 0,
-                      timesAbsent: 0,
-                      attendancePercentage: 0
-                    }
-                  }}
-                  testWeight={40}
-                  examWeight={60}
-                  canEditRemarks={false}
-                  isLoading={false}
-                />
               </div>
-            </ScrollArea>
+
+              {/* Scrollable Report Card */}
+              <ScrollArea className="flex-1">
+                <div className="p-2 sm:p-4">
+                  <ProfessionalReportCard
+                    reportCard={{
+                      id: fullReportCard.id,
+                      studentId: fullReportCard.studentId,
+                      studentName: fullReportCard.studentName,
+                      studentPhoto: fullReportCard.studentPhoto,
+                      admissionNumber: fullReportCard.studentUsername || fullReportCard.admissionNumber,
+                      className: fullReportCard.className,
+                      termName: fullReportCard.termName,
+                      academicSession: fullReportCard.sessionYear || '2024/2025',
+                      averagePercentage: fullReportCard.averagePercentage || 0,
+                      overallGrade: fullReportCard.overallGrade || '-',
+                      position: fullReportCard.position || 0,
+                      totalStudentsInClass: fullReportCard.totalStudentsInClass || 0,
+                      totalScore: fullReportCard.totalScore,
+                      items: fullReportCard.items || [],
+                      teacherRemarks: fullReportCard.teacherRemarks,
+                      principalRemarks: fullReportCard.principalRemarks,
+                      status: fullReportCard.status,
+                      generatedAt: fullReportCard.generatedAt,
+                      classStatistics: {
+                        highestScore: 0,
+                        lowestScore: 0,
+                        classAverage: 0,
+                        totalStudents: fullReportCard.totalStudentsInClass || 0
+                      },
+                      attendance: {
+                        timesSchoolOpened: 0,
+                        timesPresent: 0,
+                        timesAbsent: 0,
+                        attendancePercentage: 0
+                      }
+                    }}
+                    testWeight={40}
+                    examWeight={60}
+                    canEditRemarks={false}
+                    isLoading={false}
+                  />
+                </div>
+              </ScrollArea>
+            </div>
           ) : (
-            <div className="text-center py-12">
-              <AlertTriangle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p>Failed to load report card details</p>
+            <div className="flex-1 flex flex-col items-center justify-center p-4">
+              <AlertTriangle className="w-12 h-12 text-muted-foreground mb-4" />
+              <p className="text-sm text-muted-foreground">Failed to load report card details</p>
             </div>
           )}
         </DialogContent>
       </Dialog>
 
+      {/* Reject Dialog */}
       <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
               <XCircle className="w-5 h-5" />
               Reject Report Card
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm">
               This will revert the report card back to draft status so the teacher can make corrections.
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
             <div>
-              <Label htmlFor="reject-reason">Reason for Rejection (Optional)</Label>
+              <Label htmlFor="reject-reason" className="text-sm">Reason for Rejection (Optional)</Label>
               <Textarea
                 id="reject-reason"
                 value={rejectReason}
@@ -603,7 +738,7 @@ export default function AdminResultPublishing() {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button 
               variant="outline" 
               onClick={() => {
@@ -611,6 +746,7 @@ export default function AdminResultPublishing() {
                 setRejectingId(null);
                 setRejectReason('');
               }}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
@@ -618,6 +754,7 @@ export default function AdminResultPublishing() {
               variant="destructive"
               onClick={confirmReject}
               disabled={rejectMutation.isPending}
+              className="w-full sm:w-auto"
               data-testid="button-confirm-reject"
             >
               {rejectMutation.isPending ? (
@@ -625,7 +762,7 @@ export default function AdminResultPublishing() {
               ) : (
                 <XCircle className="w-4 h-4 mr-2" />
               )}
-              Reject & Revert to Draft
+              Reject & Revert
             </Button>
           </DialogFooter>
         </DialogContent>
