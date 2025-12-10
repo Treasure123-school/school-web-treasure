@@ -335,6 +335,7 @@ export default function TeacherExamResults() {
 
   if (!currentExam) {
     return (
+
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <FileText className="h-12 w-12 text-muted-foreground mb-4" />
         <h2 className="text-xl font-semibold mb-2">Exam Not Found</h2>
@@ -345,7 +346,10 @@ export default function TeacherExamResults() {
             Back to Results
           </Link>
         </Button>
-      </div>
+
+      <div className="flex items-center justify-center h-64">
+        <div className="text-muted-foreground">Loading exam details...</div>
+     </div>
     );
   }
 
@@ -358,6 +362,27 @@ export default function TeacherExamResults() {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Link>
+
+    <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <Button variant="outline" size="sm" asChild data-testid="button-back" className="w-fit">
+              <Link href="/portal/teacher/recent-exam-results">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold" data-testid="text-exam-title">{currentExam.name}</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground" data-testid="text-exam-info">
+                {subject?.name || 'Subject'} • {examClass?.name || 'Class'} • {currentExam.date ? format(new Date(currentExam.date), 'MMMM do, yyyy') : 'N/A'}
+              </p>
+            </div>
+          </div>
+          <Button onClick={downloadResults} disabled={totalSubmissions === 0} data-testid="button-download" className="w-full sm:w-auto">
+            <Download className="h-4 w-4 mr-2" />
+            Download Results
+
           </Button>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold" data-testid="text-exam-title">{currentExam.name}</h1>
