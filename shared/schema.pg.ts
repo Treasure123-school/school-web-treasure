@@ -276,6 +276,7 @@ export const systemSettings = pgTable("system_settings", {
   autoCreateReportCard: boolean("auto_create_report_card").notNull().default(true),
   showGradeBreakdown: boolean("show_grade_breakdown").notNull().default(true),
   allowTeacherOverrides: boolean("allow_teacher_overrides").notNull().default(true),
+  positioningMethod: varchar("positioning_method", { length: 20 }).notNull().default('average'),
   updatedBy: varchar("updated_by", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

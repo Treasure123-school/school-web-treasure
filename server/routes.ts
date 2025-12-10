@@ -8910,6 +8910,51 @@ Treasure-Home School Administration
       }
     });
 
+    // Get class positioning method setting (Admin only)
+    app.get('/api/settings/positioning-method', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN, ROLES.ADMIN), async (req: Request, res: Response) => {
+      try {
+        const settings = await storage.getSystemSettings();
+        res.json({ 
+          positioningMethod: settings?.positioningMethod || 'average' 
+        });
+      } catch (error) {
+        res.status(500).json({ message: 'Failed to get positioning method setting' });
+      }
+    });
+
+    // Update class positioning method setting (Admin only)
+    app.patch('/api/settings/positioning-method', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN, ROLES.ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { positioningMethod } = req.body;
+        
+        if (!positioningMethod || !['average', 'total'].includes(positioningMethod)) {
+          return res.status(400).json({ 
+            message: 'Invalid positioning method. Must be "average" or "total".' 
+          });
+        }
+        
+        const settings = await storage.updateSystemSettings({ 
+          positioningMethod,
+          updatedBy: req.user!.id 
+        });
+        
+        await storage.createAuditLog({
+          userId: req.user!.id,
+          action: 'positioning_method_updated',
+          entityType: 'system_settings',
+          entityId: String(settings.id),
+          reason: `Class position calculation method changed to: ${positioningMethod}`,
+        });
+        
+        res.json({ 
+          message: 'Positioning method updated successfully',
+          positioningMethod: settings.positioningMethod
+        });
+      } catch (error) {
+        res.status(500).json({ message: 'Failed to update positioning method setting' });
+      }
+    });
+
     // Get student report card for a specific term
     app.get('/api/reports/student-report-card/:studentId', authenticateUser, async (req: Request, res: Response) => {
       try {

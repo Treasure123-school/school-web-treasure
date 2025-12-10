@@ -475,6 +475,111 @@ function GradingBoundariesSection() {
   );
 }
 
+function ClassPositionSettings() {
+  const { toast } = useToast();
+  const [positioningMethod, setPositioningMethod] = useState('average');
+  const [isLoading, setIsLoading] = useState(true);
+
+  const { data: settings } = useQuery<{ positioningMethod: string }>({
+    queryKey: ['/api/settings/positioning-method'],
+  });
+
+  useEffect(() => {
+    if (settings) {
+      setPositioningMethod(settings.positioningMethod || 'average');
+      setIsLoading(false);
+    }
+  }, [settings]);
+
+  const savePositioningMethodMutation = useMutation({
+    mutationFn: async (method: string) => {
+      return apiRequest('PATCH', '/api/settings/positioning-method', { positioningMethod: method });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/settings/positioning-method'] });
+      toast({ title: 'Success', description: 'Class position calculation method updated successfully' });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to update positioning method', variant: 'destructive' });
+    },
+  });
+
+  const handleSave = () => {
+    savePositioningMethodMutation.mutate(positioningMethod);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center">
+          <Scale className="w-5 h-5 mr-2" />
+          Class Position Calculation
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="positioningMethod">Position Calculation Method</Label>
+          <p className="text-sm text-muted-foreground">
+            Choose how student class positions are calculated. This affects ranking on report cards.
+          </p>
+          <Select
+            value={positioningMethod}
+            onValueChange={setPositioningMethod}
+            disabled={isLoading}
+          >
+            <SelectTrigger data-testid="select-positioning-method">
+              <SelectValue placeholder="Select method" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="average" data-testid="option-average">
+                Average Score (Recommended)
+              </SelectItem>
+              <SelectItem value="total" data-testid="option-total">
+                Total Marks
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="bg-muted/50 rounded-md p-4 space-y-2">
+          <div className="flex items-start gap-2">
+            <Info className="w-4 h-4 mt-0.5 text-muted-foreground" />
+            <div className="text-sm">
+              {positioningMethod === 'average' ? (
+                <div>
+                  <p className="font-medium">Average Score Method</p>
+                  <p className="text-muted-foreground">
+                    Students are ranked by their average percentage score. This is fair when students in different departments take different numbers of subjects.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="font-medium">Total Marks Method</p>
+                  <p className="text-muted-foreground">
+                    Students are ranked by their total marks obtained. This may not be fair when students take different numbers of subjects.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <Button 
+            onClick={handleSave} 
+            disabled={savePositioningMethodMutation.isPending}
+            data-testid="button-save-positioning"
+          >
+            {savePositioningMethodMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            <Save className="w-4 h-4 mr-2" />
+            Save Changes
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SettingsManagement() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('school');
@@ -792,6 +897,7 @@ export default function SettingsManagement() {
         </TabsContent>
 
         <TabsContent value="grading" className="space-y-4">
+          <ClassPositionSettings />
           <GradingBoundariesSection />
         </TabsContent>
 

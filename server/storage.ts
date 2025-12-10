@@ -5042,6 +5042,11 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`[REPORT-CARD] Calculating class positions for class ${classId}, term ${termId}`);
       
+      // Get positioning method from system settings (default to 'average' for fairness)
+      const settings = await db.select().from(schema.systemSettings).limit(1);
+      const positioningMethod = settings[0]?.positioningMethod || 'average';
+      console.log(`[REPORT-CARD] Using positioning method: ${positioningMethod}`);
+      
       // Step 1: Get all report cards for this class and term with their total scores
       const reportCards = await db.select({
         id: schema.reportCards.id,
@@ -5062,11 +5067,23 @@ export class DatabaseStorage implements IStorage {
       
       const totalStudentsInClass = reportCards.length;
       
-      // Step 2: Sort by total score descending (higher score = better position)
-      // Use totalScore for ranking, fallback to averageScore if totalScore is null
+      // Step 2: Sort based on positioning method
+      // 'average' = use averageScore (fair for different subject counts)
+      // 'total' = use totalScore (original behavior)
       const sortedCards = [...reportCards].sort((a, b) => {
-        const scoreA = a.totalScore ?? a.averageScore ?? 0;
-        const scoreB = b.totalScore ?? b.averageScore ?? 0;
+        let scoreA: number;
+        let scoreB: number;
+        
+        if (positioningMethod === 'average') {
+          // Use average score for fair comparison across departments
+          scoreA = a.averageScore ?? 0;
+          scoreB = b.averageScore ?? 0;
+        } else {
+          // Use total score (original behavior)
+          scoreA = a.totalScore ?? a.averageScore ?? 0;
+          scoreB = b.totalScore ?? b.averageScore ?? 0;
+        }
+        
         return scoreB - scoreA; // Descending order
       });
       
@@ -5080,7 +5097,9 @@ export class DatabaseStorage implements IStorage {
       
       for (let i = 0; i < sortedCards.length; i++) {
         const card = sortedCards[i];
-        const score = card.totalScore ?? card.averageScore ?? 0;
+        const score = positioningMethod === 'average' 
+          ? (card.averageScore ?? 0) 
+          : (card.totalScore ?? card.averageScore ?? 0);
         
         if (i === 0) {
           // First student always gets position 1
