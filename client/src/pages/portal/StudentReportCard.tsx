@@ -349,25 +349,25 @@ export default function StudentReportCard() {
                 
                 <div className="flex-1">
                   <h3 className="font-bold text-lg sm:text-xl text-center sm:text-left mb-3" data-testid="text-student-name">
-                    {user.firstName} {user.lastName}
+                    {reportCard.studentName || `${user.firstName} ${user.lastName}`}
                   </h3>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                     <div className="flex flex-col">
                       <span className="text-muted-foreground text-xs">Admission No</span>
                       <span className="font-medium" data-testid="text-admission-number">
-                        {studentDetails?.admissionNumber || 'N/A'}
+                        {reportCard.admissionNumber || studentDetails?.admissionNumber || 'N/A'}
                       </span>
                     </div>
                     <div className="flex flex-col">
                       <span className="text-muted-foreground text-xs">Class / Level</span>
                       <span className="font-medium" data-testid="text-class-name">
-                        {studentDetails?.className || reportCard.className || 'N/A'}
+                        {reportCard.className || studentDetails?.className || 'N/A'}
                       </span>
                     </div>
                     <div className="flex flex-col">
                       <span className="text-muted-foreground text-xs">Term</span>
                       <span className="font-medium" data-testid="text-term">
-                        {reportCard.termName}
+                        {reportCard.termName || reportCard.term?.name || 'N/A'}
                       </span>
                     </div>
                     <div className="flex flex-col">
@@ -376,6 +376,15 @@ export default function StudentReportCard() {
                         {reportCard.academicSession || reportCard.termYear || '2024/2025'}
                       </span>
                     </div>
+                    {/* Display department for SSS classes */}
+                    {reportCard.isSSS && reportCard.department && (
+                      <div className="flex flex-col col-span-2">
+                        <span className="text-muted-foreground text-xs">Department</span>
+                        <span className="font-medium capitalize" data-testid="text-department">
+                          {reportCard.department}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

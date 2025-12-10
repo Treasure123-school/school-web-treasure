@@ -4400,8 +4400,11 @@ export class DatabaseStorage implements IStorage {
         studentUsername: schema.users.username,
         studentPhoto: schema.users.profileImageUrl,
         admissionNumber: schema.students.admissionNumber,
+        department: schema.students.department,
         className: schema.classes.name,
-        termName: schema.academicTerms.name
+        classLevel: schema.classes.level,
+        termName: schema.academicTerms.name,
+        termYear: schema.academicTerms.year
       })
         .from(schema.reportCards)
         .innerJoin(schema.students, eq(schema.reportCards.studentId, schema.students.id))
@@ -4412,6 +4415,10 @@ export class DatabaseStorage implements IStorage {
         .limit(1);
 
       if (reportCard.length === 0) return null;
+      
+      // Add computed fields
+      const isSSS = reportCard[0].className?.startsWith('SS') || reportCard[0].classLevel?.includes('Senior Secondary');
+      const academicSession = reportCard[0].termYear ? `${reportCard[0].termYear}/${reportCard[0].termYear + 1}` : '2024/2025';
 
       const items = await db.select({
         id: schema.reportCardItems.id,
@@ -4443,7 +4450,13 @@ export class DatabaseStorage implements IStorage {
         .where(eq(schema.reportCardItems.reportCardId, reportCardId))
         .orderBy(schema.subjects.name);
 
-      return { ...reportCard[0], items };
+      return { 
+        ...reportCard[0], 
+        isSSS: isSSS,
+        academicSession: academicSession,
+        department: isSSS ? reportCard[0].department : null,
+        items 
+      };
     } catch (error) {
       console.error('Error getting report card with items:', error);
       return null;

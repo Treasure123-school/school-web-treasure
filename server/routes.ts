@@ -8906,16 +8906,30 @@ Treasure-Home School Administration
           const totalObtained = items.reduce((sum: number, item: any) => sum + (item.obtainedMarks || 0), 0);
           const totalMax = items.length * 100;
 
+          // Determine if this is an SSS class for department display
+          const isSSS = studentClass?.name?.startsWith('SS') || studentClass?.level?.includes('Senior Secondary');
+          
           const reportCard = {
             id: dbReportCard.id,
             status: dbReportCard.status,
+            // Flat fields for easy frontend access
+            studentName: `${user.firstName} ${user.lastName}`,
+            admissionNumber: student.admissionNumber,
+            className: studentClass?.name || 'Unknown',
+            classLevel: studentClass?.level || 'Unknown',
+            department: isSSS ? student.department : null,
+            isSSS: isSSS,
+            termName: term?.name || 'Unknown',
+            termYear: term?.year?.toString() || '',
+            academicSession: term ? `${term.year}/${term.year + 1}` : '2024/2025',
+            // Nested objects (backwards compatibility)
             student: {
               id: studentId,
               name: `${user.firstName} ${user.lastName}`,
               admissionNumber: student.admissionNumber,
               className: studentClass?.name || 'Unknown',
               classLevel: studentClass?.level || 'Unknown',
-              department: student.department
+              department: isSSS ? student.department : null
             },
             term: term ? {
               id: term.id,
@@ -9075,13 +9089,24 @@ Treasure-Home School Administration
 
         const reportCard = {
           status: 'draft',
+          // Flat fields for easy frontend access
+          studentName: `${user.firstName} ${user.lastName}`,
+          admissionNumber: student.admissionNumber,
+          className: studentClass?.name || 'Unknown',
+          classLevel: studentClass?.level || 'Unknown',
+          department: isSSS ? student.department : null,
+          isSSS: isSSS,
+          termName: term?.name || 'Unknown',
+          termYear: term?.year?.toString() || '',
+          academicSession: term ? `${term.year}/${term.year + 1}` : '2024/2025',
+          // Nested objects (backwards compatibility)
           student: {
             id: studentId,
             name: `${user.firstName} ${user.lastName}`,
             admissionNumber: student.admissionNumber,
             className: studentClass?.name || 'Unknown',
             classLevel: studentClass?.level || 'Unknown',
-            department: student.department
+            department: isSSS ? student.department : null
           },
           term: term ? {
             id: term.id,

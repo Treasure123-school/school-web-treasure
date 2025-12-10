@@ -104,6 +104,8 @@ interface ReportCardData {
   admissionNumber: string;
   className: string;
   classArm?: string;
+  department?: string | null;
+  isSSS?: boolean;
   termName: string;
   academicSession?: string;
   averagePercentage: number;
@@ -354,6 +356,13 @@ export function ProfessionalReportCard({
                   <span className="text-muted-foreground text-xs">Session</span>
                   <span className="font-medium" data-testid="text-session">{reportCard.academicSession || '2024/2025'}</span>
                 </div>
+                {/* Display department for SSS classes */}
+                {reportCard.isSSS && reportCard.department && (
+                  <div className="flex flex-col col-span-2">
+                    <span className="text-muted-foreground text-xs">Department</span>
+                    <span className="font-medium capitalize" data-testid="text-department">{reportCard.department}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
