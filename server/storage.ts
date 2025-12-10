@@ -7252,12 +7252,18 @@ export class DatabaseStorage implements IStorage {
         return { studentsProcessed: 0, itemsAdded: 0, examScoresSynced: 0, errors: ['No current term'] };
       }
 
-      // Get students in affected classes
-      const students = await db.select()
+      // Get students in affected classes (join with users to check isActive status)
+      const students = await db.select({
+        id: schema.students.id,
+        classId: schema.students.classId,
+        department: schema.students.department,
+        admissionNumber: schema.students.admissionNumber
+      })
         .from(schema.students)
+        .innerJoin(schema.users, eq(schema.students.id, schema.users.id))
         .where(and(
           inArray(schema.students.classId, classIds),
-          eq(schema.students.isActive, true)
+          eq(schema.users.isActive, true)
         ));
       
       console.log(`[ADD-MISSING-SUBJECTS] Processing ${students.length} students from ${classIds.length} classes`);
