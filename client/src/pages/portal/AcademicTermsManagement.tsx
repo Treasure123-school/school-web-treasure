@@ -50,12 +50,26 @@ const statusConfig: Record<TermStatus, { label: string; color: string; icon: any
   archived: { label: 'Archived', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400', icon: Archive },
 };
 
+// Validate academic year format (must be YYYY/YYYY with consecutive years)
+function validateAcademicYear(year: string): { valid: boolean; error?: string } {
+  const yearPattern = /^\d{4}\/\d{4}$/;
+  if (!yearPattern.test(year)) {
+    return { valid: false, error: 'Format must be YYYY/YYYY (e.g., 2024/2025)' };
+  }
+  const [startYear, endYear] = year.split('/').map(Number);
+  if (endYear !== startYear + 1) {
+    return { valid: false, error: 'Years must be consecutive (e.g., 2024/2025)' };
+  }
+  return { valid: true };
+}
+
 export default function AcademicTermsManagement() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTerm, setEditingTerm] = useState<AcademicTerm | null>(null);
   const [activeTab, setActiveTab] = useState('all');
+  const [yearError, setYearError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     year: '',
@@ -214,6 +228,20 @@ export default function AcademicTermsManagement() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate year format before submitting
+    const yearValidation = validateAcademicYear(formData.year);
+    if (!yearValidation.valid) {
+      setYearError(yearValidation.error || 'Invalid year format');
+      toast({ 
+        title: "Validation Error", 
+        description: yearValidation.error, 
+        variant: "destructive" 
+      });
+      return;
+    }
+    setYearError(null);
+    
     if (editingTerm) {
       updateTermMutation.mutate({ id: editingTerm.id, data: formData });
     } else {
@@ -246,6 +274,7 @@ export default function AcademicTermsManagement() {
   const handleDialogClose = () => {
     setIsDialogOpen(false);
     setEditingTerm(null);
+    setYearError(null);
     setFormData({ 
       name: '', 
       year: '', 
@@ -350,10 +379,20 @@ export default function AcademicTermsManagement() {
                     id="year"
                     data-testid="input-term-year"
                     value={formData.year}
-                    onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, year: e.target.value });
+                      if (yearError) setYearError(null);
+                    }}
                     placeholder="e.g., 2024/2025"
                     required
+                    className={yearError ? 'border-destructive' : ''}
                   />
+                  {yearError && (
+                    <p className="text-xs text-destructive flex items-center gap-1" data-testid="text-year-error">
+                      <AlertTriangle className="h-3 w-3" />
+                      {yearError}
+                    </p>
+                  )}
                 </div>
               </div>
               

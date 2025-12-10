@@ -4502,6 +4502,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.body.name || !req.body.year || !req.body.startDate || !req.body.endDate) {
         return res.status(400).json({ message: 'Missing required fields: name, year, startDate, endDate' });
       }
+      
+      // Validate year format (must be YYYY/YYYY like "2024/2025")
+      const yearPattern = /^\d{4}\/\d{4}$/;
+      if (!yearPattern.test(req.body.year)) {
+        return res.status(400).json({ message: 'Academic year must be in YYYY/YYYY format (e.g., 2024/2025)' });
+      }
+      
+      // Validate that the second year is exactly one more than the first
+      const [startYear, endYear] = req.body.year.split('/').map(Number);
+      if (endYear !== startYear + 1) {
+        return res.status(400).json({ message: 'Academic year must span consecutive years (e.g., 2024/2025)' });
+      }
+      
       const term = await storage.createAcademicTerm(req.body);
       
       // Emit realtime event for term creation
@@ -4532,6 +4545,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if term is locked (unless we're unlocking it)
       if ((existingTerm as any).isLocked && req.body.isLocked !== false) {
         return res.status(403).json({ message: 'This term is locked and cannot be edited. Unlock it first.' });
+      }
+      
+      // Validate year format if provided (must be YYYY/YYYY like "2024/2025")
+      if (req.body.year) {
+        const yearPattern = /^\d{4}\/\d{4}$/;
+        if (!yearPattern.test(req.body.year)) {
+          return res.status(400).json({ message: 'Academic year must be in YYYY/YYYY format (e.g., 2024/2025)' });
+        }
+        
+        // Validate that the second year is exactly one more than the first
+        const [startYear, endYear] = req.body.year.split('/').map(Number);
+        if (endYear !== startYear + 1) {
+          return res.status(400).json({ message: 'Academic year must span consecutive years (e.g., 2024/2025)' });
+        }
       }
 
       const term = await storage.updateAcademicTerm(termId, req.body);
