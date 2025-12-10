@@ -11077,8 +11077,10 @@ Treasure-Home School Administration
             studentId: schema.reportCards.studentId,
             studentName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
             admissionNumber: students.admissionNumber,
+            department: students.department,
             classId: schema.reportCards.classId,
             className: schema.classes.name,
+            classLevel: schema.classes.level,
             termId: schema.reportCards.termId,
             termName: schema.academicTerms.name,
             sessionYear: schema.academicTerms.year,
@@ -11105,7 +11107,17 @@ Treasure-Home School Administration
           )
           .orderBy(desc(schema.reportCards.finalizedAt));
         
-        const results = await query;
+        const rawResults = await query;
+        
+        // Add isSSS and conditionally include department
+        const results = rawResults.map((r: any) => {
+          const isSSS = r.className?.startsWith('SS') || r.classLevel?.includes('Senior Secondary');
+          return {
+            ...r,
+            isSSS,
+            department: isSSS ? r.department : null
+          };
+        });
         
         // Get statistics
         const allReports = await db

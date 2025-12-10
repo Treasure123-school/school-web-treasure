@@ -4361,17 +4361,29 @@ export class DatabaseStorage implements IStorage {
         studentName: sql<string>`CONCAT(${schema.users.firstName}, ' ', ${schema.users.lastName})`.as('studentName'),
         studentUsername: schema.users.username,
         studentPhoto: schema.users.profileImageUrl,
-        admissionNumber: schema.students.admissionNumber
+        admissionNumber: schema.students.admissionNumber,
+        department: schema.students.department,
+        className: schema.classes.name,
+        classLevel: schema.classes.level
       })
         .from(schema.reportCards)
         .innerJoin(schema.students, eq(schema.reportCards.studentId, schema.students.id))
         .innerJoin(schema.users, eq(schema.students.id, schema.users.id))
+        .innerJoin(schema.classes, eq(schema.reportCards.classId, schema.classes.id))
         .where(and(
           eq(schema.reportCards.classId, classId),
           eq(schema.reportCards.termId, termId)
         ))
         .orderBy(schema.reportCards.position);
-      return results;
+      
+      return results.map((r: any) => {
+        const isSSS = r.className?.startsWith('SS') || r.classLevel?.includes('Senior Secondary');
+        return {
+          ...r,
+          isSSS,
+          department: isSSS ? r.department : null
+        };
+      });
     } catch (error) {
       console.error('Error getting report cards by class and term:', error);
       return [];

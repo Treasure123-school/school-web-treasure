@@ -101,6 +101,9 @@ interface ReportCard {
   studentPhoto?: string;
   admissionNumber: string;
   className: string;
+  classLevel?: string;
+  department?: string | null;
+  isSSS?: boolean;
   termName: string;
   averagePercentage: number;
   overallGrade: string;
@@ -1504,8 +1507,10 @@ export default function TeacherReportCards() {
                     studentPhoto: fullReportCard.studentPhoto,
                     admissionNumber: fullReportCard.studentUsername || fullReportCard.admissionNumber,
                     className: fullReportCard.className,
+                    department: fullReportCard.department,
+                    isSSS: fullReportCard.isSSS,
                     termName: fullReportCard.termName,
-                    academicSession: fullReportCard.sessionYear || '2024/2025',
+                    academicSession: fullReportCard.academicSession || fullReportCard.sessionYear || '2024/2025',
                     averagePercentage: fullReportCard.averagePercentage || 0,
                     overallGrade: fullReportCard.overallGrade || '-',
                     position: fullReportCard.position || 0,
