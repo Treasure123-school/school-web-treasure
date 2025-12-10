@@ -672,17 +672,20 @@ export default function AdminResultPublishing() {
         </CardContent>
       </Card>
 
-      {/* Preview Dialog - Fully Responsive */}
+      {/* Preview Dialog - Fully Responsive for all screen sizes */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] sm:max-h-[85vh] h-auto p-0 flex flex-col overflow-hidden">
-          <DialogHeader className="p-3 sm:p-4 pb-2 border-b shrink-0">
+        <DialogContent 
+          className="w-[98vw] sm:w-[95vw] md:w-[90vw] lg:w-[85vw] max-w-5xl max-h-[85dvh] sm:max-h-[88dvh] md:max-h-[90dvh] p-0 flex flex-col overflow-hidden"
+          style={{ margin: 'auto' }}
+        >
+          <DialogHeader className="px-3 py-2 sm:px-4 sm:py-3 border-b shrink-0 bg-background">
             <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
-                  <FileText className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <DialogTitle className="flex items-center gap-2 text-sm sm:text-base md:text-lg">
+                  <FileText className="w-4 h-4 shrink-0" />
                   <span className="truncate">Report Card Preview</span>
                 </DialogTitle>
-                <DialogDescription className="text-xs sm:text-sm truncate">
+                <DialogDescription className="text-xs sm:text-sm truncate mt-0.5">
                   {viewingReportCard?.studentName} - {viewingReportCard?.className} - {viewingReportCard?.termName}
                 </DialogDescription>
               </div>
@@ -690,22 +693,22 @@ export default function AdminResultPublishing() {
           </DialogHeader>
 
           {loadingFullReport ? (
-            <div className="flex-1 flex items-center justify-center">
-              <Loader2 className="w-8 h-8 animate-spin" />
+            <div className="flex-1 flex items-center justify-center min-h-[200px]">
+              <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin" />
             </div>
           ) : fullReportCard ? (
-            <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               {/* Action Bar - Responsive */}
-              <div className="p-3 sm:p-4 border-b bg-muted/30 shrink-0">
+              <div className="px-2 py-2 sm:px-4 sm:py-3 border-b bg-muted/30 shrink-0">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
                     {getStatusBadge(fullReportCard.status)}
-                    <span className="text-xs text-muted-foreground hidden sm:inline">
+                    <span className="text-xs text-muted-foreground hidden md:inline">
                       {fullReportCard.status === 'finalized' ? 'Ready for publishing' : 
                        fullReportCard.status === 'published' ? 'Visible to students and parents' : ''}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1 sm:gap-2">
+                  <div className="flex items-center gap-1 sm:gap-1.5">
                     {/* Print/Download icons */}
                     <Button 
                       variant="outline" 
@@ -732,11 +735,12 @@ export default function AdminResultPublishing() {
                             setIsViewDialogOpen(false);
                           }}
                           disabled={publishMutation.isPending}
-                          className="text-xs sm:text-sm"
+                          size="sm"
+                          className="text-xs sm:text-sm h-9"
                           data-testid="button-publish-dialog"
                         >
-                          <Send className="w-4 h-4 sm:mr-2" />
-                          <span className="hidden sm:inline">Approve & Publish</span>
+                          <Send className="w-4 h-4 sm:mr-1.5" />
+                          <span className="hidden sm:inline">Publish</span>
                         </Button>
                         <Button 
                           variant="outline"
@@ -756,15 +760,16 @@ export default function AdminResultPublishing() {
                     {fullReportCard.status === 'published' && (
                       <Button 
                         variant="outline"
+                        size="sm"
                         onClick={() => {
                           unpublishMutation.mutate(fullReportCard.id);
                           setIsViewDialogOpen(false);
                         }}
                         disabled={unpublishMutation.isPending}
-                        className="text-xs sm:text-sm text-amber-600 hover:text-amber-700"
+                        className="text-xs sm:text-sm h-9 text-amber-600 hover:text-amber-700"
                         data-testid="button-unpublish-dialog"
                       >
-                        <Undo2 className="w-4 h-4 sm:mr-2" />
+                        <Undo2 className="w-4 h-4 sm:mr-1.5" />
                         <span className="hidden sm:inline">Unpublish</span>
                       </Button>
                     )}
@@ -772,9 +777,9 @@ export default function AdminResultPublishing() {
                 </div>
               </div>
 
-              {/* Scrollable Report Card */}
-              <ScrollArea className="flex-1">
-                <div className="p-2 sm:p-4">
+              {/* Scrollable Report Card - Uses native overflow for better mobile support */}
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+                <div className="p-2 sm:p-3 md:p-4">
                   <ProfessionalReportCard
                     reportCard={{
                       id: fullReportCard.id,
@@ -814,12 +819,12 @@ export default function AdminResultPublishing() {
                     isLoading={false}
                   />
                 </div>
-              </ScrollArea>
+              </div>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-4">
-              <AlertTriangle className="w-12 h-12 text-muted-foreground mb-4" />
-              <p className="text-sm text-muted-foreground">Failed to load report card details</p>
+            <div className="flex-1 flex flex-col items-center justify-center p-4 min-h-[200px]">
+              <AlertTriangle className="w-10 h-10 sm:w-12 sm:h-12 text-muted-foreground mb-3 sm:mb-4" />
+              <p className="text-xs sm:text-sm text-muted-foreground text-center">Failed to load report card details</p>
             </div>
           )}
         </DialogContent>
