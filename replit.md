@@ -118,7 +118,14 @@ Fixed real-time update flicker issue in Teacher Report-Card Preview page:
 - **TeacherReportCards**: Uses optimistic updates with server response reconciliation to prevent flicker
 - **Authorization**: Edit buttons properly hidden based on `canEditTest`/`canEditExam` flags from backend permissions
 
+### Student Report Card Data Consistency Fix (December 2025)
+Fixed critical issue where student/parent portal displayed incorrect report card data after admin published results:
+- **Root Cause**: `/api/reports/student-report-card/:studentId` was recalculating scores from raw exam results instead of using published data from `report_cards` and `report_card_items` tables
+- **Solution**: Endpoint now prioritizes database-stored values (totalScore, averagePercentage, overallGrade, position) from published report cards, with fallback calculation only when no report card exists (for teacher/admin preview before generation)
+- **Class Statistics**: Now correctly uses `report_cards.averagePercentage` from all published cards in the same class/term, properly including legitimate 0% scores in calculations
+- **Data Flow**: When a report card is published, student view now matches admin view exactly
+
 ### Key Files Modified
-- `server/routes.ts` - Override endpoint returns recalculated totals
+- `server/routes.ts` - Override endpoint returns recalculated totals; Student report card endpoint uses published data
 - `client/src/hooks/useSocketIORealtime.ts` - Added skipCacheInvalidation opt-in flag
 - `client/src/pages/portal/TeacherReportCards.tsx` - Uses skipCacheInvalidation to prevent flicker
