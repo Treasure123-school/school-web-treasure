@@ -21,7 +21,7 @@ import { generateStudentUsername, generateParentUsername, generateTeacherUsernam
 import passport from "passport";
 import session from "express-session";
 import memorystore from "memorystore";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, sql, desc } from "drizzle-orm";
 import { realtimeService } from "./realtime-service";
 import { getProfileImagePath, getHomepageImagePath } from "./storage-path-utils";
 import { uploadFileToStorage, replaceFile, deleteFileFromStorage } from "./upload-service";
@@ -37,6 +37,77 @@ function extractFilePathFromUrl(url: string): string {
   // For local filesystem URLs (e.g., /server/uploads/profiles/image.jpg)
   // Just return the path as-is for deletion
   return url.startsWith('/') ? url.substring(1) : url;
+}
+
+/**
+ * CRITICAL: Shared helper for comprehensive cache invalidation and student sync
+ * when class-subject mappings are modified. This ensures admin changes propagate
+ * instantly to exams, report cards, and student visibility.
+ * 
+ * Called by: POST/DELETE/PUT class-subject-mapping endpoints
+ */
+async function invalidateSubjectMappingsAndSync(
+  affectedClassIds: number[],
+  options: { cleanupReportCards?: boolean; addMissingSubjects?: boolean } = {}
+): Promise<{ studentsSynced: number; reportCardItemsRemoved: number; reportCardItemsAdded: number; examScoresSynced: number; cacheKeysInvalidated: number; syncErrors: string[] }> {
+  let cacheKeysInvalidated = 0;
+  let totalSynced = 0;
+  let reportCardItemsRemoved = 0;
+  let reportCardItemsAdded = 0;
+  let examScoresSynced = 0;
+  const syncErrors: string[] = [];
+
+  // 1. Invalidate visibility caches (affects exam visibility)
+  for (const classId of affectedClassIds) {
+    cacheKeysInvalidated += invalidateVisibilityCache({ classId });
+  }
+
+  // 2. Invalidate subject assignment caches (affects subject visibility)
+  for (const classId of affectedClassIds) {
+    cacheKeysInvalidated += SubjectAssignmentService.invalidateClassCache(classId);
+  }
+
+  // 3. Invalidate ALL report card related caches comprehensively
+  // Match EXACT patterns used in enhanced-cache.ts:
+  cacheKeysInvalidated += enhancedCache.invalidate(/^reportcard:/);        // reportcard:{id}
+  cacheKeysInvalidated += enhancedCache.invalidate(/^reportcards:/);       // reportcards:student:*, reportcards:class:*
+  cacheKeysInvalidated += enhancedCache.invalidate(/^report-card/);        // any report-card* patterns
+  cacheKeysInvalidated += enhancedCache.invalidate(/^student-report/);     // student-report* patterns
+
+  // 4. Sync students with new mappings so changes take effect immediately
+  for (const classId of affectedClassIds) {
+    const syncResult = await storage.syncStudentsWithClassMappings(classId);
+    totalSynced += syncResult.synced;
+    if (syncResult.errors && syncResult.errors.length > 0) {
+      syncErrors.push(...syncResult.errors);
+    }
+  }
+
+  // 5. Cleanup report cards for affected classes (remove items for unassigned subjects)
+  if (options.cleanupReportCards && affectedClassIds.length > 0) {
+    const cleanupResult = await storage.cleanupReportCardsForClasses(affectedClassIds);
+    reportCardItemsRemoved = cleanupResult.itemsRemoved;
+  }
+
+  // 6. FIX: Add missing subjects to existing report cards when new mappings are added
+  // This ensures report cards are updated when admin adds new subjects to class/department mappings
+  if (options.addMissingSubjects !== false && affectedClassIds.length > 0) {
+    try {
+      const addResult = await storage.addMissingSubjectsToReportCards(affectedClassIds);
+      reportCardItemsAdded = addResult.itemsAdded;
+      examScoresSynced = addResult.examScoresSynced;
+      if (addResult.errors && addResult.errors.length > 0) {
+        syncErrors.push(...addResult.errors);
+      }
+    } catch (error: any) {
+      console.error('[SUBJECT-MAPPING-SYNC] Error adding missing subjects to report cards:', error);
+      syncErrors.push(`Failed to add missing subjects: ${error.message}`);
+    }
+  }
+
+  console.log(`[SUBJECT-MAPPING-SYNC] Classes: ${affectedClassIds.length}, Students synced: ${totalSynced}, Cache invalidated: ${cacheKeysInvalidated}, Report items removed: ${reportCardItemsRemoved}, Report items added: ${reportCardItemsAdded}, Exam scores synced: ${examScoresSynced}, Errors: ${syncErrors.length}`);
+  
+  return { studentsSynced: totalSynced, reportCardItemsRemoved, reportCardItemsAdded, examScoresSynced, cacheKeysInvalidated, syncErrors };
 }
 
 // Type for authenticated user
@@ -1999,6 +2070,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: 'Failed to update exam' });
       }
       
+      // CRITICAL: When exam subject changes, sync report card items to use new subject
+      // This ensures report cards reflect the updated exam subject
+      let reportCardSyncResult = { updated: 0, errors: [] as string[] };
+      if (sanitizedData.subjectId !== undefined && sanitizedData.subjectId !== existingExam.subjectId) {
+        console.log(`[EXAM-UPDATE] Subject changed from ${existingExam.subjectId} to ${sanitizedData.subjectId} for exam ${examId}. Syncing report cards...`);
+        try {
+          reportCardSyncResult = await storage.syncReportCardItemsOnExamSubjectChange(
+            examId,
+            existingExam.subjectId,
+            sanitizedData.subjectId
+          );
+          console.log(`[EXAM-UPDATE] Report card sync complete: ${reportCardSyncResult.updated} items updated`);
+        } catch (syncError: any) {
+          console.error(`[EXAM-UPDATE] Failed to sync report card items:`, syncError?.message);
+          // Don't fail the request, just log the error - exam was still updated
+        }
+      }
+      
       // Invalidate exam visibility cache when exam is updated
       invalidateVisibilityCache({ examId: exam.id });
       
@@ -2008,7 +2097,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         realtimeService.emitToClass(exam.classId.toString(), 'exam.updated', exam);
       }
       
-      res.json(exam);
+      res.json({ 
+        ...exam, 
+        reportCardSync: reportCardSyncResult.updated > 0 ? reportCardSyncResult : undefined 
+      });
     } catch (error) {
       res.status(500).json({ message: 'Failed to update exam' });
     }
@@ -10477,10 +10569,12 @@ Treasure-Home School Administration
           isCompulsory: isCompulsory || false
         });
         
-        // Invalidate visibility cache for this class (affects exam visibility)
-        invalidateVisibilityCache({ classId });
+        // CRITICAL: Use shared helper for comprehensive cache invalidation and sync
+        // FIX: Explicitly set addMissingSubjects: true to ensure new mappings are added to existing report cards
+        const syncResult = await invalidateSubjectMappingsAndSync([classId], { cleanupReportCards: false, addMissingSubjects: true });
+        console.log(`[CLASS-SUBJECT-MAPPING] Created mapping for class ${classId}`);
         
-        // Emit websocket event for real-time propagation
+        // Emit websocket event for real-time UI propagation
         const socketIO = realtimeService.getIO();
         if (socketIO) {
           socketIO.emit('subject-assignments-updated', {
@@ -10488,6 +10582,7 @@ Treasure-Home School Administration
             affectedClassIds: [classId],
             added: 1,
             removed: 0,
+            studentsSynced: syncResult.studentsSynced,
             timestamp: new Date().toISOString()
           });
         }
@@ -10540,28 +10635,36 @@ Treasure-Home School Administration
           return res.status(404).json({ message: 'Mapping not found' });
         }
         
+        const classId = mappingToDelete.classId;
         const success = await storage.deleteClassSubjectMapping(Number(id));
         
         if (!success) {
           return res.status(500).json({ message: 'Failed to delete mapping' });
         }
         
-        // Invalidate visibility cache for this class (affects exam visibility)
-        invalidateVisibilityCache({ classId: mappingToDelete.classId });
+        // CRITICAL: Use shared helper for comprehensive cache invalidation, sync, and cleanup
+        const syncResult = await invalidateSubjectMappingsAndSync([classId], { cleanupReportCards: true });
+        console.log(`[CLASS-SUBJECT-MAPPING] Deleted mapping for class ${classId}`);
         
-        // Emit websocket event for real-time propagation
+        // Emit websocket event for real-time UI propagation
         const socketIO = realtimeService.getIO();
         if (socketIO) {
           socketIO.emit('subject-assignments-updated', {
             eventType: 'subject-assignments-updated',
-            affectedClassIds: [mappingToDelete.classId],
+            affectedClassIds: [classId],
             added: 0,
             removed: 1,
+            studentsSynced: syncResult.studentsSynced,
+            reportCardItemsRemoved: syncResult.reportCardItemsRemoved,
             timestamp: new Date().toISOString()
           });
         }
         
-        res.json({ message: 'Mapping deleted successfully' });
+        res.json({ 
+          message: 'Mapping deleted successfully',
+          studentsSynced: syncResult.studentsSynced,
+          reportCardItemsRemoved: syncResult.reportCardItemsRemoved
+        });
       } catch (error: any) {
         console.error('Error deleting class-subject mapping:', error);
         res.status(500).json({ message: error.message || 'Failed to delete mapping' });
@@ -10598,26 +10701,13 @@ Treasure-Home School Administration
           removals || []
         );
 
-        // Invalidate visibility cache for all affected classes
-        for (const classId of result.affectedClassIds) {
-          invalidateVisibilityCache({ classId });
-          SubjectAssignmentService.invalidateClassCache(classId);
-        }
-
-        // CRITICAL: Sync all students in affected classes with the new mappings
-        // This ensures student_subject_assignments match class_subject_mappings
-        let totalSynced = 0;
-        const syncErrors: string[] = [];
-        for (const classId of result.affectedClassIds) {
-          const syncResult = await storage.syncStudentsWithClassMappings(classId);
-          totalSynced += syncResult.synced;
-          syncErrors.push(...syncResult.errors);
-        }
-        console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Synced ${totalSynced} students with new mappings`);
-
-        // CRITICAL: Cleanup report cards for ONLY affected classes (not all students)
-        const cleanupResult = await storage.cleanupReportCardsForClasses(result.affectedClassIds);
-        console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Cleaned up ${cleanupResult.itemsRemoved} report card items from ${cleanupResult.studentsProcessed} students in ${result.affectedClassIds.length} affected classes`);
+        // CRITICAL: Use shared helper for comprehensive cache invalidation, sync, and cleanup
+        // FIX: Explicitly set addMissingSubjects when subjects are added to ensure report cards are updated
+        const syncResult = await invalidateSubjectMappingsAndSync(
+          result.affectedClassIds, 
+          { cleanupReportCards: result.removed > 0, addMissingSubjects: result.added > 0 }
+        );
+        console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Updated: ${result.added} added, ${result.removed} removed, ${result.affectedClassIds.length} classes affected`);
 
         // Emit websocket event for real-time propagation to all connected clients
         const socketIO = realtimeService.getIO();
@@ -10627,22 +10717,23 @@ Treasure-Home School Administration
             affectedClassIds: result.affectedClassIds,
             added: result.added,
             removed: result.removed,
-            studentsSynced: totalSynced,
+            studentsSynced: syncResult.studentsSynced,
+            reportCardItemsRemoved: syncResult.reportCardItemsRemoved,
+            reportCardItemsAdded: syncResult.reportCardItemsAdded,
             timestamp: new Date().toISOString()
           });
           console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Emitted websocket event to all clients`);
         }
-
-        console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Updated: ${result.added} added, ${result.removed} removed, ${result.affectedClassIds.length} classes affected, ${totalSynced} students synced`);
 
         res.json({ 
           message: 'Subject assignments updated successfully',
           added: result.added,
           removed: result.removed,
           affectedClasses: result.affectedClassIds.length,
-          studentsSynced: totalSynced,
-          reportCardItemsRemoved: cleanupResult.itemsRemoved,
-          syncErrors: syncErrors.length > 0 ? syncErrors : undefined
+          studentsSynced: syncResult.studentsSynced,
+          reportCardItemsRemoved: syncResult.reportCardItemsRemoved,
+          reportCardItemsAdded: syncResult.reportCardItemsAdded,
+          syncErrors: syncResult.syncErrors.length > 0 ? syncResult.syncErrors : undefined
         });
       } catch (error: any) {
         console.error('Error updating unified subject assignments:', error);
@@ -10747,6 +10838,175 @@ Treasure-Home School Administration
       }
     });
 
+    // ADMIN: Repair report cards - add missing subjects and sync exam scores
+    // FIX: This addresses the bug where report cards created before a subject mapping was added
+    // don't include that subject. This function adds missing subjects and syncs any existing exam results.
+    app.post('/api/admin/repair-report-cards', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        console.log('[ADMIN-REPAIR] Starting report card repair (add missing subjects and sync exam scores)...');
+        
+        const result = await storage.repairAllReportCards();
+        
+        console.log(`[ADMIN-REPAIR] Completed: ${result.itemsAdded} items added, ${result.examScoresSynced} exam scores synced for ${result.studentsProcessed} students`);
+        
+        // Invalidate report card caches after repair
+        enhancedCache.invalidate(/^reportcard:/);
+        enhancedCache.invalidate(/^reportcards:/);
+        enhancedCache.invalidate(/^report-card/);
+        enhancedCache.invalidate(/^student-report/);
+        
+        res.json({
+          message: 'Report card repair completed',
+          studentsProcessed: result.studentsProcessed,
+          itemsAdded: result.itemsAdded,
+          examScoresSynced: result.examScoresSynced,
+          errors: result.errors.length > 0 ? result.errors.slice(0, 20) : undefined,
+          totalErrors: result.errors.length
+        });
+      } catch (error: any) {
+        console.error('[ADMIN-REPAIR] Error:', error);
+        res.status(500).json({ message: error.message || 'Failed to repair report cards' });
+      }
+    });
+
+    // ADMIN: Get all finalized report cards for approval/publishing
+    app.get('/api/admin/report-cards/finalized', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { classId, termId, status = 'finalized' } = req.query;
+        
+        // Build the query to get finalized report cards with student and class info
+        const query = db
+          .select({
+            id: schema.reportCards.id,
+            studentId: schema.reportCards.studentId,
+            studentName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
+            admissionNumber: students.admissionNumber,
+            classId: schema.reportCards.classId,
+            className: schema.classes.name,
+            termId: schema.reportCards.termId,
+            termName: schema.academicTerms.name,
+            sessionYear: schema.academicTerms.year,
+            averagePercentage: schema.reportCards.averagePercentage,
+            overallGrade: schema.reportCards.overallGrade,
+            status: schema.reportCards.status,
+            finalizedAt: schema.reportCards.finalizedAt,
+            publishedAt: schema.reportCards.publishedAt,
+            generatedAt: schema.reportCards.generatedAt,
+          })
+          .from(schema.reportCards)
+          .innerJoin(students, eq(students.id, schema.reportCards.studentId))
+          .innerJoin(users, eq(users.id, students.id))
+          .innerJoin(schema.classes, eq(schema.classes.id, schema.reportCards.classId))
+          .innerJoin(schema.academicTerms, eq(schema.academicTerms.id, schema.reportCards.termId))
+          .where(
+            and(
+              status === 'all' 
+                ? sql`${schema.reportCards.status} IN ('finalized', 'published')`
+                : eq(schema.reportCards.status, status as string),
+              classId ? eq(schema.reportCards.classId, Number(classId)) : sql`1=1`,
+              termId ? eq(schema.reportCards.termId, Number(termId)) : sql`1=1`
+            )
+          )
+          .orderBy(desc(schema.reportCards.finalizedAt));
+        
+        const results = await query;
+        
+        // Get statistics
+        const allReports = await db
+          .select({
+            status: schema.reportCards.status,
+            count: sql<number>`count(*)`
+          })
+          .from(schema.reportCards)
+          .where(
+            and(
+              classId ? eq(schema.reportCards.classId, Number(classId)) : sql`1=1`,
+              termId ? eq(schema.reportCards.termId, Number(termId)) : sql`1=1`
+            )
+          )
+          .groupBy(schema.reportCards.status);
+        
+        const stats = {
+          draft: 0,
+          finalized: 0,
+          published: 0
+        };
+        
+        allReports.forEach((r: any) => {
+          if (r.status in stats) {
+            stats[r.status as keyof typeof stats] = Number(r.count);
+          }
+        });
+        
+        res.json({
+          reportCards: results,
+          statistics: stats
+        });
+      } catch (error: any) {
+        console.error('[ADMIN-FINALIZED] Error fetching finalized report cards:', error);
+        res.status(500).json({ message: error.message || 'Failed to fetch report cards' });
+      }
+    });
+
+    // ADMIN: Bulk publish report cards
+    app.post('/api/admin/report-cards/bulk-publish', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { reportCardIds } = req.body;
+        
+        if (!reportCardIds || !Array.isArray(reportCardIds) || reportCardIds.length === 0) {
+          return res.status(400).json({ message: 'Report card IDs are required' });
+        }
+        
+        const results = await Promise.all(
+          reportCardIds.map(async (id: number) => {
+            try {
+              const result = await storage.updateReportCardStatusOptimized(id, 'published', req.user!.id);
+              return { id, success: true, result };
+            } catch (error: any) {
+              return { id, success: false, error: error.message };
+            }
+          })
+        );
+        
+        const successCount = results.filter(r => r.success).length;
+        const failedCount = results.filter(r => !r.success).length;
+        
+        res.json({
+          message: `${successCount} report cards published successfully${failedCount > 0 ? `, ${failedCount} failed` : ''}`,
+          results,
+          successCount,
+          failedCount
+        });
+      } catch (error: any) {
+        console.error('[ADMIN-BULK-PUBLISH] Error:', error);
+        res.status(500).json({ message: error.message || 'Failed to publish report cards' });
+      }
+    });
+
+    // ADMIN: Reject report card (revert to draft)
+    app.post('/api/admin/report-cards/:id/reject', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { id } = req.params;
+        const { reason } = req.body;
+        
+        // Revert to draft status
+        const result = await storage.updateReportCardStatusOptimized(Number(id), 'draft', req.user!.id);
+        
+        if (!result) {
+          return res.status(404).json({ message: 'Report card not found' });
+        }
+        
+        res.json({
+          message: 'Report card rejected and reverted to draft',
+          reportCard: result.reportCard,
+          reason
+        });
+      } catch (error: any) {
+        console.error('[ADMIN-REJECT] Error:', error);
+        res.status(500).json({ message: error.message || 'Failed to reject report card' });
+      }
+    });
+
     // ADMIN DEBUG: Force resync exam score to report card
     // This is a temporary debug endpoint to test the fix for pg_strtoint32_safe error
     app.post('/api/admin/resync-exam-score', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
@@ -10767,6 +11027,79 @@ Treasure-Home School Administration
       } catch (error: any) {
         console.error('[DEBUG-RESYNC] Error:', error);
         res.status(500).json({ message: error.message || 'Sync failed' });
+      }
+    });
+
+    // ADMIN: Resync report card items when exam subject has been changed
+    // This endpoint allows admin to manually trigger a resync for exams whose subjects were changed
+    // before the automatic sync fix was implemented (useful for fixing historical data)
+    app.post('/api/admin/resync-report-card-subjects', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { examIds, newSubjectId } = req.body;
+        
+        // Validate input
+        if (!examIds || !Array.isArray(examIds) || examIds.length === 0) {
+          return res.status(400).json({ message: 'examIds must be a non-empty array of exam IDs' });
+        }
+        
+        if (!newSubjectId || typeof newSubjectId !== 'number') {
+          return res.status(400).json({ message: 'newSubjectId must be a valid subject ID number' });
+        }
+        
+        // Verify the new subject exists
+        const subject = await storage.getSubject(newSubjectId);
+        if (!subject) {
+          return res.status(404).json({ message: `Subject with ID ${newSubjectId} not found` });
+        }
+        
+        console.log(`[ADMIN-RESYNC-SUBJECTS] User ${req.user!.id} requested resync for ${examIds.length} exams to subject ${newSubjectId} (${subject.name})`);
+        
+        const results: Array<{ examId: number; updated: number; errors: string[] }> = [];
+        let totalUpdated = 0;
+        const allErrors: string[] = [];
+        
+        for (const examId of examIds) {
+          try {
+            // Verify the exam exists
+            const exam = await storage.getExamById(Number(examId));
+            if (!exam) {
+              results.push({ examId: Number(examId), updated: 0, errors: [`Exam ${examId} not found`] });
+              allErrors.push(`Exam ${examId} not found`);
+              continue;
+            }
+            
+            // Get the exam's current subject for logging
+            const oldSubjectId = exam.subjectId;
+            
+            // Sync report card items for this exam
+            const syncResult = await storage.syncReportCardItemsOnExamSubjectChange(
+              Number(examId),
+              oldSubjectId,
+              newSubjectId
+            );
+            
+            results.push({ examId: Number(examId), updated: syncResult.updated, errors: syncResult.errors });
+            totalUpdated += syncResult.updated;
+            allErrors.push(...syncResult.errors);
+            
+          } catch (examError: any) {
+            console.error(`[ADMIN-RESYNC-SUBJECTS] Error syncing exam ${examId}:`, examError);
+            results.push({ examId: Number(examId), updated: 0, errors: [examError.message] });
+            allErrors.push(`Exam ${examId}: ${examError.message}`);
+          }
+        }
+        
+        console.log(`[ADMIN-RESYNC-SUBJECTS] Complete. Total items updated: ${totalUpdated}, Errors: ${allErrors.length}`);
+        
+        res.json({
+          message: `Report card items resynced for ${examIds.length} exams`,
+          totalUpdated,
+          results,
+          errors: allErrors
+        });
+      } catch (error: any) {
+        console.error('[ADMIN-RESYNC-SUBJECTS] Error:', error);
+        res.status(500).json({ message: error.message || 'Failed to resync report card subjects' });
       }
     });
 

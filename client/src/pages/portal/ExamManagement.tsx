@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { apiRequest, queryClient, resetCircuitBreaker, getCircuitBreakerStatus } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { optimisticToggle, optimisticDelete, optimisticCreate, optimisticUpdateItem, rollbackOnError } from '@/lib/optimisticUpdates';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -704,7 +704,7 @@ export default function ExamManagement() {
       if (error?.message?.includes('Circuit breaker is OPEN')) {
         toast({
           title: "Connection Issue",
-          description: "Too many failed requests. Please click the 'Reset Connection' button above, wait 30 seconds, then try again.",
+          description: "Connection temporarily unavailable. Please wait a moment and try again.",
           variant: "destructive",
           duration: 8000,
         });
@@ -986,15 +986,6 @@ export default function ExamManagement() {
     });
   };
 
-  // Circuit breaker status and reset handler
-  const handleCircuitBreakerReset = () => {
-    resetCircuitBreaker();
-    toast({
-      title: "Connection Reset",
-      description: "Circuit breaker has been reset. You can try your request again.",
-    });
-  };
-
   const onSubmitQuestion = (data: QuestionForm) => {
 
     if (!selectedExam) {
@@ -1194,7 +1185,7 @@ export default function ExamManagement() {
       if (error?.message?.includes('Circuit breaker is OPEN')) {
         toast({
           title: "Connection Issue - CSV Upload",
-          description: "Too many failed requests. Please click the 'Reset Connection' button above, wait 30 seconds, then try again.",
+          description: "Connection temporarily unavailable. Please wait a moment and try again.",
           variant: "destructive",
           duration: 8000,
         });
@@ -1549,44 +1540,6 @@ export default function ExamManagement() {
 
   return (
     <div className="space-y-6">
-        {/* Circuit Breaker Status Display */}
-        {(() => {
-          const cbStatus = getCircuitBreakerStatus();
-          if (cbStatus.state === 'OPEN' || cbStatus.failures > 0) {
-            return (
-              <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div className={`w-2 h-2 rounded-full ${cbStatus.state === 'OPEN' ? 'bg-red-500' : 'bg-amber-500'}`} />
-                      <span className="text-sm font-medium">
-                        {cbStatus.state === 'OPEN' ? 'Connection Issues Detected' : 'Connection Warnings'}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        ({cbStatus.failures} failed requests)
-                      </span>
-                    </div>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      onClick={handleCircuitBreakerReset}
-                      data-testid="button-reset-connection"
-                    >
-                      Reset Connection
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {cbStatus.state === 'OPEN' 
-                      ? 'Requests are temporarily blocked. Click Reset or wait for automatic recovery.'
-                      : 'Some requests have failed. Monitor for connection issues.'}
-                  </p>
-                </CardContent>
-              </Card>
-            );
-          }
-          return null;
-        })()}
-
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">Exam Management</h1>

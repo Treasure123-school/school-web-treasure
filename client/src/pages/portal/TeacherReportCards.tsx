@@ -559,9 +559,9 @@ export default function TeacherReportCards() {
       case 'draft':
         return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" /> Draft</Badge>;
       case 'finalized':
-        return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"><CheckCircle className="w-3 h-3 mr-1" /> Finalized</Badge>;
+        return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"><Clock className="w-3 h-3 mr-1" /> Awaiting Admin Approval</Badge>;
       case 'published':
-        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"><Send className="w-3 h-3 mr-1" /> Published</Badge>;
+        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"><CheckCircle className="w-3 h-3 mr-1" /> Published</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -1372,67 +1372,25 @@ export default function TeacherReportCards() {
                         )}
                         
                         {fullReportCard.status === 'finalized' && (
-                          <>
-                            <DropdownMenuItem 
-                              onClick={() => updateStatusMutation.mutate({ 
-                                reportCardId: fullReportCard.id, 
-                                status: 'published',
-                                classId: selectedClass,
-                                termId: selectedTerm
-                              })}
-                              className="cursor-pointer"
-                              data-testid="menu-publish"
-                            >
-                              <Send className="w-4 h-4 mr-2 text-green-500" />
-                              <span>Publish to Parents/Students</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => updateStatusMutation.mutate({ 
-                                reportCardId: fullReportCard.id, 
-                                status: 'draft',
-                                classId: selectedClass,
-                                termId: selectedTerm
-                              })}
-                              className="cursor-pointer"
-                              data-testid="menu-revert-draft"
-                            >
-                              <FilePen className="w-4 h-4 mr-2 text-yellow-500" />
-                              <span>Revert to Draft (Edit)</span>
-                            </DropdownMenuItem>
-                          </>
+                          <DropdownMenuItem 
+                            disabled
+                            className="cursor-default text-muted-foreground"
+                            data-testid="menu-awaiting-approval"
+                          >
+                            <Clock className="w-4 h-4 mr-2 text-blue-500" />
+                            <span>Awaiting Admin Approval</span>
+                          </DropdownMenuItem>
                         )}
                         
                         {fullReportCard.status === 'published' && (
-                          <>
-                            <DropdownMenuItem 
-                              onClick={() => updateStatusMutation.mutate({ 
-                                reportCardId: fullReportCard.id, 
-                                status: 'finalized',
-                                classId: selectedClass,
-                                termId: selectedTerm
-                              })}
-                              className="cursor-pointer"
-                              data-testid="menu-revert-finalized"
-                            >
-                              <FileCheck className="w-4 h-4 mr-2 text-blue-500" />
-                              <span>Unpublish (Finalized)</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => updateStatusMutation.mutate({ 
-                                reportCardId: fullReportCard.id, 
-                                status: 'draft',
-                                classId: selectedClass,
-                                termId: selectedTerm
-                              })}
-                              className="cursor-pointer"
-                              data-testid="menu-revert-draft-published"
-                            >
-                              <FilePen className="w-4 h-4 mr-2 text-yellow-500" />
-                              <span>Revert to Draft (Edit)</span>
-                            </DropdownMenuItem>
-                          </>
+                          <DropdownMenuItem 
+                            disabled
+                            className="cursor-default text-muted-foreground"
+                            data-testid="menu-published-status"
+                          >
+                            <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                            <span>Published by Admin</span>
+                          </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>

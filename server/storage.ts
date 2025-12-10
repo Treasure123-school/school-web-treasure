@@ -520,6 +520,13 @@ export interface IStorage {
   cleanupReportCardItems(studentId: string): Promise<{removed: number; kept: number}>;
   cleanupReportCardsForClasses(classIds: number[]): Promise<{studentsProcessed: number; itemsRemoved: number; errors: string[]}>;
   cleanupAllReportCards(): Promise<{studentsProcessed: number; itemsRemoved: number; errors: string[]}>;
+  
+  // FIX: Add missing subjects to existing report cards when new mappings are added
+  addMissingSubjectsToReportCards(classIds: number[]): Promise<{studentsProcessed: number; itemsAdded: number; examScoresSynced: number; errors: string[]}>;
+  repairAllReportCards(): Promise<{studentsProcessed: number; itemsAdded: number; examScoresSynced: number; errors: string[]}>;
+  
+  // Sync report card items when exam subject changes
+  syncReportCardItemsOnExamSubjectChange(examId: number, oldSubjectId: number, newSubjectId: number): Promise<{updated: number; errors: string[]}>;
 
   // Smart deletion methods
   validateDeletion(userId: string): Promise<{
@@ -5234,6 +5241,61 @@ export class DatabaseStorage implements IStorage {
         }
       } else {
         reportCardId = reportCard[0].id;
+        
+        // ALSO check existing report cards for missing subjects and add them
+        // This ensures students get all their assigned subjects even if report card was created before assignments
+        const existingItems = await db.select({ subjectId: schema.reportCardItems.subjectId })
+          .from(schema.reportCardItems)
+          .where(eq(schema.reportCardItems.reportCardId, reportCardId));
+        
+        const existingSubjectIds = new Set(existingItems.map((item: { subjectId: number }) => item.subjectId));
+        
+        // Get student's class and department info
+        const studentClass = await db.select()
+          .from(schema.classes)
+          .where(eq(schema.classes.id, classId))
+          .limit(1);
+        
+        const isSeniorSecondary = studentClass.length > 0 && 
+          (studentClass[0].level || '').trim().toLowerCase() === 'senior secondary';
+        const rawDepartment = (student[0].department || '').trim().toLowerCase();
+        const studentDepartment = rawDepartment.length > 0 ? rawDepartment : undefined;
+        
+        // Get all subjects that should be assigned
+        const studentSubjectAssignments = await db.select({ subjectId: schema.studentSubjectAssignments.subjectId })
+          .from(schema.studentSubjectAssignments)
+          .where(and(
+            eq(schema.studentSubjectAssignments.studentId, studentId),
+            eq(schema.studentSubjectAssignments.classId, classId),
+            eq(schema.studentSubjectAssignments.isActive, true)
+          ));
+        
+        let assignedSubjectIds: number[] = [];
+        
+        if (studentSubjectAssignments.length > 0) {
+          assignedSubjectIds = studentSubjectAssignments.map((a: { subjectId: number }) => a.subjectId);
+        } else {
+          const relevantSubjects = await this.getSubjectsByClassAndDepartment(classId, studentDepartment);
+          assignedSubjectIds = relevantSubjects.map(s => s.id);
+        }
+        
+        // Find and add missing subjects
+        const missingSubjectIds = assignedSubjectIds.filter(id => !existingSubjectIds.has(id));
+        
+        if (missingSubjectIds.length > 0) {
+          console.log(`[REPORT-CARD-SYNC] Adding ${missingSubjectIds.length} missing subjects to existing report card ${reportCardId} for student ${studentId}`);
+          
+          for (const missingSubjectId of missingSubjectIds) {
+            await db.insert(schema.reportCardItems)
+              .values({
+                reportCardId,
+                subjectId: missingSubjectId,
+                totalMarks: 100,
+                obtainedMarks: 0,
+                percentage: 0
+              });
+          }
+        }
       }
 
       // 4. Find the report card item for this subject
@@ -7165,6 +7227,219 @@ export class DatabaseStorage implements IStorage {
     } catch (error: any) {
       console.error('[CLEANUP] Error cleaning up all report cards:', error);
       return { studentsProcessed: 0, itemsRemoved: 0, errors: [error.message] };
+    }
+  }
+
+  /**
+   * FIX: Add missing subjects to existing report cards when new mappings are added
+   * This ensures report cards are updated when admin adds new subjects to class/department mappings
+   */
+  async addMissingSubjectsToReportCards(classIds: number[]): Promise<{studentsProcessed: number; itemsAdded: number; examScoresSynced: number; errors: string[]}> {
+    let studentsProcessed = 0;
+    let totalItemsAdded = 0;
+    let examScoresSynced = 0;
+    const errors: string[] = [];
+    
+    if (!classIds || classIds.length === 0) {
+      return { studentsProcessed: 0, itemsAdded: 0, examScoresSynced: 0, errors: [] };
+    }
+    
+    try {
+      // Get current term for exam lookup
+      const currentTerm = await this.getCurrentTerm();
+      if (!currentTerm) {
+        console.log('[ADD-MISSING-SUBJECTS] No current term found, skipping');
+        return { studentsProcessed: 0, itemsAdded: 0, examScoresSynced: 0, errors: ['No current term'] };
+      }
+
+      // Get students in affected classes (join with users to check isActive status)
+      const students = await db.select({
+        id: schema.students.id,
+        classId: schema.students.classId,
+        department: schema.students.department,
+        admissionNumber: schema.students.admissionNumber
+      })
+        .from(schema.students)
+        .innerJoin(schema.users, eq(schema.students.id, schema.users.id))
+        .where(and(
+          inArray(schema.students.classId, classIds),
+          eq(schema.users.isActive, true)
+        ));
+      
+      console.log(`[ADD-MISSING-SUBJECTS] Processing ${students.length} students from ${classIds.length} classes`);
+      
+      for (const student of students) {
+        try {
+          if (!student.classId) continue;
+          
+          // Get class info to determine if senior secondary
+          const classInfo = await this.getClass(student.classId);
+          if (!classInfo) continue;
+          
+          const isSeniorSecondary = classInfo.level && 
+            ['SS1', 'SS2', 'SS3', 'Senior Secondary'].some(level => 
+              classInfo.level?.toLowerCase().includes(level.toLowerCase()) ||
+              classInfo.name?.toLowerCase().includes(level.toLowerCase())
+            );
+          
+          const studentDept = (student as any).department?.toLowerCase()?.trim() || undefined;
+          const effectiveDept = isSeniorSecondary ? studentDept : undefined;
+          
+          // Get all subjects that SHOULD be assigned to this student
+          const allowedSubjects = await this.getSubjectsByClassAndDepartment(student.classId, effectiveDept);
+          const allowedSubjectIds = new Set(allowedSubjects.map(s => s.id));
+          
+          if (allowedSubjects.length === 0) continue;
+          
+          // Get student's report cards for current term
+          const reportCards = await db.select()
+            .from(schema.reportCards)
+            .where(and(
+              eq(schema.reportCards.studentId, student.id),
+              eq(schema.reportCards.termId, currentTerm.id)
+            ));
+          
+          for (const reportCard of reportCards) {
+            // Get existing items in this report card
+            const existingItems = await db.select()
+              .from(schema.reportCardItems)
+              .where(eq(schema.reportCardItems.reportCardId, reportCard.id));
+            
+            const existingSubjectIds = new Set(existingItems.map((item: { subjectId: number }) => item.subjectId));
+            
+            // Find missing subjects (subjects that should be there but aren't)
+            const missingSubjectIds = [...allowedSubjectIds].filter(id => !existingSubjectIds.has(id));
+            
+            if (missingSubjectIds.length > 0) {
+              console.log(`[ADD-MISSING-SUBJECTS] Student ${student.id}: adding ${missingSubjectIds.length} missing subjects to report card ${reportCard.id}`);
+              
+              for (const subjectId of missingSubjectIds) {
+                // Create the report card item
+                const newItem = await db.insert(schema.reportCardItems)
+                  .values({
+                    reportCardId: reportCard.id,
+                    subjectId,
+                    totalMarks: 100,
+                    obtainedMarks: 0,
+                    percentage: 0
+                  })
+                  .returning();
+                
+                totalItemsAdded++;
+                
+                // Check if there are any exam results for this subject that need to be synced
+                const examResults = await db.select({
+                  examId: schema.examResults.examId,
+                  score: schema.examResults.score,
+                  maxScore: schema.examResults.maxScore,
+                  examType: schema.exams.examType,
+                  gradingScale: schema.exams.gradingScale,
+                  createdBy: schema.exams.createdBy
+                })
+                  .from(schema.examResults)
+                  .innerJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
+                  .where(and(
+                    eq(schema.examResults.studentId, student.id),
+                    eq(schema.exams.subjectId, subjectId),
+                    eq(schema.exams.termId, currentTerm.id)
+                  ));
+                
+                if (examResults.length > 0 && newItem.length > 0) {
+                  // Sync exam scores to the new report card item
+                  for (const examResult of examResults) {
+                    const isTest = ['test', 'quiz', 'assignment'].includes(examResult.examType);
+                    const isMainExam = ['exam', 'final', 'midterm'].includes(examResult.examType);
+                    
+                    const safeScore = typeof examResult.score === 'number' ? examResult.score : parseInt(String(examResult.score), 10) || 0;
+                    const safeMaxScore = typeof examResult.maxScore === 'number' ? examResult.maxScore : parseInt(String(examResult.maxScore), 10) || 0;
+                    
+                    const updateData: any = { updatedAt: new Date() };
+                    
+                    if (isTest) {
+                      updateData.testExamId = examResult.examId;
+                      updateData.testExamCreatedBy = examResult.createdBy;
+                      updateData.testScore = safeScore;
+                      updateData.testMaxScore = safeMaxScore;
+                    } else if (isMainExam) {
+                      updateData.examExamId = examResult.examId;
+                      updateData.examExamCreatedBy = examResult.createdBy;
+                      updateData.examScore = safeScore;
+                      updateData.examMaxScore = safeMaxScore;
+                    }
+                    
+                    await db.update(schema.reportCardItems)
+                      .set(updateData)
+                      .where(eq(schema.reportCardItems.id, newItem[0].id));
+                    
+                    examScoresSynced++;
+                    console.log(`[ADD-MISSING-SUBJECTS] Synced exam ${examResult.examId} score (${safeScore}/${safeMaxScore}) to new item`);
+                  }
+                  
+                  // Recalculate the item's weighted score after syncing
+                  await this.recalculateReportCard(reportCard.id, reportCard.gradingScale || 'standard');
+                }
+              }
+            }
+          }
+          
+          studentsProcessed++;
+        } catch (studentError: any) {
+          errors.push(`Failed to process student ${student.id}: ${studentError.message}`);
+        }
+      }
+      
+      console.log(`[ADD-MISSING-SUBJECTS] Completed: ${studentsProcessed} students, ${totalItemsAdded} items added, ${examScoresSynced} exam scores synced`);
+      return { studentsProcessed, itemsAdded: totalItemsAdded, examScoresSynced, errors };
+    } catch (error: any) {
+      console.error('[ADD-MISSING-SUBJECTS] Error:', error);
+      return { studentsProcessed: 0, itemsAdded: 0, examScoresSynced: 0, errors: [error.message] };
+    }
+  }
+
+  /**
+   * FIX: Repair all report cards by adding missing subjects and syncing exam scores
+   * This is a comprehensive data repair function for existing affected students
+   */
+  async repairAllReportCards(): Promise<{studentsProcessed: number; itemsAdded: number; examScoresSynced: number; errors: string[]}> {
+    try {
+      // Get all active classes
+      const classes = await db.select({ id: schema.classes.id })
+        .from(schema.classes)
+        .where(eq(schema.classes.isActive, true));
+      
+      const classIds = classes.map((c: { id: number }) => c.id);
+      console.log(`[REPAIR-REPORT-CARDS] Starting repair for ${classIds.length} classes`);
+      
+      return await this.addMissingSubjectsToReportCards(classIds);
+    } catch (error: any) {
+      console.error('[REPAIR-REPORT-CARDS] Error:', error);
+      return { studentsProcessed: 0, itemsAdded: 0, examScoresSynced: 0, errors: [error.message] };
+    }
+  }
+
+  async syncReportCardItemsOnExamSubjectChange(examId: number, oldSubjectId: number, newSubjectId: number): Promise<{updated: number; errors: string[]}> {
+    const errors: string[] = [];
+    
+    try {
+      console.log(`[SYNC] Syncing report card items for exam ${examId}: subject ${oldSubjectId} -> ${newSubjectId}`);
+      
+      const testExamResult = await db.update(schema.reportCardItems)
+        .set({ subjectId: newSubjectId })
+        .where(eq(schema.reportCardItems.testExamId, examId));
+      
+      const examExamResult = await db.update(schema.reportCardItems)
+        .set({ subjectId: newSubjectId })
+        .where(eq(schema.reportCardItems.examExamId, examId));
+      
+      const testExamCount = (testExamResult as any)?.rowCount || (testExamResult as any)?.changes || 0;
+      const examExamCount = (examExamResult as any)?.rowCount || (examExamResult as any)?.changes || 0;
+      const updated = testExamCount + examExamCount;
+      
+      console.log(`[SYNC] Updated ${updated} report card items for exam ${examId} (testExamId: ${testExamCount}, examExamId: ${examExamCount})`);
+      return { updated, errors };
+    } catch (error: any) {
+      console.error(`[SYNC] Error syncing report card items for exam ${examId}:`, error);
+      return { updated: 0, errors: [error.message] };
     }
   }
 }
