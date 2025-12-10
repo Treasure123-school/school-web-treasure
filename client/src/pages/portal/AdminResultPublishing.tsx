@@ -674,7 +674,7 @@ export default function AdminResultPublishing() {
 
       {/* Preview Dialog - Fully Responsive */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-4xl h-[95vh] sm:h-[90vh] p-0 flex flex-col">
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] sm:max-h-[85vh] h-auto p-0 flex flex-col overflow-hidden">
           <DialogHeader className="p-3 sm:p-4 pb-2 border-b shrink-0">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
@@ -694,7 +694,7 @@ export default function AdminResultPublishing() {
               <Loader2 className="w-8 h-8 animate-spin" />
             </div>
           ) : fullReportCard ? (
-            <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
               {/* Action Bar - Responsive */}
               <div className="p-3 sm:p-4 border-b bg-muted/30 shrink-0">
                 <div className="flex flex-wrap items-center justify-between gap-2">
