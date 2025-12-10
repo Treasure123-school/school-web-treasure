@@ -136,83 +136,106 @@ export default function PortalLayout({ children, userRole, userName, userInitial
       case 'admin':
         return [
           ...baseNav,
-          { name: 'Homepage Management', href: `/portal/${userRole}/homepage-management`, icon: ImageIcon },
-          { name: 'Gallery Management', href: `/portal/${userRole}/gallery`, icon: ImageIcon },
           {
             type: 'group',
-            label: 'People',
-            icon: Users,
-            isOpen: openMenuKey === 'admin-people',
-            setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'admin-people' : null),
+            label: 'Student Management',
+            icon: GraduationCap,
+            isOpen: openMenuKey === 'admin-students',
+            setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'admin-students' : null),
             items: [
-              { href: `/portal/${userRole}/users`, icon: Users, label: 'User Management' },
-              { href: `/portal/${userRole}/students`, icon: Users, label: 'Students' },
-              { href: `/portal/${userRole}/teachers`, icon: Users, label: 'Teachers' },
-              { href: `/portal/${userRole}/job-vacancies`, icon: Briefcase, label: 'Job Vacancies' },
+              { href: `/portal/${userRole}/students`, icon: Users, label: 'All Students' },
+              { href: `/portal/${userRole}/coming-soon?page=enrollment`, icon: UserCheck, label: 'Student Enrollment' },
+              { href: `/portal/${userRole}/coming-soon?page=parents`, icon: Users, label: 'Parent Linking' },
+              { href: `/portal/${userRole}/coming-soon?page=attendance`, icon: Calendar, label: 'Attendance' },
             ]
           },
           {
             type: 'group',
-            label: 'Academics',
+            label: 'Staff Management',
+            icon: Users,
+            isOpen: openMenuKey === 'admin-staff',
+            setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'admin-staff' : null),
+            items: [
+              { href: `/portal/${userRole}/teachers`, icon: Users, label: 'Teachers' },
+              { href: `/portal/${userRole}/users`, icon: Users, label: 'All Users' },
+              { href: `/portal/${userRole}/job-vacancies`, icon: Briefcase, label: 'Job Vacancies' },
+              { href: `/portal/${userRole}/profile-completion`, icon: UserCheck, label: 'Profile Verification' },
+            ]
+          },
+          {
+            type: 'group',
+            label: 'Academic Operations',
             icon: BookOpen,
             isOpen: openMenuKey === 'admin-academics',
             setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'admin-academics' : null),
             items: [
               { href: `/portal/${userRole}/classes`, icon: BookOpen, label: 'Classes' },
               { href: `/portal/${userRole}/subjects`, icon: BookOpen, label: 'Subjects' },
+              { href: `/portal/${userRole}/subject-assignment`, icon: Users, label: 'Teacher Assignments' },
               { href: `/portal/${userRole}/academic-terms`, icon: Calendar, label: 'Academic Terms' },
-              { href: `/portal/${userRole}/academics/timetable`, icon: Calendar, label: 'Timetable' },
-              { href: `/portal/${userRole}/academics/curriculum`, icon: BookOpen, label: 'Curriculum' },
+              { href: `/portal/${userRole}/coming-soon?page=timetable`, icon: Clock, label: 'Timetable' },
             ]
           },
           {
             type: 'group',
-            label: 'Subject Manager',
-            icon: GraduationCap,
-            isOpen: openMenuKey === 'admin-subject-manager',
-            setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'admin-subject-manager' : null),
-            items: [
-              { href: `/portal/${userRole}/subject-manager/subjects`, icon: BookOpen, label: 'Subject List' },
-              { href: `/portal/${userRole}/subject-manager/unified-assignment`, icon: ClipboardCheck, label: 'Class & Dept Assignment' },
-              { href: `/portal/${userRole}/subject-manager/assign-teachers`, icon: Users, label: 'Assign Teachers' },
-            ]
-          },
-          {
-            type: 'group',
-            label: 'Results',
+            label: 'Exams & Results',
             icon: ClipboardList,
-            isOpen: openMenuKey === 'admin-results',
-            setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'admin-results' : null),
+            isOpen: openMenuKey === 'admin-exams',
+            setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'admin-exams' : null),
             items: [
-              { href: `/portal/${userRole}/results/exams`, icon: ClipboardCheck, label: 'Exam Setup' },
-              { href: `/portal/${userRole}/results/ca`, icon: ClipboardList, label: 'Continuous Assessment' },
-              { href: `/portal/${userRole}/results/grades`, icon: Award, label: 'Grade Boundaries' },
-              { href: `/portal/${userRole}/results/processing`, icon: Activity, label: 'Result Processing' },
-              { href: `/portal/${userRole}/results/publishing`, icon: Eye, label: 'Result Publishing' },
+              { href: '/portal/admin/exams', icon: PenTool, label: 'Exam Management' },
+              { href: `/portal/${userRole}/result-publishing`, icon: Eye, label: 'Result Publishing' },
+              { href: `/portal/${userRole}/coming-soon?page=ca`, icon: ClipboardList, label: 'Continuous Assessment' },
+              { href: `/portal/${userRole}/coming-soon?page=processing`, icon: Activity, label: 'Result Processing' },
             ]
           },
           {
             type: 'group',
-            label: 'System',
-            icon: Settings,
-            isOpen: openMenuKey === 'admin-system',
-            setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'admin-system' : null),
+            label: 'Finance Operations',
+            icon: DollarSign,
+            isOpen: openMenuKey === 'admin-finance',
+            setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'admin-finance' : null),
             items: [
-              { href: '/portal/admin/exams', icon: Eye, label: 'Exam System' },
-              { href: `/portal/${userRole}/settings`, icon: Settings, label: 'Settings' },
-              { href: `/portal/${userRole}/profile-completion`, icon: UserCheck, label: 'Profile Completion' },
+              { href: `/portal/${userRole}/coming-soon?page=payments`, icon: DollarSign, label: 'Fee Collection' },
+              { href: `/portal/${userRole}/coming-soon?page=records`, icon: FileText, label: 'Payment Records' },
+              { href: `/portal/${userRole}/coming-soon?page=outstanding`, icon: Clock, label: 'Outstanding Fees' },
             ]
           },
           {
             type: 'group',
-            label: 'Reports & Logs',
+            label: 'School Events',
+            icon: Calendar,
+            isOpen: openMenuKey === 'admin-events',
+            setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'admin-events' : null),
+            items: [
+              { href: `/portal/${userRole}/coming-soon?page=calendar`, icon: Calendar, label: 'School Calendar' },
+              { href: `/portal/${userRole}/coming-soon?page=events`, icon: Bell, label: 'Events & Notices' },
+              { href: `/portal/${userRole}/announcements`, icon: Megaphone, label: 'Announcements' },
+            ]
+          },
+          {
+            type: 'group',
+            label: 'Content Management',
+            icon: ImageIcon,
+            isOpen: openMenuKey === 'admin-content',
+            setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'admin-content' : null),
+            items: [
+              { href: `/portal/${userRole}/homepage-management`, icon: ImageIcon, label: 'Homepage' },
+              { href: `/portal/${userRole}/gallery`, icon: ImageIcon, label: 'Gallery' },
+              { href: `/portal/${userRole}/coming-soon?page=assignments`, icon: ClipboardPen, label: 'Assignments' },
+              { href: `/portal/${userRole}/coming-soon?page=lessons`, icon: BookOpen, label: 'Lesson Notes' },
+              { href: `/portal/${userRole}/coming-soon?page=library`, icon: Library, label: 'E-Library' },
+            ]
+          },
+          {
+            type: 'group',
+            label: 'Reports',
             icon: FileText,
             isOpen: openMenuKey === 'admin-reports',
             setIsOpen: (open: boolean) => setOpenMenuKey(open ? 'admin-reports' : null),
             items: [
-              { href: `/portal/${userRole}/reports`, icon: BookOpen, label: 'Reports' },
-              { href: `/portal/${userRole}/performance`, icon: Activity, label: 'Performance' },
-              { href: `/portal/${userRole}/audit-logs`, icon: History, label: 'Audit Logs' },
+              { href: `/portal/${userRole}/reports`, icon: BarChart3, label: 'Academic Reports' },
+              { href: `/portal/${userRole}/performance`, icon: Activity, label: 'Performance Analytics' },
             ]
           },
         ];
