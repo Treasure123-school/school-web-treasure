@@ -33,7 +33,8 @@ import {
   GraduationCap,
   MoreVertical,
   Printer,
-  Download
+  Download,
+  Undo2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ProfessionalReportCard } from '@/components/ui/professional-report-card';
@@ -157,6 +158,50 @@ export default function AdminResultPublishing() {
     },
   });
 
+  const unpublishMutation = useMutation({
+    mutationFn: async (reportCardId: number) => {
+      const response = await apiRequest('PATCH', `/api/reports/${reportCardId}/status`, { status: 'finalized' });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to unpublish');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Report card unpublished successfully. Students can no longer view it." });
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const bulkUnpublishMutation = useMutation({
+    mutationFn: async (reportCardIds: number[]) => {
+      const results = await Promise.all(
+        reportCardIds.map(async (id) => {
+          const response = await apiRequest('PATCH', `/api/reports/${id}/status`, { status: 'finalized' });
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || `Failed to unpublish report card ${id}`);
+          }
+          return response.json();
+        })
+      );
+      return results;
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Selected report cards unpublished successfully" });
+      setSelectedReportCards([]);
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   const rejectMutation = useMutation({
     mutationFn: async ({ id, reason }: { id: number; reason: string }) => {
       const response = await apiRequest('POST', `/api/admin/report-cards/${id}/reject`, { reason });
@@ -181,8 +226,13 @@ export default function AdminResultPublishing() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const finalizedIds = reportCards.filter(rc => rc.status === 'finalized').map(rc => rc.id);
-      setSelectedReportCards(finalizedIds);
+      if (statusFilter === 'published') {
+        const publishedIds = reportCards.filter(rc => rc.status === 'published').map(rc => rc.id);
+        setSelectedReportCards(publishedIds);
+      } else {
+        const finalizedIds = reportCards.filter(rc => rc.status === 'finalized').map(rc => rc.id);
+        setSelectedReportCards(finalizedIds);
+      }
     } else {
       setSelectedReportCards([]);
     }
@@ -226,7 +276,10 @@ export default function AdminResultPublishing() {
   };
 
   const finalizedCount = reportCards.filter(rc => rc.status === 'finalized').length;
+  const publishedCount = reportCards.filter(rc => rc.status === 'published').length;
   const allFinalizedSelected = finalizedCount > 0 && selectedReportCards.length === finalizedCount;
+  const allPublishedSelected = publishedCount > 0 && selectedReportCards.length === publishedCount;
+  const isPublishedView = statusFilter === 'published';
 
   return (
     <div className="space-y-4 p-3 sm:p-4 md:p-6" data-testid="page-admin-result-publishing">
@@ -341,21 +394,40 @@ export default function AdminResultPublishing() {
             <div className="flex flex-wrap items-center gap-2 mb-4 p-2 sm:p-3 bg-muted rounded-md">
               <span className="text-xs sm:text-sm font-medium">{selectedReportCards.length} selected</span>
               <div className="flex gap-2 ml-auto">
-                <Button 
-                  size="sm" 
-                  onClick={() => bulkPublishMutation.mutate(selectedReportCards)}
-                  disabled={bulkPublishMutation.isPending}
-                  className="text-xs sm:text-sm"
-                  data-testid="button-bulk-publish"
-                >
-                  {bulkPublishMutation.isPending ? (
-                    <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin" />
-                  ) : (
-                    <Send className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                  )}
-                  <span className="hidden sm:inline">Publish Selected</span>
-                  <span className="sm:hidden">Publish</span>
-                </Button>
+                {isPublishedView ? (
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => bulkUnpublishMutation.mutate(selectedReportCards)}
+                    disabled={bulkUnpublishMutation.isPending}
+                    className="text-xs sm:text-sm"
+                    data-testid="button-bulk-unpublish"
+                  >
+                    {bulkUnpublishMutation.isPending ? (
+                      <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin" />
+                    ) : (
+                      <Undo2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                    )}
+                    <span className="hidden sm:inline">Unpublish Selected</span>
+                    <span className="sm:hidden">Unpublish</span>
+                  </Button>
+                ) : (
+                  <Button 
+                    size="sm" 
+                    onClick={() => bulkPublishMutation.mutate(selectedReportCards)}
+                    disabled={bulkPublishMutation.isPending}
+                    className="text-xs sm:text-sm"
+                    data-testid="button-bulk-publish"
+                  >
+                    {bulkPublishMutation.isPending ? (
+                      <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin" />
+                    ) : (
+                      <Send className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                    )}
+                    <span className="hidden sm:inline">Publish Selected</span>
+                    <span className="sm:hidden">Publish</span>
+                  </Button>
+                )}
                 <Button 
                   size="sm" 
                   variant="outline"
@@ -389,10 +461,10 @@ export default function AdminResultPublishing() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      {statusFilter === 'finalized' && (
+                      {(statusFilter === 'finalized' || statusFilter === 'published') && (
                         <TableHead className="w-12">
                           <Checkbox 
-                            checked={allFinalizedSelected}
+                            checked={isPublishedView ? allPublishedSelected : allFinalizedSelected}
                             onCheckedChange={handleSelectAll}
                             data-testid="checkbox-select-all"
                           />
@@ -411,9 +483,9 @@ export default function AdminResultPublishing() {
                   <TableBody>
                     {reportCards.map((rc) => (
                       <TableRow key={rc.id} data-testid={`row-report-${rc.id}`}>
-                        {statusFilter === 'finalized' && (
+                        {(statusFilter === 'finalized' || statusFilter === 'published') && (
                           <TableCell>
-                            {rc.status === 'finalized' && (
+                            {(rc.status === 'finalized' || rc.status === 'published') && (
                               <Checkbox 
                                 checked={selectedReportCards.includes(rc.id)}
                                 onCheckedChange={(checked) => handleSelectOne(rc.id, !!checked)}
@@ -478,6 +550,19 @@ export default function AdminResultPublishing() {
                                   </DropdownMenuItem>
                                 </>
                               )}
+                              {rc.status === 'published' && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => unpublishMutation.mutate(rc.id)}
+                                    disabled={unpublishMutation.isPending}
+                                    className="text-amber-600"
+                                  >
+                                    <Undo2 className="w-4 h-4 mr-2" />
+                                    Unpublish
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -489,10 +574,10 @@ export default function AdminResultPublishing() {
 
               {/* Mobile Card View */}
               <div className="md:hidden space-y-3">
-                {statusFilter === 'finalized' && finalizedCount > 0 && (
+                {((statusFilter === 'finalized' && finalizedCount > 0) || (statusFilter === 'published' && publishedCount > 0)) && (
                   <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
                     <Checkbox 
-                      checked={allFinalizedSelected}
+                      checked={isPublishedView ? allPublishedSelected : allFinalizedSelected}
                       onCheckedChange={handleSelectAll}
                       data-testid="checkbox-select-all-mobile"
                     />
@@ -503,7 +588,7 @@ export default function AdminResultPublishing() {
                   <Card key={rc.id} className="overflow-hidden" data-testid={`card-report-${rc.id}`}>
                     <CardContent className="p-3">
                       <div className="flex items-start gap-3">
-                        {statusFilter === 'finalized' && rc.status === 'finalized' && (
+                        {((statusFilter === 'finalized' && rc.status === 'finalized') || (statusFilter === 'published' && rc.status === 'published')) && (
                           <Checkbox 
                             checked={selectedReportCards.includes(rc.id)}
                             onCheckedChange={(checked) => handleSelectOne(rc.id, !!checked)}
@@ -544,6 +629,19 @@ export default function AdminResultPublishing() {
                                     >
                                       <XCircle className="w-4 h-4 mr-2" />
                                       Reject
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                                {rc.status === 'published' && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem 
+                                      onClick={() => unpublishMutation.mutate(rc.id)}
+                                      disabled={unpublishMutation.isPending}
+                                      className="text-amber-600"
+                                    >
+                                      <Undo2 className="w-4 h-4 mr-2" />
+                                      Unpublish
                                     </DropdownMenuItem>
                                   </>
                                 )}
@@ -603,7 +701,8 @@ export default function AdminResultPublishing() {
                   <div className="flex items-center gap-2">
                     {getStatusBadge(fullReportCard.status)}
                     <span className="text-xs text-muted-foreground hidden sm:inline">
-                      {fullReportCard.status === 'finalized' ? 'Ready for publishing' : ''}
+                      {fullReportCard.status === 'finalized' ? 'Ready for publishing' : 
+                       fullReportCard.status === 'published' ? 'Visible to students and parents' : ''}
                     </span>
                   </div>
                   <div className="flex items-center gap-1 sm:gap-2">
@@ -653,6 +752,21 @@ export default function AdminResultPublishing() {
                           <XCircle className="w-4 h-4" />
                         </Button>
                       </>
+                    )}
+                    {fullReportCard.status === 'published' && (
+                      <Button 
+                        variant="outline"
+                        onClick={() => {
+                          unpublishMutation.mutate(fullReportCard.id);
+                          setIsViewDialogOpen(false);
+                        }}
+                        disabled={unpublishMutation.isPending}
+                        className="text-xs sm:text-sm text-amber-600 hover:text-amber-700"
+                        data-testid="button-unpublish-dialog"
+                      >
+                        <Undo2 className="w-4 h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Unpublish</span>
+                      </Button>
                     )}
                   </div>
                 </div>
