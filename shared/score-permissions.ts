@@ -60,18 +60,20 @@ export function calculateScorePermissions(context: ScorePermissionContext): Scor
   // Check if teacher is assigned to this class/subject
   const isAssignedTeacher = assignedTeacherId === loggedInUserId;
   
-  // For teachers: check OWNERSHIP or ASSIGNMENT
+  // For teachers: check OWNERSHIP or ASSIGNMENT (stricter logic)
   // Can edit test if:
-  // - No test exam exists yet (null) - allows adding new test scores, OR
-  // - Teacher created the test exam (strict ownership check), OR
-  // - Teacher is assigned to this class/subject
-  const canEditTest = !testExamCreatedBy || testExamCreatedBy === loggedInUserId || isAssignedTeacher;
+  // - Teacher is assigned to this class/subject (primary check), OR
+  // - Teacher created the test exam (ownership check), OR
+  // - No test exam exists yet AND teacher is assigned to the subject
+  // NOTE: Just having null testExamCreatedBy is NOT enough - teacher must be assigned or own it
+  const canEditTest = isAssignedTeacher || testExamCreatedBy === loggedInUserId;
   
   // Can edit exam if:
-  // - No main exam exists yet (null) - allows adding new exam scores, OR
-  // - Teacher created the main exam (strict ownership check), OR
-  // - Teacher is assigned to this class/subject
-  const canEditExam = !examExamCreatedBy || examExamCreatedBy === loggedInUserId || isAssignedTeacher;
+  // - Teacher is assigned to this class/subject (primary check), OR
+  // - Teacher created the main exam (ownership check), OR
+  // - No main exam exists yet AND teacher is assigned to the subject
+  // NOTE: Just having null examExamCreatedBy is NOT enough - teacher must be assigned or own it
+  const canEditExam = isAssignedTeacher || examExamCreatedBy === loggedInUserId;
   
   // Can add remarks if they can edit at least one score type
   const canEditRemarks = canEditTest || canEditExam;
@@ -79,13 +81,15 @@ export function calculateScorePermissions(context: ScorePermissionContext): Scor
   // Provide helpful reason for debugging
   let reason = '';
   if (!canEditTest && !canEditExam) {
-    reason = 'Not authorized: You did not create the exam and are not assigned to this subject';
+    reason = 'Not authorized: You are not assigned to this subject and did not create any exams for it';
   } else if (!canEditTest) {
-    reason = 'Cannot edit test scores: Created by another teacher and you are not assigned to this subject';
+    reason = 'Cannot edit test scores: Another teacher created the test and you are not assigned to this subject';
   } else if (!canEditExam) {
-    reason = 'Cannot edit exam scores: Created by another teacher and you are not assigned to this subject';
+    reason = 'Cannot edit exam scores: Another teacher created the exam and you are not assigned to this subject';
   } else if (isAssignedTeacher) {
     reason = 'Authorized via subject assignment';
+  } else if (testExamCreatedBy === loggedInUserId || examExamCreatedBy === loggedInUserId) {
+    reason = 'Authorized as exam creator';
   }
   
   return {

@@ -59,7 +59,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
-import { STANDARD_GRADING_SCALE, GRADING_SCALES, formatPosition } from '@shared/grading-utils';
+import { STANDARD_GRADING_SCALE, GRADING_SCALES, formatPosition, calculateWeightedScore, calculateGradeFromPercentage, getGradingConfig } from '@shared/grading-utils';
 import { ProfessionalReportCard } from '@/components/ui/professional-report-card';
 
 interface ReportCardItem {
@@ -274,7 +274,7 @@ export default function TeacherReportCards() {
   });
 
   const overrideScoreMutation = useMutation({
-    mutationFn: async (data: { itemId: number; testScore?: number; testMaxScore?: number; examScore?: number; examMaxScore?: number; teacherRemarks?: string }) => {
+    mutationFn: async (data: { itemId: number; testScore?: number; testMaxScore?: number; examScore?: number; examMaxScore?: number; teacherRemarks?: string; reportCardId?: number }) => {
       const response = await apiRequest('PATCH', `/api/reports/items/${data.itemId}/override`, data);
       if (!response.ok) {
         const error = await response.json();
@@ -283,24 +283,54 @@ export default function TeacherReportCards() {
       return response.json();
     },
     onMutate: async (data) => {
+      // Capture report card ID before any async operations
+      const reportCardId = data.reportCardId || selectedReportCard?.id;
+      
       // Cancel outgoing refetches to avoid overwriting optimistic update
-      await queryClient.cancelQueries({ queryKey: ['/api/reports', selectedReportCard?.id, 'full'] });
+      await queryClient.cancelQueries({ queryKey: ['/api/reports', reportCardId, 'full'] });
       
       // Snapshot previous data for rollback
-      const previousFullReport = queryClient.getQueryData(['/api/reports', selectedReportCard?.id, 'full']);
+      const previousFullReport = queryClient.getQueryData(['/api/reports', reportCardId, 'full']);
       
-      // Optimistically update the cache immediately
-      queryClient.setQueryData(['/api/reports', selectedReportCard?.id, 'full'], (old: any) => {
+      // Optimistically update the cache immediately with calculated derived values
+      queryClient.setQueryData(['/api/reports', reportCardId, 'full'], (old: any) => {
         if (!old || !old.items) return old;
+        
+        const gradingScale = old.gradingScale || 'standard';
+        const gradingConfig = getGradingConfig(gradingScale);
+        
         return {
           ...old,
           items: old.items.map((item: any) => {
             if (item.id === data.itemId) {
               const updatedItem = { ...item };
-              if (data.testScore !== undefined) updatedItem.testScore = data.testScore;
-              if (data.testMaxScore !== undefined) updatedItem.testMaxScore = data.testMaxScore;
-              if (data.examScore !== undefined) updatedItem.examScore = data.examScore;
-              if (data.examMaxScore !== undefined) updatedItem.examMaxScore = data.examMaxScore;
+              
+              // Update raw scores - ONLY update what was explicitly provided
+              // Preserve existing max scores when not explicitly provided to avoid miscalculations
+              const newTestScore = data.testScore !== undefined ? data.testScore : item.testScore;
+              const newTestMaxScore = data.testMaxScore !== undefined ? data.testMaxScore : item.testMaxScore;
+              const newExamScore = data.examScore !== undefined ? data.examScore : item.examScore;
+              const newExamMaxScore = data.examMaxScore !== undefined ? data.examMaxScore : item.examMaxScore;
+              
+              updatedItem.testScore = newTestScore;
+              if (data.testMaxScore !== undefined) updatedItem.testMaxScore = newTestMaxScore;
+              updatedItem.examScore = newExamScore;
+              if (data.examMaxScore !== undefined) updatedItem.examMaxScore = newExamMaxScore;
+              
+              // Calculate derived values locally for instant feedback
+              // Use actual max scores from the item (fallback to config weights only for calculation)
+              const calcTestMax = newTestMaxScore ?? gradingConfig.testWeight;
+              const calcExamMax = newExamMaxScore ?? gradingConfig.examWeight;
+              const weighted = calculateWeightedScore(newTestScore, calcTestMax, newExamScore, calcExamMax, gradingConfig);
+              const gradeInfo = calculateGradeFromPercentage(weighted.percentage, gradingScale);
+              
+              updatedItem.testWeightedScore = Math.round(weighted.testWeighted);
+              updatedItem.examWeightedScore = Math.round(weighted.examWeighted);
+              updatedItem.obtainedMarks = Math.round(weighted.weightedScore);
+              updatedItem.percentage = Math.round(weighted.percentage);
+              updatedItem.grade = gradeInfo.grade;
+              updatedItem.remarks = gradeInfo.remarks;
+              
               if (data.teacherRemarks !== undefined) updatedItem.teacherRemarks = data.teacherRemarks;
               updatedItem.isOverridden = true;
               updatedItem.overriddenAt = new Date().toISOString();
@@ -314,11 +344,13 @@ export default function TeacherReportCards() {
       // Close dialog immediately for instant feedback
       setIsOverrideDialogOpen(false);
       
-      return { previousFullReport };
+      return { previousFullReport, reportCardId };
     },
-    onSuccess: (serverData) => {
-      // Reconcile item with server data
-      queryClient.setQueryData(['/api/reports', selectedReportCard?.id, 'full'], (old: any) => {
+    onSuccess: (serverData, _variables, context) => {
+      const reportCardId = context?.reportCardId || selectedReportCard?.id;
+      
+      // Reconcile item with authoritative server data (includes recalculated totals)
+      queryClient.setQueryData(['/api/reports', reportCardId, 'full'], (old: any) => {
         if (!old || !old.items) return old;
         return {
           ...old,
@@ -329,7 +361,7 @@ export default function TeacherReportCards() {
       });
       
       // Invalidate queries to refresh aggregate data (averages, totals, positions)
-      queryClient.invalidateQueries({ queryKey: ['/api/reports', selectedReportCard?.id, 'full'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/reports', reportCardId, 'full'] });
       queryClient.invalidateQueries({ queryKey: ['/api/reports/class-term', selectedClass, selectedTerm] });
       
       toast({
@@ -339,8 +371,9 @@ export default function TeacherReportCards() {
     },
     onError: (error: any, _variables, context: any) => {
       // Rollback to previous data on error
+      const reportCardId = context?.reportCardId || selectedReportCard?.id;
       if (context?.previousFullReport) {
-        queryClient.setQueryData(['/api/reports', selectedReportCard?.id, 'full'], context.previousFullReport);
+        queryClient.setQueryData(['/api/reports', reportCardId, 'full'], context.previousFullReport);
       }
       toast({
         title: "Error",
@@ -491,8 +524,11 @@ export default function TeacherReportCards() {
     const canEditTest = selectedItem.canEditTest !== false;
     const canEditExam = selectedItem.canEditExam !== false;
     
-    // Build payload with only permitted fields
-    const payload: any = { itemId: selectedItem.id };
+    // Build payload with only permitted fields - include reportCardId for cache consistency
+    const payload: any = { 
+      itemId: selectedItem.id,
+      reportCardId: selectedReportCard?.id
+    };
     
     // Only include test scores if teacher can edit them
     if (canEditTest && overrideData.testScore) {
