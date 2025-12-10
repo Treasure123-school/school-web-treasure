@@ -6788,6 +6788,37 @@ var init_storage = __esm({
             }
           } else {
             reportCardId = reportCard[0].id;
+            const existingItems = await db2.select({ subjectId: schema.reportCardItems.subjectId }).from(schema.reportCardItems).where(eq2(schema.reportCardItems.reportCardId, reportCardId));
+            const existingSubjectIds = new Set(existingItems.map((item) => item.subjectId));
+            const studentClass = await db2.select().from(schema.classes).where(eq2(schema.classes.id, classId)).limit(1);
+            const isSeniorSecondary = studentClass.length > 0 && (studentClass[0].level || "").trim().toLowerCase() === "senior secondary";
+            const rawDepartment = (student[0].department || "").trim().toLowerCase();
+            const studentDepartment = rawDepartment.length > 0 ? rawDepartment : void 0;
+            const studentSubjectAssignments3 = await db2.select({ subjectId: schema.studentSubjectAssignments.subjectId }).from(schema.studentSubjectAssignments).where(and2(
+              eq2(schema.studentSubjectAssignments.studentId, studentId),
+              eq2(schema.studentSubjectAssignments.classId, classId),
+              eq2(schema.studentSubjectAssignments.isActive, true)
+            ));
+            let assignedSubjectIds = [];
+            if (studentSubjectAssignments3.length > 0) {
+              assignedSubjectIds = studentSubjectAssignments3.map((a) => a.subjectId);
+            } else {
+              const relevantSubjects = await this.getSubjectsByClassAndDepartment(classId, studentDepartment);
+              assignedSubjectIds = relevantSubjects.map((s) => s.id);
+            }
+            const missingSubjectIds = assignedSubjectIds.filter((id) => !existingSubjectIds.has(id));
+            if (missingSubjectIds.length > 0) {
+              console.log(`[REPORT-CARD-SYNC] Adding ${missingSubjectIds.length} missing subjects to existing report card ${reportCardId} for student ${studentId}`);
+              for (const missingSubjectId of missingSubjectIds) {
+                await db2.insert(schema.reportCardItems).values({
+                  reportCardId,
+                  subjectId: missingSubjectId,
+                  totalMarks: 100,
+                  obtainedMarks: 0,
+                  percentage: 0
+                });
+              }
+            }
           }
           let reportCardItem = await db2.select().from(schema.reportCardItems).where(and2(
             eq2(schema.reportCardItems.reportCardId, reportCardId),
@@ -8167,6 +8198,148 @@ var init_storage = __esm({
         } catch (error) {
           console.error("[CLEANUP] Error cleaning up all report cards:", error);
           return { studentsProcessed: 0, itemsRemoved: 0, errors: [error.message] };
+        }
+      }
+      /**
+       * FIX: Add missing subjects to existing report cards when new mappings are added
+       * This ensures report cards are updated when admin adds new subjects to class/department mappings
+       */
+      async addMissingSubjectsToReportCards(classIds) {
+        let studentsProcessed = 0;
+        let totalItemsAdded = 0;
+        let examScoresSynced = 0;
+        const errors = [];
+        if (!classIds || classIds.length === 0) {
+          return { studentsProcessed: 0, itemsAdded: 0, examScoresSynced: 0, errors: [] };
+        }
+        try {
+          const currentTerm = await this.getCurrentTerm();
+          if (!currentTerm) {
+            console.log("[ADD-MISSING-SUBJECTS] No current term found, skipping");
+            return { studentsProcessed: 0, itemsAdded: 0, examScoresSynced: 0, errors: ["No current term"] };
+          }
+          const students3 = await db2.select({
+            id: schema.students.id,
+            classId: schema.students.classId,
+            department: schema.students.department,
+            admissionNumber: schema.students.admissionNumber
+          }).from(schema.students).innerJoin(schema.users, eq2(schema.students.id, schema.users.id)).where(and2(
+            inArray2(schema.students.classId, classIds),
+            eq2(schema.users.isActive, true)
+          ));
+          console.log(`[ADD-MISSING-SUBJECTS] Processing ${students3.length} students from ${classIds.length} classes`);
+          for (const student of students3) {
+            try {
+              if (!student.classId) continue;
+              const classInfo = await this.getClass(student.classId);
+              if (!classInfo) continue;
+              const isSeniorSecondary = classInfo.level && ["SS1", "SS2", "SS3", "Senior Secondary"].some(
+                (level) => classInfo.level?.toLowerCase().includes(level.toLowerCase()) || classInfo.name?.toLowerCase().includes(level.toLowerCase())
+              );
+              const studentDept = student.department?.toLowerCase()?.trim() || void 0;
+              const effectiveDept = isSeniorSecondary ? studentDept : void 0;
+              const allowedSubjects = await this.getSubjectsByClassAndDepartment(student.classId, effectiveDept);
+              const allowedSubjectIds = new Set(allowedSubjects.map((s) => s.id));
+              if (allowedSubjects.length === 0) continue;
+              const reportCards3 = await db2.select().from(schema.reportCards).where(and2(
+                eq2(schema.reportCards.studentId, student.id),
+                eq2(schema.reportCards.termId, currentTerm.id)
+              ));
+              for (const reportCard of reportCards3) {
+                const existingItems = await db2.select().from(schema.reportCardItems).where(eq2(schema.reportCardItems.reportCardId, reportCard.id));
+                const existingSubjectIds = new Set(existingItems.map((item) => item.subjectId));
+                const missingSubjectIds = [...allowedSubjectIds].filter((id) => !existingSubjectIds.has(id));
+                if (missingSubjectIds.length > 0) {
+                  console.log(`[ADD-MISSING-SUBJECTS] Student ${student.id}: adding ${missingSubjectIds.length} missing subjects to report card ${reportCard.id}`);
+                  for (const subjectId of missingSubjectIds) {
+                    const newItem = await db2.insert(schema.reportCardItems).values({
+                      reportCardId: reportCard.id,
+                      subjectId,
+                      totalMarks: 100,
+                      obtainedMarks: 0,
+                      percentage: 0
+                    }).returning();
+                    totalItemsAdded++;
+                    const examResults3 = await db2.select({
+                      examId: schema.examResults.examId,
+                      score: schema.examResults.score,
+                      maxScore: schema.examResults.maxScore,
+                      examType: schema.exams.examType,
+                      gradingScale: schema.exams.gradingScale,
+                      createdBy: schema.exams.createdBy
+                    }).from(schema.examResults).innerJoin(schema.exams, eq2(schema.examResults.examId, schema.exams.id)).where(and2(
+                      eq2(schema.examResults.studentId, student.id),
+                      eq2(schema.exams.subjectId, subjectId),
+                      eq2(schema.exams.termId, currentTerm.id)
+                    ));
+                    if (examResults3.length > 0 && newItem.length > 0) {
+                      for (const examResult of examResults3) {
+                        const isTest = ["test", "quiz", "assignment"].includes(examResult.examType);
+                        const isMainExam = ["exam", "final", "midterm"].includes(examResult.examType);
+                        const safeScore = typeof examResult.score === "number" ? examResult.score : parseInt(String(examResult.score), 10) || 0;
+                        const safeMaxScore = typeof examResult.maxScore === "number" ? examResult.maxScore : parseInt(String(examResult.maxScore), 10) || 0;
+                        const updateData = { updatedAt: /* @__PURE__ */ new Date() };
+                        if (isTest) {
+                          updateData.testExamId = examResult.examId;
+                          updateData.testExamCreatedBy = examResult.createdBy;
+                          updateData.testScore = safeScore;
+                          updateData.testMaxScore = safeMaxScore;
+                        } else if (isMainExam) {
+                          updateData.examExamId = examResult.examId;
+                          updateData.examExamCreatedBy = examResult.createdBy;
+                          updateData.examScore = safeScore;
+                          updateData.examMaxScore = safeMaxScore;
+                        }
+                        await db2.update(schema.reportCardItems).set(updateData).where(eq2(schema.reportCardItems.id, newItem[0].id));
+                        examScoresSynced++;
+                        console.log(`[ADD-MISSING-SUBJECTS] Synced exam ${examResult.examId} score (${safeScore}/${safeMaxScore}) to new item`);
+                      }
+                      await this.recalculateReportCard(reportCard.id, reportCard.gradingScale || "standard");
+                    }
+                  }
+                }
+              }
+              studentsProcessed++;
+            } catch (studentError) {
+              errors.push(`Failed to process student ${student.id}: ${studentError.message}`);
+            }
+          }
+          console.log(`[ADD-MISSING-SUBJECTS] Completed: ${studentsProcessed} students, ${totalItemsAdded} items added, ${examScoresSynced} exam scores synced`);
+          return { studentsProcessed, itemsAdded: totalItemsAdded, examScoresSynced, errors };
+        } catch (error) {
+          console.error("[ADD-MISSING-SUBJECTS] Error:", error);
+          return { studentsProcessed: 0, itemsAdded: 0, examScoresSynced: 0, errors: [error.message] };
+        }
+      }
+      /**
+       * FIX: Repair all report cards by adding missing subjects and syncing exam scores
+       * This is a comprehensive data repair function for existing affected students
+       */
+      async repairAllReportCards() {
+        try {
+          const classes3 = await db2.select({ id: schema.classes.id }).from(schema.classes).where(eq2(schema.classes.isActive, true));
+          const classIds = classes3.map((c) => c.id);
+          console.log(`[REPAIR-REPORT-CARDS] Starting repair for ${classIds.length} classes`);
+          return await this.addMissingSubjectsToReportCards(classIds);
+        } catch (error) {
+          console.error("[REPAIR-REPORT-CARDS] Error:", error);
+          return { studentsProcessed: 0, itemsAdded: 0, examScoresSynced: 0, errors: [error.message] };
+        }
+      }
+      async syncReportCardItemsOnExamSubjectChange(examId, oldSubjectId, newSubjectId) {
+        const errors = [];
+        try {
+          console.log(`[SYNC] Syncing report card items for exam ${examId}: subject ${oldSubjectId} -> ${newSubjectId}`);
+          const testExamResult = await db2.update(schema.reportCardItems).set({ subjectId: newSubjectId }).where(eq2(schema.reportCardItems.testExamId, examId));
+          const examExamResult = await db2.update(schema.reportCardItems).set({ subjectId: newSubjectId }).where(eq2(schema.reportCardItems.examExamId, examId));
+          const testExamCount = testExamResult?.rowCount || testExamResult?.changes || 0;
+          const examExamCount = examExamResult?.rowCount || examExamResult?.changes || 0;
+          const updated = testExamCount + examExamCount;
+          console.log(`[SYNC] Updated ${updated} report card items for exam ${examId} (testExamId: ${testExamCount}, examExamId: ${examExamCount})`);
+          return { updated, errors };
+        } catch (error) {
+          console.error(`[SYNC] Error syncing report card items for exam ${examId}:`, error);
+          return { updated: 0, errors: [error.message] };
         }
       }
     };
@@ -12091,7 +12264,7 @@ import { randomUUID as randomUUID2 } from "crypto";
 import passport from "passport";
 import session from "express-session";
 import memorystore from "memorystore";
-import { and as and6, eq as eq6 } from "drizzle-orm";
+import { and as and6, eq as eq6, sql as sql6, desc as desc3 } from "drizzle-orm";
 
 // server/upload-service.ts
 init_cloudinary_service();
@@ -13520,6 +13693,50 @@ var SubjectAssignmentService = {
 // server/routes.ts
 init_performance_cache();
 init_enhanced_cache();
+async function invalidateSubjectMappingsAndSync(affectedClassIds, options = {}) {
+  let cacheKeysInvalidated = 0;
+  let totalSynced = 0;
+  let reportCardItemsRemoved = 0;
+  let reportCardItemsAdded = 0;
+  let examScoresSynced = 0;
+  const syncErrors = [];
+  for (const classId of affectedClassIds) {
+    cacheKeysInvalidated += invalidateVisibilityCache({ classId });
+  }
+  for (const classId of affectedClassIds) {
+    cacheKeysInvalidated += SubjectAssignmentService.invalidateClassCache(classId);
+  }
+  cacheKeysInvalidated += enhancedCache.invalidate(/^reportcard:/);
+  cacheKeysInvalidated += enhancedCache.invalidate(/^reportcards:/);
+  cacheKeysInvalidated += enhancedCache.invalidate(/^report-card/);
+  cacheKeysInvalidated += enhancedCache.invalidate(/^student-report/);
+  for (const classId of affectedClassIds) {
+    const syncResult = await storage.syncStudentsWithClassMappings(classId);
+    totalSynced += syncResult.synced;
+    if (syncResult.errors && syncResult.errors.length > 0) {
+      syncErrors.push(...syncResult.errors);
+    }
+  }
+  if (options.cleanupReportCards && affectedClassIds.length > 0) {
+    const cleanupResult = await storage.cleanupReportCardsForClasses(affectedClassIds);
+    reportCardItemsRemoved = cleanupResult.itemsRemoved;
+  }
+  if (options.addMissingSubjects !== false && affectedClassIds.length > 0) {
+    try {
+      const addResult = await storage.addMissingSubjectsToReportCards(affectedClassIds);
+      reportCardItemsAdded = addResult.itemsAdded;
+      examScoresSynced = addResult.examScoresSynced;
+      if (addResult.errors && addResult.errors.length > 0) {
+        syncErrors.push(...addResult.errors);
+      }
+    } catch (error) {
+      console.error("[SUBJECT-MAPPING-SYNC] Error adding missing subjects to report cards:", error);
+      syncErrors.push(`Failed to add missing subjects: ${error.message}`);
+    }
+  }
+  console.log(`[SUBJECT-MAPPING-SYNC] Classes: ${affectedClassIds.length}, Students synced: ${totalSynced}, Cache invalidated: ${cacheKeysInvalidated}, Report items removed: ${reportCardItemsRemoved}, Report items added: ${reportCardItemsAdded}, Exam scores synced: ${examScoresSynced}, Errors: ${syncErrors.length}`);
+  return { studentsSynced: totalSynced, reportCardItemsRemoved, reportCardItemsAdded, examScoresSynced, cacheKeysInvalidated, syncErrors };
+}
 var loginSchema = z3.object({
   identifier: z3.string().min(1),
   // Can be username or email
@@ -14119,7 +14336,7 @@ async function mergeExamScores(answerId, storage2) {
 async function registerRoutes(app2) {
   const { performanceMonitor: performanceMonitor2 } = await Promise.resolve().then(() => (init_performance_monitor(), performance_monitor_exports));
   const { databaseOptimizer: databaseOptimizer2 } = await Promise.resolve().then(() => (init_database_optimization(), database_optimization_exports));
-  const { enhancedCache: enhancedCache3 } = await Promise.resolve().then(() => (init_enhanced_cache(), enhanced_cache_exports));
+  const { enhancedCache: enhancedCache2 } = await Promise.resolve().then(() => (init_enhanced_cache(), enhanced_cache_exports));
   const { socketOptimizer: socketOptimizer2 } = await Promise.resolve().then(() => (init_socket_optimizer(), socket_optimizer_exports));
   const { getPoolStats: getPoolStats2 } = await Promise.resolve().then(() => (init_query_optimizer(), query_optimizer_exports));
   app2.get("/api/health", async (_req, res) => {
@@ -14153,7 +14370,7 @@ async function registerRoutes(app2) {
     }
   });
   app2.get("/api/performance/cache-stats", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), (_req, res) => {
-    const enhanced = enhancedCache3.getStats();
+    const enhanced = enhancedCache2.getStats();
     const basic = performanceCache.getStats();
     res.json({ enhanced, basic });
   });
@@ -14912,12 +15129,29 @@ async function registerRoutes(app2) {
       if (!exam) {
         return res.status(500).json({ message: "Failed to update exam" });
       }
+      let reportCardSyncResult = { updated: 0, errors: [] };
+      if (sanitizedData.subjectId !== void 0 && sanitizedData.subjectId !== existingExam.subjectId) {
+        console.log(`[EXAM-UPDATE] Subject changed from ${existingExam.subjectId} to ${sanitizedData.subjectId} for exam ${examId}. Syncing report cards...`);
+        try {
+          reportCardSyncResult = await storage.syncReportCardItemsOnExamSubjectChange(
+            examId,
+            existingExam.subjectId,
+            sanitizedData.subjectId
+          );
+          console.log(`[EXAM-UPDATE] Report card sync complete: ${reportCardSyncResult.updated} items updated`);
+        } catch (syncError) {
+          console.error(`[EXAM-UPDATE] Failed to sync report card items:`, syncError?.message);
+        }
+      }
       invalidateVisibilityCache({ examId: exam.id });
       realtimeService.emitTableChange("exams", "UPDATE", exam, existingExam, teacherId);
       if (exam.classId) {
         realtimeService.emitToClass(exam.classId.toString(), "exam.updated", exam);
       }
-      res.json(exam);
+      res.json({
+        ...exam,
+        reportCardSync: reportCardSyncResult.updated > 0 ? reportCardSyncResult : void 0
+      });
     } catch (error) {
       res.status(500).json({ message: "Failed to update exam" });
     }
@@ -19729,7 +19963,7 @@ Treasure-Home School Administration
     try {
       const status = req.query.status;
       const cacheKey = `vacancies:list:${status || "all"}`;
-      const vacancies3 = await enhancedCache3.getOrSet(
+      const vacancies3 = await enhancedCache2.getOrSet(
         cacheKey,
         () => storage.getAllVacancies(status),
         EnhancedCache.TTL.MEDIUM,
@@ -19812,7 +20046,7 @@ Treasure-Home School Administration
         ...req.body,
         createdBy: req.user.id
       });
-      enhancedCache3.invalidate(/^vacancies:/);
+      enhancedCache2.invalidate(/^vacancies:/);
       realtimeService.emitTableChange("vacancies", "INSERT", vacancy, void 0, req.user.id);
       realtimeService.emitEvent("vacancy.created", vacancy);
       res.status(201).json(vacancy);
@@ -19827,7 +20061,7 @@ Treasure-Home School Administration
       if (!vacancy) {
         return res.status(404).json({ message: "Vacancy not found" });
       }
-      enhancedCache3.invalidate(/^vacancies:/);
+      enhancedCache2.invalidate(/^vacancies:/);
       realtimeService.emitTableChange("vacancies", "UPDATE", vacancy, existingVacancy, req.user.id);
       realtimeService.emitEvent("vacancy.closed", vacancy);
       res.json(vacancy);
@@ -21463,7 +21697,8 @@ Treasure-Home School Administration
         department: department || null,
         isCompulsory: isCompulsory || false
       });
-      invalidateVisibilityCache({ classId });
+      const syncResult = await invalidateSubjectMappingsAndSync([classId], { cleanupReportCards: false, addMissingSubjects: true });
+      console.log(`[CLASS-SUBJECT-MAPPING] Created mapping for class ${classId}`);
       const socketIO = realtimeService.getIO();
       if (socketIO) {
         socketIO.emit("subject-assignments-updated", {
@@ -21471,6 +21706,7 @@ Treasure-Home School Administration
           affectedClassIds: [classId],
           added: 1,
           removed: 0,
+          studentsSynced: syncResult.studentsSynced,
           timestamp: (/* @__PURE__ */ new Date()).toISOString()
         });
       }
@@ -21510,22 +21746,30 @@ Treasure-Home School Administration
       if (!mappingToDelete) {
         return res.status(404).json({ message: "Mapping not found" });
       }
+      const classId = mappingToDelete.classId;
       const success = await storage.deleteClassSubjectMapping(Number(id));
       if (!success) {
         return res.status(500).json({ message: "Failed to delete mapping" });
       }
-      invalidateVisibilityCache({ classId: mappingToDelete.classId });
+      const syncResult = await invalidateSubjectMappingsAndSync([classId], { cleanupReportCards: true });
+      console.log(`[CLASS-SUBJECT-MAPPING] Deleted mapping for class ${classId}`);
       const socketIO = realtimeService.getIO();
       if (socketIO) {
         socketIO.emit("subject-assignments-updated", {
           eventType: "subject-assignments-updated",
-          affectedClassIds: [mappingToDelete.classId],
+          affectedClassIds: [classId],
           added: 0,
           removed: 1,
+          studentsSynced: syncResult.studentsSynced,
+          reportCardItemsRemoved: syncResult.reportCardItemsRemoved,
           timestamp: (/* @__PURE__ */ new Date()).toISOString()
         });
       }
-      res.json({ message: "Mapping deleted successfully" });
+      res.json({
+        message: "Mapping deleted successfully",
+        studentsSynced: syncResult.studentsSynced,
+        reportCardItemsRemoved: syncResult.reportCardItemsRemoved
+      });
     } catch (error) {
       console.error("Error deleting class-subject mapping:", error);
       res.status(500).json({ message: error.message || "Failed to delete mapping" });
@@ -21550,20 +21794,11 @@ Treasure-Home School Administration
         additions || [],
         removals || []
       );
-      for (const classId of result.affectedClassIds) {
-        invalidateVisibilityCache({ classId });
-        SubjectAssignmentService.invalidateClassCache(classId);
-      }
-      let totalSynced = 0;
-      const syncErrors = [];
-      for (const classId of result.affectedClassIds) {
-        const syncResult = await storage.syncStudentsWithClassMappings(classId);
-        totalSynced += syncResult.synced;
-        syncErrors.push(...syncResult.errors);
-      }
-      console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Synced ${totalSynced} students with new mappings`);
-      const cleanupResult = await storage.cleanupReportCardsForClasses(result.affectedClassIds);
-      console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Cleaned up ${cleanupResult.itemsRemoved} report card items from ${cleanupResult.studentsProcessed} students in ${result.affectedClassIds.length} affected classes`);
+      const syncResult = await invalidateSubjectMappingsAndSync(
+        result.affectedClassIds,
+        { cleanupReportCards: result.removed > 0, addMissingSubjects: result.added > 0 }
+      );
+      console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Updated: ${result.added} added, ${result.removed} removed, ${result.affectedClassIds.length} classes affected`);
       const socketIO = realtimeService.getIO();
       if (socketIO && result.affectedClassIds.length > 0) {
         socketIO.emit("subject-assignments-updated", {
@@ -21571,20 +21806,22 @@ Treasure-Home School Administration
           affectedClassIds: result.affectedClassIds,
           added: result.added,
           removed: result.removed,
-          studentsSynced: totalSynced,
+          studentsSynced: syncResult.studentsSynced,
+          reportCardItemsRemoved: syncResult.reportCardItemsRemoved,
+          reportCardItemsAdded: syncResult.reportCardItemsAdded,
           timestamp: (/* @__PURE__ */ new Date()).toISOString()
         });
         console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Emitted websocket event to all clients`);
       }
-      console.log(`[UNIFIED-SUBJECT-ASSIGNMENT] Updated: ${result.added} added, ${result.removed} removed, ${result.affectedClassIds.length} classes affected, ${totalSynced} students synced`);
       res.json({
         message: "Subject assignments updated successfully",
         added: result.added,
         removed: result.removed,
         affectedClasses: result.affectedClassIds.length,
-        studentsSynced: totalSynced,
-        reportCardItemsRemoved: cleanupResult.itemsRemoved,
-        syncErrors: syncErrors.length > 0 ? syncErrors : void 0
+        studentsSynced: syncResult.studentsSynced,
+        reportCardItemsRemoved: syncResult.reportCardItemsRemoved,
+        reportCardItemsAdded: syncResult.reportCardItemsAdded,
+        syncErrors: syncResult.syncErrors.length > 0 ? syncResult.syncErrors : void 0
       });
     } catch (error) {
       console.error("Error updating unified subject assignments:", error);
@@ -21661,6 +21898,130 @@ Treasure-Home School Administration
       res.status(500).json({ message: error.message || "Failed to cleanup report cards" });
     }
   });
+  app2.post("/api/admin/repair-report-cards", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      console.log("[ADMIN-REPAIR] Starting report card repair (add missing subjects and sync exam scores)...");
+      const result = await storage.repairAllReportCards();
+      console.log(`[ADMIN-REPAIR] Completed: ${result.itemsAdded} items added, ${result.examScoresSynced} exam scores synced for ${result.studentsProcessed} students`);
+      enhancedCache2.invalidate(/^reportcard:/);
+      enhancedCache2.invalidate(/^reportcards:/);
+      enhancedCache2.invalidate(/^report-card/);
+      enhancedCache2.invalidate(/^student-report/);
+      res.json({
+        message: "Report card repair completed",
+        studentsProcessed: result.studentsProcessed,
+        itemsAdded: result.itemsAdded,
+        examScoresSynced: result.examScoresSynced,
+        errors: result.errors.length > 0 ? result.errors.slice(0, 20) : void 0,
+        totalErrors: result.errors.length
+      });
+    } catch (error) {
+      console.error("[ADMIN-REPAIR] Error:", error);
+      res.status(500).json({ message: error.message || "Failed to repair report cards" });
+    }
+  });
+  app2.get("/api/admin/report-cards/finalized", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      const { classId, termId, status = "finalized" } = req.query;
+      const query = db2.select({
+        id: reportCards.id,
+        studentId: reportCards.studentId,
+        studentName: sql6`${users.firstName} || ' ' || ${users.lastName}`,
+        admissionNumber: students.admissionNumber,
+        classId: reportCards.classId,
+        className: classes.name,
+        termId: reportCards.termId,
+        termName: academicTerms.name,
+        sessionYear: academicTerms.year,
+        averagePercentage: reportCards.averagePercentage,
+        overallGrade: reportCards.overallGrade,
+        status: reportCards.status,
+        finalizedAt: reportCards.finalizedAt,
+        publishedAt: reportCards.publishedAt,
+        generatedAt: reportCards.generatedAt
+      }).from(reportCards).innerJoin(students, eq6(students.id, reportCards.studentId)).innerJoin(users, eq6(users.id, students.id)).innerJoin(classes, eq6(classes.id, reportCards.classId)).innerJoin(academicTerms, eq6(academicTerms.id, reportCards.termId)).where(
+        and6(
+          status === "all" ? sql6`${reportCards.status} IN ('finalized', 'published')` : eq6(reportCards.status, status),
+          classId ? eq6(reportCards.classId, Number(classId)) : sql6`1=1`,
+          termId ? eq6(reportCards.termId, Number(termId)) : sql6`1=1`
+        )
+      ).orderBy(desc3(reportCards.finalizedAt));
+      const results = await query;
+      const allReports = await db2.select({
+        status: reportCards.status,
+        count: sql6`count(*)`
+      }).from(reportCards).where(
+        and6(
+          classId ? eq6(reportCards.classId, Number(classId)) : sql6`1=1`,
+          termId ? eq6(reportCards.termId, Number(termId)) : sql6`1=1`
+        )
+      ).groupBy(reportCards.status);
+      const stats = {
+        draft: 0,
+        finalized: 0,
+        published: 0
+      };
+      allReports.forEach((r) => {
+        if (r.status in stats) {
+          stats[r.status] = Number(r.count);
+        }
+      });
+      res.json({
+        reportCards: results,
+        statistics: stats
+      });
+    } catch (error) {
+      console.error("[ADMIN-FINALIZED] Error fetching finalized report cards:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch report cards" });
+    }
+  });
+  app2.post("/api/admin/report-cards/bulk-publish", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      const { reportCardIds } = req.body;
+      if (!reportCardIds || !Array.isArray(reportCardIds) || reportCardIds.length === 0) {
+        return res.status(400).json({ message: "Report card IDs are required" });
+      }
+      const results = await Promise.all(
+        reportCardIds.map(async (id) => {
+          try {
+            const result = await storage.updateReportCardStatusOptimized(id, "published", req.user.id);
+            return { id, success: true, result };
+          } catch (error) {
+            return { id, success: false, error: error.message };
+          }
+        })
+      );
+      const successCount = results.filter((r) => r.success).length;
+      const failedCount = results.filter((r) => !r.success).length;
+      res.json({
+        message: `${successCount} report cards published successfully${failedCount > 0 ? `, ${failedCount} failed` : ""}`,
+        results,
+        successCount,
+        failedCount
+      });
+    } catch (error) {
+      console.error("[ADMIN-BULK-PUBLISH] Error:", error);
+      res.status(500).json({ message: error.message || "Failed to publish report cards" });
+    }
+  });
+  app2.post("/api/admin/report-cards/:id/reject", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+      const result = await storage.updateReportCardStatusOptimized(Number(id), "draft", req.user.id);
+      if (!result) {
+        return res.status(404).json({ message: "Report card not found" });
+      }
+      res.json({
+        message: "Report card rejected and reverted to draft",
+        reportCard: result.reportCard,
+        reason
+      });
+    } catch (error) {
+      console.error("[ADMIN-REJECT] Error:", error);
+      res.status(500).json({ message: error.message || "Failed to reject report card" });
+    }
+  });
   app2.post("/api/admin/resync-exam-score", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
     try {
       const { studentId, examId, score, maxScore } = req.body;
@@ -21675,6 +22036,58 @@ Treasure-Home School Administration
     } catch (error) {
       console.error("[DEBUG-RESYNC] Error:", error);
       res.status(500).json({ message: error.message || "Sync failed" });
+    }
+  });
+  app2.post("/api/admin/resync-report-card-subjects", authenticateUser, authorizeRoles(ROLE_IDS.ADMIN, ROLE_IDS.SUPER_ADMIN), async (req, res) => {
+    try {
+      const { examIds, newSubjectId } = req.body;
+      if (!examIds || !Array.isArray(examIds) || examIds.length === 0) {
+        return res.status(400).json({ message: "examIds must be a non-empty array of exam IDs" });
+      }
+      if (!newSubjectId || typeof newSubjectId !== "number") {
+        return res.status(400).json({ message: "newSubjectId must be a valid subject ID number" });
+      }
+      const subject = await storage.getSubject(newSubjectId);
+      if (!subject) {
+        return res.status(404).json({ message: `Subject with ID ${newSubjectId} not found` });
+      }
+      console.log(`[ADMIN-RESYNC-SUBJECTS] User ${req.user.id} requested resync for ${examIds.length} exams to subject ${newSubjectId} (${subject.name})`);
+      const results = [];
+      let totalUpdated = 0;
+      const allErrors = [];
+      for (const examId of examIds) {
+        try {
+          const exam = await storage.getExamById(Number(examId));
+          if (!exam) {
+            results.push({ examId: Number(examId), updated: 0, errors: [`Exam ${examId} not found`] });
+            allErrors.push(`Exam ${examId} not found`);
+            continue;
+          }
+          const oldSubjectId = exam.subjectId;
+          const syncResult = await storage.syncReportCardItemsOnExamSubjectChange(
+            Number(examId),
+            oldSubjectId,
+            newSubjectId
+          );
+          results.push({ examId: Number(examId), updated: syncResult.updated, errors: syncResult.errors });
+          totalUpdated += syncResult.updated;
+          allErrors.push(...syncResult.errors);
+        } catch (examError) {
+          console.error(`[ADMIN-RESYNC-SUBJECTS] Error syncing exam ${examId}:`, examError);
+          results.push({ examId: Number(examId), updated: 0, errors: [examError.message] });
+          allErrors.push(`Exam ${examId}: ${examError.message}`);
+        }
+      }
+      console.log(`[ADMIN-RESYNC-SUBJECTS] Complete. Total items updated: ${totalUpdated}, Errors: ${allErrors.length}`);
+      res.json({
+        message: `Report card items resynced for ${examIds.length} exams`,
+        totalUpdated,
+        results,
+        errors: allErrors
+      });
+    } catch (error) {
+      console.error("[ADMIN-RESYNC-SUBJECTS] Error:", error);
+      res.status(500).json({ message: error.message || "Failed to resync report card subjects" });
     }
   });
   app2.get("/api/students/me", authenticateUser, authorizeRoles(ROLE_IDS.STUDENT), async (req, res) => {
