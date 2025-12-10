@@ -4430,7 +4430,8 @@ export class DatabaseStorage implements IStorage {
       
       // Add computed fields
       const isSSS = reportCard[0].className?.startsWith('SS') || reportCard[0].classLevel?.includes('Senior Secondary');
-      const academicSession = reportCard[0].termYear ? `${reportCard[0].termYear}/${reportCard[0].termYear + 1}` : '2024/2025';
+      // Use term year directly as it's stored in YYYY/YYYY format (e.g., "2024/2025")
+      const academicSession = reportCard[0].termYear || '2024/2025';
 
       const items = await db.select({
         id: schema.reportCardItems.id,

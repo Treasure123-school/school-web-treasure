@@ -9038,7 +9038,8 @@ Treasure-Home School Administration
             isSSS: isSSS,
             termName: term?.name || 'Unknown',
             termYear: term?.year?.toString() || '',
-            academicSession: term ? `${term.year}/${term.year + 1}` : '2024/2025',
+            // Use term year directly as it's stored in YYYY/YYYY format (e.g., "2024/2025")
+            academicSession: term?.year || '2024/2025',
             // Nested objects (backwards compatibility)
             student: {
               id: studentId,
@@ -9215,7 +9216,8 @@ Treasure-Home School Administration
           isSSS: isSSS,
           termName: term?.name || 'Unknown',
           termYear: term?.year?.toString() || '',
-          academicSession: term ? `${term.year}/${term.year + 1}` : '2024/2025',
+          // Use term year directly as it's stored in YYYY/YYYY format (e.g., "2024/2025")
+          academicSession: term?.year || '2024/2025',
           // Nested objects (backwards compatibility)
           student: {
             id: studentId,
