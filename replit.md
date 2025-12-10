@@ -20,17 +20,17 @@ The backend is an Express.js application built with Node.js and TypeScript, leve
 - **Role-Based Access Control**: Five distinct roles (Super Admin, Admin, Teacher, Student, Parent) with hierarchical user creation rules.
 - **Database Schema**: Over 40 tables covering academic and administrative functions.
 - **Exam System**: Features reliable submission, instant auto-scoring for MCQs, anti-cheat measures, auto-submission, and real-time progress saving. Exam creation is teacher-centric with strong validation.
-- **Report Card System**: Comprehensive auto-generation and score management with weighted scoring (40% test, 60% exam), teacher-specific editing permissions, auto-recalculation, max score handling, and status workflow (Draft → Finalized → Published). Supports Standard, WAEC, and Percentage grading scales. **Role-Based Approval Workflow (December 2025)**: Teachers can only finalize report cards (status shows "Awaiting Admin Approval"), while admins review and publish via the Admin Result Publishing page (`/portal/admin/results/publishing`). Features bulk publishing, rejection with feedback, and preview capabilities.
-- **Professional Report Card Component**: A fully featured, print-ready report card component (`client/src/components/ui/professional-report-card.tsx`) with student info panel with avatar, subject performance table, affective traits ratings (6 traits), psychomotor skills assessment (5 skills), attendance summary, class statistics (highest/lowest/average), and editable remarks section. Features mobile-responsive design with collapsible sections and print-optimized styling.
+- **Report Card System**: Comprehensive auto-generation and score management with weighted scoring (40% test, 60% exam), teacher-specific editing permissions, auto-recalculation, max score handling, and status workflow (Draft → Finalized → Published). Includes a Role-Based Approval Workflow where teachers finalize and admins publish. Features a professional, print-ready component with detailed student info, subject performance, traits, attendance, class statistics, and editable remarks.
 - **File Management**: Unified upload interface with Cloudinary CDN.
-- **Unified Subject Assignment System**: Centralized subject visibility and assignment configuration through a single unified page (`/portal/admin/subject-manager/unified-assignment`). This serves as the single source of truth for all subject-related operations across the portal including report cards, exams, student portals, and teacher assignments. The system supports JSS classes (JSS1-3) and SSS departments (Science, Art, Commercial) with bulk assignment capabilities. **Updated December 2025**: The `class_subject_mappings` table is now the canonical source for all subject visibility - the `/api/my-subjects`, `/api/my-subject-teachers`, and `/api/reports/student-report-card` endpoints all derive their subject lists from this table, ensuring admin changes propagate instantly to all consumers.
-- **Automatic Student Subject Sync**: When admin modifies subject assignments via the Subject Manager, the system automatically synchronizes `student_subject_assignments` for all affected students. Functions `syncStudentsWithClassMappings()` and `syncAllStudentsWithMappings()` handle the sync. Manual sync available via `/api/admin/sync-all-student-subjects` endpoint (requires admin role).
-- **Quick Student Creation**: Optimized "Create Student" modal with essential fields (Full Name, Gender, Date of Birth, Class, Department).
-- **Teacher-Class-Subject Assignment Module**: Manages teacher assignments to class-subject combinations with validation middleware for exam creation and score entry.
-- **Exam Visibility System**: Centralized logic using `class_subject_mappings` as the single source of truth. Students and parents only see exams for subjects assigned to their class/department via the Subject Manager. No fallback to category-based filtering - admin must explicitly configure subject assignments.
-- **Exam Results Persistence**: Exam results always persist once submitted, regardless of exam publication status. Results are only removed if the exam is explicitly deleted.
-- **Strict Exam Result Matching**: Prevents cross-pollination of scores, ensuring specific exam results are retrieved accurately.
-- **Exam Retake System**: Allows teachers to flag students for exam retakes, archiving previous submissions and clearing current attempts.
+- **Unified Subject Assignment System**: Centralized subject visibility and assignment configuration, serving as the single source of truth for all subject-related operations. Supports JSS classes and SSS departments with bulk assignment capabilities.
+- **Automatic Student Subject Sync**: Modifying subject assignments automatically synchronizes `student_subject_assignments` for affected students.
+- **Quick Student Creation**: Optimized modal with essential fields.
+- **Teacher-Class-Subject Assignment Module**: Manages teacher assignments with validation.
+- **Exam Visibility System**: Centralized logic using `class_subject_mappings` as the single source of truth; students and parents only see exams for assigned subjects.
+- **Exam Results Persistence**: Results persist once submitted and are only removed if the exam is deleted.
+- **Strict Exam Result Matching**: Ensures accurate retrieval of specific exam results.
+- **Exam Retake System**: Allows flagging students for retakes, archiving previous submissions.
+- **Report Card Unpublish Feature**: Admins can unpublish single or bulk published report cards, reverting status to 'finalized'.
 
 ### System Design Choices
 - **Stateless Backend**: Achieved by offloading database to Neon PostgreSQL and file storage to Cloudinary.
@@ -39,105 +39,9 @@ The backend is an Express.js application built with Node.js and TypeScript, leve
 - **Centralized Configuration**: For roles and grading scales.
 - **Monorepo Structure**: Organized into `server/`, `client/`, and `shared/` directories.
 
-## Performance Optimization (Updated December 2025)
-
-### Load Test Results Summary
-System optimized to handle 500-1000 concurrent users with excellent performance:
-- **Health Check**: 710 RPS, 3.6ms avg, 11.6ms P95 @ 10 concurrent
-- **Homepage Content**: 1,200 RPS, 30.8ms avg, 67.9ms P95 @ 50 concurrent
-- **Class List (Authenticated)**: 322 RPS, 82.4ms avg, 91ms P95 @ 30 concurrent
-- **Announcements**: 1,550 RPS, 53.9ms avg, 88.9ms P95 @ 100 concurrent
-- **Mixed Workload**: 997 RPS, 63.5ms avg, 253.9ms P95 @ 75 concurrent
-- **Stress Test**: 1,829 RPS, 97.3ms avg, 162ms P95 @ 200 concurrent
-- **Total Test Volume**: 108,840 requests processed successfully with 0% error rate
-
-### Database Optimization
-- **55 Performance Indexes**: Covering users, exams, sessions, results, notifications, vacancies, and all hot paths
-- **Connection Pooling**: Neon WebSocket pooler with optimized settings for 500-1000 concurrent users
-- **Query Optimizer**: Pagination, field selection, and query caching integrated
-- **Concurrent Index Creation**: Indexes created with CONCURRENTLY to avoid production locking
-
-### Caching Architecture
-- **Multi-Tier Cache** (`server/enhanced-cache.ts`):
-  - L1 (In-Memory): <1ms access, 100MB limit, role-based TTLs
-  - L2 (Redis-Ready): Prepared for production scaling
-  - Request Coalescing: Prevents cache stampedes
-  - Cache Warming: Classes, subjects, homepage content pre-loaded
-
-### Socket.IO Optimization (`server/socket-optimizer.ts`)
-- **Message Batching**: 50ms window, max 10 messages per batch
-- **Room Management**: Efficient user-role room organization
-- **Payload Optimization**: Field filtering, size limits (64KB)
-- **Reconnection**: Exponential backoff with max 5 attempts
-
-### Frontend Performance
-- **Code Splitting**: All 60+ portal pages use React.lazy() and Suspense
-- **Loading States**: Skeleton loaders during navigation
-- **Bundle Optimization**: Separate chunks per role/feature area
-
-### Performance Monitoring (`server/performance-monitor.ts`)
-- **Real-time Metrics**: Response times, RPS, error rates per endpoint
-- **System Metrics**: Memory, CPU, connection counts
-- **API Endpoints**:
-  - `GET /api/health` - Quick health check
-  - `GET /api/performance/stats` - Comprehensive metrics
-  - `GET /api/performance/report` - Full performance report
-
-### Key Files
-- `server/database-optimization.ts` - Database indexes and query optimization (55 indexes)
-- `server/enhanced-cache.ts` - Multi-tier caching system with request coalescing
-- `server/exam-visibility.ts` - Optimized exam visibility with role-scoped caching
-- `server/performance-cache.ts` - Public endpoint caching layer
-- `server/scalability-config.ts` - Horizontal scaling configuration (Redis-ready)
-- `server/socket-optimizer.ts` - WebSocket optimization
-- `server/performance-monitor.ts` - Metrics collection and reporting
-- `scripts/run-load-test.ts` - Load testing harness
-
 ## External Dependencies
 - **Database**: Neon (PostgreSQL) with connection pooling
 - **Cloud Storage**: Cloudinary CDN
 - **Deployment**: Render (Backend), Vercel (Frontend)
 - **Real-time Communication**: Socket.IO with optimization layer
 - **Caching**: In-memory (L1) + Redis-ready (L2)
-
-## Recent Changes (December 2025)
-
-### Report Card Unpublish Feature (December 2025)
-Added ability for admins to unpublish previously published report cards:
-- **Single Unpublish**: Via dropdown menu or preview dialog button for individual published cards
-- **Bulk Unpublish**: Select multiple published cards and unpublish them at once
-- **Status Transition**: Unpublishing reverts status from 'published' to 'finalized' for re-review
-- **Access Control**: Only admins can access the Result Publishing page and unpublish functionality
-- **Student Protection**: Unpublished cards are no longer visible to students/parents until republished
-- **Key File**: `client/src/pages/portal/AdminResultPublishing.tsx` - Updated with unpublish mutations and UI
-
-### Report Card Score Override Optimization
-Fixed real-time update flicker issue in Teacher Report-Card Preview page:
-- **Backend Enhancement**: `/api/reports/items/:itemId/override` endpoint now returns recalculated report card totals (totalScore, averageScore, averagePercentage, overallGrade, position) in the response
-- **Socket.IO Hook**: Added `skipCacheInvalidation` option to `useSocketIORealtime` hook for components using optimistic updates
-- **TeacherReportCards**: Uses optimistic updates with server response reconciliation to prevent flicker
-- **Authorization**: Edit buttons properly hidden based on `canEditTest`/`canEditExam` flags from backend permissions
-
-### Student Report Card Data Consistency Fix (December 2025)
-Fixed critical issue where student/parent portal displayed incorrect report card data after admin published results:
-- **Root Cause**: `/api/reports/student-report-card/:studentId` was recalculating scores from raw exam results instead of using published data from `report_cards` and `report_card_items` tables
-- **Solution**: Endpoint now prioritizes database-stored values (totalScore, averagePercentage, overallGrade, position) from published report cards, with fallback calculation only when no report card exists (for teacher/admin preview before generation)
-- **Class Statistics**: Now correctly uses `report_cards.averagePercentage` from all published cards in the same class/term, properly including legitimate 0% scores in calculations
-- **Data Flow**: When a report card is published, student view now matches admin view exactly
-
-### Academic Session Display Fix (December 2025)
-Fixed bug where report cards showed malformed session like "2025/20251" instead of "2024/2025":
-- **Root Cause**: JavaScript string concatenation - when `term.year` was "2025", doing `term.year + 1` produced "20251" (string concat) instead of 2026 (numeric addition)
-- **Database Fix**: Academic terms now store year in proper YYYY/YYYY format (e.g., "2024/2025")
-- **Code Fix**: Backend endpoints now use `term.year` directly instead of computing `${term.year}/${term.year + 1}`
-- **Validation Added**: 
-  - Backend: POST/PUT `/api/terms` routes validate year format (YYYY/YYYY with consecutive years)
-  - Frontend: `AcademicTermsManagement.tsx` shows inline validation error with visual feedback
-- **Admin Control**: Admins can modify academic sessions anytime via Portal → Academic Terms Management
-
-### Key Files Modified
-- `server/routes.ts` - Override endpoint returns recalculated totals; Student report card endpoint uses published data; Academic term validation
-- `server/storage.ts` - Fixed academicSession computation to use stored year directly
-- `client/src/hooks/useSocketIORealtime.ts` - Added skipCacheInvalidation opt-in flag
-- `client/src/pages/portal/TeacherReportCards.tsx` - Uses skipCacheInvalidation to prevent flicker
-- `client/src/pages/portal/AcademicTermsManagement.tsx` - Added year format validation with error display
