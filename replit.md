@@ -102,6 +102,15 @@ System optimized to handle 500-1000 concurrent users with excellent performance:
 
 ## Recent Changes (December 2025)
 
+### Report Card Unpublish Feature (December 2025)
+Added ability for admins to unpublish previously published report cards:
+- **Single Unpublish**: Via dropdown menu or preview dialog button for individual published cards
+- **Bulk Unpublish**: Select multiple published cards and unpublish them at once
+- **Status Transition**: Unpublishing reverts status from 'published' to 'finalized' for re-review
+- **Access Control**: Only admins can access the Result Publishing page and unpublish functionality
+- **Student Protection**: Unpublished cards are no longer visible to students/parents until republished
+- **Key File**: `client/src/pages/portal/AdminResultPublishing.tsx` - Updated with unpublish mutations and UI
+
 ### Report Card Score Override Optimization
 Fixed real-time update flicker issue in Teacher Report-Card Preview page:
 - **Backend Enhancement**: `/api/reports/items/:itemId/override` endpoint now returns recalculated report card totals (totalScore, averageScore, averagePercentage, overallGrade, position) in the response
