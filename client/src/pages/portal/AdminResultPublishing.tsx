@@ -166,15 +166,48 @@ export default function AdminResultPublishing() {
       }
       return response.json();
     },
-    onSuccess: async () => {
-      // Force immediate refetch for instant UI update (not just invalidate)
-      await Promise.all([
-        queryClient.refetchQueries({ queryKey: ['/api/admin/report-cards/finalized'], type: 'active' }),
-        queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
-      ]);
-      toast({ title: "Success", description: "Report card published successfully" });
+    onMutate: async (reportCardId: number) => {
+      // Cancel any outgoing refetches to prevent race conditions
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
+      
+      // Snapshot the previous value for rollback
+      const previousData = queryClient.getQueryData(['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter]);
+      
+      // Optimistically update the cache IMMEDIATELY for instant UI feedback
+      queryClient.setQueryData(
+        ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
+        (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            reportCards: old.reportCards.map((rc: FinalizedReportCard) =>
+              rc.id === reportCardId ? { ...rc, status: 'published', publishedAt: new Date().toISOString() } : rc
+            ),
+            statistics: {
+              ...old.statistics,
+              finalized: Math.max(0, old.statistics.finalized - 1),
+              published: old.statistics.published + 1
+            }
+          };
+        }
+      );
+      
+      return { previousData };
     },
-    onError: (error: Error) => {
+    onSuccess: async () => {
+      toast({ title: "Success", description: "Report card published successfully" });
+      // Refetch to ensure data is in sync with server
+      queryClient.refetchQueries({ queryKey: ['/api/admin/report-cards/finalized'], type: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
+    },
+    onError: (error: Error, _reportCardId, context) => {
+      // Rollback on error
+      if (context?.previousData) {
+        queryClient.setQueryData(
+          ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
+          context.previousData
+        );
+      }
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
@@ -188,16 +221,52 @@ export default function AdminResultPublishing() {
       }
       return response.json();
     },
-    onSuccess: async (data) => {
+    onMutate: async (reportCardIds: number[]) => {
+      // Cancel any outgoing refetches to prevent race conditions
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
+      
+      // Snapshot the previous value for rollback
+      const previousData = queryClient.getQueryData(['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter]);
+      
+      // Optimistically update the cache IMMEDIATELY for instant UI feedback
+      queryClient.setQueryData(
+        ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
+        (old: any) => {
+          if (!old) return old;
+          const publishedCount = reportCardIds.length;
+          return {
+            ...old,
+            reportCards: old.reportCards.map((rc: FinalizedReportCard) =>
+              reportCardIds.includes(rc.id) ? { ...rc, status: 'published', publishedAt: new Date().toISOString() } : rc
+            ),
+            statistics: {
+              ...old.statistics,
+              finalized: Math.max(0, old.statistics.finalized - publishedCount),
+              published: old.statistics.published + publishedCount
+            }
+          };
+        }
+      );
+      
+      // Clear selection immediately for instant feedback
       setSelectedReportCards([]);
-      // Force immediate refetch for instant UI update (not just invalidate)
-      await Promise.all([
-        queryClient.refetchQueries({ queryKey: ['/api/admin/report-cards/finalized'], type: 'active' }),
-        queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
-      ]);
-      toast({ title: "Success", description: data.message });
+      
+      return { previousData };
     },
-    onError: (error: Error) => {
+    onSuccess: async (data) => {
+      toast({ title: "Success", description: data.message });
+      // Refetch to ensure data is in sync with server
+      queryClient.refetchQueries({ queryKey: ['/api/admin/report-cards/finalized'], type: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
+    },
+    onError: (error: Error, _reportCardIds, context) => {
+      // Rollback on error
+      if (context?.previousData) {
+        queryClient.setQueryData(
+          ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
+          context.previousData
+        );
+      }
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
@@ -211,15 +280,48 @@ export default function AdminResultPublishing() {
       }
       return response.json();
     },
-    onSuccess: async () => {
-      // Force immediate refetch for instant UI update (not just invalidate)
-      await Promise.all([
-        queryClient.refetchQueries({ queryKey: ['/api/admin/report-cards/finalized'], type: 'active' }),
-        queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
-      ]);
-      toast({ title: "Success", description: "Report card unpublished successfully. Students can no longer view it." });
+    onMutate: async (reportCardId: number) => {
+      // Cancel any outgoing refetches to prevent race conditions
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
+      
+      // Snapshot the previous value for rollback
+      const previousData = queryClient.getQueryData(['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter]);
+      
+      // Optimistically update the cache IMMEDIATELY for instant UI feedback
+      queryClient.setQueryData(
+        ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
+        (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            reportCards: old.reportCards.map((rc: FinalizedReportCard) =>
+              rc.id === reportCardId ? { ...rc, status: 'finalized', publishedAt: null } : rc
+            ),
+            statistics: {
+              ...old.statistics,
+              published: Math.max(0, old.statistics.published - 1),
+              finalized: old.statistics.finalized + 1
+            }
+          };
+        }
+      );
+      
+      return { previousData };
     },
-    onError: (error: Error) => {
+    onSuccess: async () => {
+      toast({ title: "Success", description: "Report card unpublished successfully. Students can no longer view it." });
+      // Refetch to ensure data is in sync with server
+      queryClient.refetchQueries({ queryKey: ['/api/admin/report-cards/finalized'], type: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
+    },
+    onError: (error: Error, _reportCardId, context) => {
+      // Rollback on error
+      if (context?.previousData) {
+        queryClient.setQueryData(
+          ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
+          context.previousData
+        );
+      }
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
@@ -238,16 +340,52 @@ export default function AdminResultPublishing() {
       );
       return results;
     },
-    onSuccess: async () => {
+    onMutate: async (reportCardIds: number[]) => {
+      // Cancel any outgoing refetches to prevent race conditions
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
+      
+      // Snapshot the previous value for rollback
+      const previousData = queryClient.getQueryData(['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter]);
+      
+      // Optimistically update the cache IMMEDIATELY for instant UI feedback
+      queryClient.setQueryData(
+        ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
+        (old: any) => {
+          if (!old) return old;
+          const unpublishedCount = reportCardIds.length;
+          return {
+            ...old,
+            reportCards: old.reportCards.map((rc: FinalizedReportCard) =>
+              reportCardIds.includes(rc.id) ? { ...rc, status: 'finalized', publishedAt: null } : rc
+            ),
+            statistics: {
+              ...old.statistics,
+              published: Math.max(0, old.statistics.published - unpublishedCount),
+              finalized: old.statistics.finalized + unpublishedCount
+            }
+          };
+        }
+      );
+      
+      // Clear selection immediately for instant feedback
       setSelectedReportCards([]);
-      // Force immediate refetch for instant UI update (not just invalidate)
-      await Promise.all([
-        queryClient.refetchQueries({ queryKey: ['/api/admin/report-cards/finalized'], type: 'active' }),
-        queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
-      ]);
-      toast({ title: "Success", description: "Selected report cards unpublished successfully" });
+      
+      return { previousData };
     },
-    onError: (error: Error) => {
+    onSuccess: async () => {
+      toast({ title: "Success", description: "Selected report cards unpublished successfully" });
+      // Refetch to ensure data is in sync with server
+      queryClient.refetchQueries({ queryKey: ['/api/admin/report-cards/finalized'], type: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
+    },
+    onError: (error: Error, _reportCardIds, context) => {
+      // Rollback on error
+      if (context?.previousData) {
+        queryClient.setQueryData(
+          ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
+          context.previousData
+        );
+      }
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
@@ -261,18 +399,50 @@ export default function AdminResultPublishing() {
       }
       return response.json();
     },
+    onMutate: async ({ id }: { id: number; reason: string }) => {
+      // Cancel any outgoing refetches to prevent race conditions
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
+      
+      // Snapshot the previous value for rollback
+      const previousData = queryClient.getQueryData(['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter]);
+      
+      // Optimistically update the cache IMMEDIATELY for instant UI feedback
+      // Remove the rejected report card from the list (it goes to draft, which is not shown in finalized view)
+      queryClient.setQueryData(
+        ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
+        (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            reportCards: old.reportCards.filter((rc: FinalizedReportCard) => rc.id !== id),
+            statistics: {
+              ...old.statistics,
+              finalized: Math.max(0, old.statistics.finalized - 1),
+              draft: old.statistics.draft + 1
+            }
+          };
+        }
+      );
+      
+      return { previousData };
+    },
     onSuccess: async () => {
       setIsRejectDialogOpen(false);
       setRejectingId(null);
       setRejectReason('');
-      // Force immediate refetch for instant UI update (not just invalidate)
-      await Promise.all([
-        queryClient.refetchQueries({ queryKey: ['/api/admin/report-cards/finalized'], type: 'active' }),
-        queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
-      ]);
       toast({ title: "Report Card Rejected", description: "The report card has been reverted to draft for teacher revision" });
+      // Refetch to ensure data is in sync with server
+      queryClient.refetchQueries({ queryKey: ['/api/admin/report-cards/finalized'], type: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _variables, context) => {
+      // Rollback on error
+      if (context?.previousData) {
+        queryClient.setQueryData(
+          ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
+          context.previousData
+        );
+      }
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });

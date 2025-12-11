@@ -271,9 +271,12 @@ export function useSocketIORealtime({
           handleEvent(event);
           console.log(`📥 Received ${event.operation} event for table: ${table}`);
           
-          // Only skip invalidation if explicitly opted in (e.g., when using optimistic updates)
+          // Only skip refetch if explicitly opted in (e.g., when using optimistic updates)
           if (!skipCacheInvalidation) {
-            queryClient.invalidateQueries({ queryKey: filteredQueryKey });
+            // CRITICAL: Use refetchQueries instead of invalidateQueries for INSTANT UI updates
+            // invalidateQueries only marks queries as stale but doesn't immediately refetch
+            // refetchQueries forces an immediate network request and UI update
+            queryClient.refetchQueries({ queryKey: filteredQueryKey, type: 'active' });
           }
         }
       };
@@ -282,9 +285,12 @@ export function useSocketIORealtime({
         handleEvent(payload);
         console.log(`📥 Received ${eventType} event`);
         
-        // Only skip invalidation if explicitly opted in (e.g., when using optimistic updates)
+        // Only skip refetch if explicitly opted in (e.g., when using optimistic updates)
         if (!skipCacheInvalidation) {
-          queryClient.invalidateQueries({ queryKey: filteredQueryKey });
+          // CRITICAL: Use refetchQueries instead of invalidateQueries for INSTANT UI updates
+          // invalidateQueries only marks queries as stale but doesn't immediately refetch
+          // refetchQueries forces an immediate network request and UI update
+          queryClient.refetchQueries({ queryKey: filteredQueryKey, type: 'active' });
         }
       };
 
