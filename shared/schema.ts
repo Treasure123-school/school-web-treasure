@@ -64,6 +64,8 @@ export const users = sqliteTable("users", {
   securityAnswerHash: text("security_answer_hash"),
   dataPolicyAgreed: integer("data_policy_agreed", { mode: "boolean" }).notNull().default(false),
   dataPolicyAgreedAt: integer("data_policy_agreed_at", { mode: "timestamp" }),
+  deletedAt: integer("deleted_at", { mode: "timestamp" }),
+  deletedBy: text("deleted_by"),
 
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
@@ -73,6 +75,7 @@ export const users = sqliteTable("users", {
   usersGoogleIdIdx: index("users_google_id_idx").on(table.googleId),
   usersRoleIdIdx: index("users_role_id_idx").on(table.roleId),
   usersUsernameIdx: index("users_username_idx").on(table.username),
+  usersDeletedAtIdx: index("users_deleted_at_idx").on(table.deletedAt),
 }));
 
 // Password reset tokens table
@@ -283,6 +286,7 @@ export const systemSettings = sqliteTable("system_settings", {
   showGradeBreakdown: integer("show_grade_breakdown", { mode: "boolean" }).notNull().default(true),
   allowTeacherOverrides: integer("allow_teacher_overrides", { mode: "boolean" }).notNull().default(true),
   positioningMethod: text("positioning_method").notNull().default('average'),
+  deletedUserRetentionDays: integer("deleted_user_retention_days").notNull().default(30),
   updatedBy: text("updated_by").references(() => users.id, { onDelete: 'set null' }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),

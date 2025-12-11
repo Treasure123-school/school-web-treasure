@@ -53,6 +53,8 @@ export const users = pgTable("users", {
   securityAnswerHash: text("security_answer_hash"),
   dataPolicyAgreed: boolean("data_policy_agreed").notNull().default(false),
   dataPolicyAgreedAt: timestamp("data_policy_agreed_at"),
+  deletedAt: timestamp("deleted_at"),
+  deletedBy: varchar("deleted_by", { length: 36 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => ({
@@ -61,6 +63,7 @@ export const users = pgTable("users", {
   usersGoogleIdIdx: index("users_google_id_idx").on(table.googleId),
   usersRoleIdIdx: index("users_role_id_idx").on(table.roleId),
   usersUsernameIdx: index("users_username_idx").on(table.username),
+  usersDeletedAtIdx: index("users_deleted_at_idx").on(table.deletedAt),
 }));
 
 // Password reset tokens table
@@ -277,6 +280,7 @@ export const systemSettings = pgTable("system_settings", {
   showGradeBreakdown: boolean("show_grade_breakdown").notNull().default(true),
   allowTeacherOverrides: boolean("allow_teacher_overrides").notNull().default(true),
   positioningMethod: varchar("positioning_method", { length: 20 }).notNull().default('average'),
+  deletedUserRetentionDays: integer("deleted_user_retention_days").notNull().default(30),
   updatedBy: varchar("updated_by", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
