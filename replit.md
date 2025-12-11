@@ -31,6 +31,13 @@ The backend is an Express.js application built with Node.js and TypeScript, leve
 - **Strict Exam Result Matching**: Ensures accurate retrieval of specific exam results.
 - **Exam Retake System**: Allows flagging students for retakes, archiving previous submissions.
 - **Report Card Unpublish Feature**: Admins can unpublish single or bulk published report cards, reverting status to 'finalized'.
+- **User Recovery System (Recycle Bin)**: Soft-delete users instead of permanent deletion, with configurable retention period (7-90 days). Features include:
+  - Admins can view/restore/delete Teachers, Students, and Parents
+  - Super Admins can view/restore/delete all users including Admins
+  - Configurable retention period in Super Admin Settings
+  - Automatic daily cleanup at 2:00 AM removes expired deleted users
+  - Full audit logging of recovery actions
+  - Role-based permission enforcement to prevent privilege escalation
 
 ### System Design Choices
 - **Stateless Backend**: Achieved by offloading database to Neon PostgreSQL and file storage to Cloudinary.

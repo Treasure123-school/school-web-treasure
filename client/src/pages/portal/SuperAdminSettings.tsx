@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import SuperAdminLayout from "@/components/SuperAdminLayout";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Save, AlertTriangle, GraduationCap, BarChart3, Settings2, FileText, Eye } from "lucide-react";
+import { Save, AlertTriangle, GraduationCap, BarChart3, Settings2, FileText, Eye, Trash2 } from "lucide-react";
 import { GRADING_SCALES, getGradeColor, getGradeBgColor, type GradingConfig } from "@shared/grading-utils";
 
 interface SettingsData {
@@ -38,6 +38,7 @@ interface SettingsData {
   scoreAggregationMode: string;
   showGradeBreakdown: boolean;
   allowTeacherOverrides: boolean;
+  deletedUserRetentionDays: number;
 }
 
 export default function SuperAdminSettings() {
@@ -69,6 +70,7 @@ export default function SuperAdminSettings() {
     scoreAggregationMode: "last",
     showGradeBreakdown: true,
     allowTeacherOverrides: true,
+    deletedUserRetentionDays: 30,
   });
 
   useEffect(() => {
@@ -83,6 +85,7 @@ export default function SuperAdminSettings() {
         scoreAggregationMode: settings.scoreAggregationMode ?? "last",
         showGradeBreakdown: settings.showGradeBreakdown ?? true,
         allowTeacherOverrides: settings.allowTeacherOverrides ?? true,
+        deletedUserRetentionDays: settings.deletedUserRetentionDays ?? 30,
       });
     }
   }, [settings]);
@@ -497,7 +500,7 @@ export default function SuperAdminSettings() {
             <CardHeader>
               <CardTitle className="dark:text-white">User Management Settings</CardTitle>
               <CardDescription className="dark:text-slate-400">
-                Control user visibility and access permissions
+                Control user visibility, access permissions, and data retention
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -515,6 +518,37 @@ export default function SuperAdminSettings() {
                   }
                   data-testid="switch-hide-admin-accounts"
                 />
+              </div>
+
+              <div className="border-t pt-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="space-y-0.5 flex-1">
+                    <Label className="text-sm sm:text-base dark:text-slate-200 flex items-center gap-2">
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                      Deleted User Retention Period
+                    </Label>
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+                      Number of days deleted users remain recoverable before permanent deletion. Automatic cleanup runs daily at 2:00 AM.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={formData.deletedUserRetentionDays.toString()}
+                      onValueChange={(value) => setFormData({ ...formData, deletedUserRetentionDays: parseInt(value) })}
+                    >
+                      <SelectTrigger className="w-32 dark:bg-slate-900 dark:border-slate-700" data-testid="select-retention-days">
+                        <SelectValue placeholder="Select days" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="7">7 days</SelectItem>
+                        <SelectItem value="14">14 days</SelectItem>
+                        <SelectItem value="30">30 days</SelectItem>
+                        <SelectItem value="60">60 days</SelectItem>
+                        <SelectItem value="90">90 days</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

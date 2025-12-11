@@ -117,7 +117,7 @@ export interface IStorage {
   createStudent(student: InsertStudent): Promise<Student>;
   updateStudent(id: string, updates: { userPatch?: Partial<InsertUser>; studentPatch?: Partial<InsertStudent> }): Promise<{ user: User; student: Student } | undefined>;
   setUserActive(id: string, isActive: boolean): Promise<User | undefined>;
-  deleteStudent(id: string): Promise<boolean>;
+  deleteStudent(id: string, deletedBy?: string): Promise<boolean>;
   hardDeleteStudent(id: string): Promise<boolean>;
   getStudentsByClass(classId: number): Promise<Student[]>;
   getAllStudents(includeInactive?: boolean): Promise<Student[]>;
@@ -488,6 +488,14 @@ export interface IStorage {
   }>;
   getSystemSettings(): Promise<SystemSettings | undefined>;
   updateSystemSettings(settings: Partial<InsertSystemSettings>): Promise<SystemSettings>;
+
+  // User recovery management
+  getDeletedUsers(roleFilter?: number[]): Promise<User[]>;
+  restoreUser(userId: string, restoredBy: string): Promise<User | undefined>;
+  softDeleteUser(userId: string, deletedBy: string): Promise<boolean>;
+  permanentlyDeleteUser(userId: string): Promise<boolean>;
+  getExpiredDeletedUsers(retentionDays: number): Promise<User[]>;
+  permanentlyDeleteExpiredUsers(retentionDays: number): Promise<{ deleted: number; errors: string[] }>;
 
   // Student subject assignments
   createStudentSubjectAssignment(assignment: InsertStudentSubjectAssignment): Promise<StudentSubjectAssignment>;
@@ -1683,11 +1691,16 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return result[0];
   }
-  async deleteStudent(id: string): Promise<boolean> {
-    // Logical deletion by setting user as inactive
+  async deleteStudent(id: string, deletedBy?: string): Promise<boolean> {
+    // Soft deletion by setting user as inactive and recording deletion timestamp
     // This preserves referential integrity for attendance, exams, etc.
+    // User can be recovered within retention period
     const result = await this.db.update(schema.users)
-      .set({ isActive: false })
+      .set({ 
+        isActive: false, 
+        deletedAt: new Date(),
+        deletedBy: deletedBy || null
+      })
       .where(eq(schema.users.id, id))
       .returning();
     return result.length > 0;
@@ -6783,6 +6796,111 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return result[0];
     }
+  }
+
+  // User recovery management implementations
+  async getDeletedUsers(roleFilter?: number[]): Promise<User[]> {
+    // Get users that have been soft-deleted (deletedAt is set)
+    if (roleFilter && roleFilter.length > 0) {
+      return await this.db.select()
+        .from(schema.users)
+        .where(and(
+          sql`${schema.users.deletedAt} IS NOT NULL`,
+          inArray(schema.users.roleId, roleFilter)
+        ))
+        .orderBy(desc(schema.users.deletedAt));
+    }
+    return await this.db.select()
+      .from(schema.users)
+      .where(sql`${schema.users.deletedAt} IS NOT NULL`)
+      .orderBy(desc(schema.users.deletedAt));
+  }
+
+  async restoreUser(userId: string, restoredBy: string): Promise<User | undefined> {
+    // Restore a soft-deleted user by clearing deletedAt and setting isActive to true
+    const result = await this.db.update(schema.users)
+      .set({ 
+        isActive: true, 
+        deletedAt: null,
+        deletedBy: null,
+        updatedAt: new Date()
+      })
+      .where(eq(schema.users.id, userId))
+      .returning();
+    return result[0];
+  }
+
+  async softDeleteUser(userId: string, deletedBy: string): Promise<boolean> {
+    // Soft delete a user by setting deletedAt and isActive to false
+    const result = await this.db.update(schema.users)
+      .set({ 
+        isActive: false, 
+        deletedAt: new Date(),
+        deletedBy: deletedBy
+      })
+      .where(eq(schema.users.id, userId))
+      .returning();
+    return result.length > 0;
+  }
+
+  async permanentlyDeleteUser(userId: string): Promise<boolean> {
+    // Permanently delete user and all associated data
+    try {
+      const user = await this.getUser(userId);
+      if (!user) return false;
+
+      // Use hard delete based on role
+      const roleId = user.roleId;
+      
+      // Role 4 = Student
+      if (roleId === 4) {
+        return await this.hardDeleteStudent(userId);
+      }
+      
+      // For other roles, use the smart deletion manager
+      const deletionManager = new SmartDeletionManager();
+      const result = await deletionManager.deleteUser(userId);
+      return result.success;
+    } catch (error) {
+      console.error('Error permanently deleting user:', error);
+      return false;
+    }
+  }
+
+  async getExpiredDeletedUsers(retentionDays: number): Promise<User[]> {
+    // Get users whose deletion date has exceeded the retention period
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+    
+    return await this.db.select()
+      .from(schema.users)
+      .where(and(
+        sql`${schema.users.deletedAt} IS NOT NULL`,
+        lte(schema.users.deletedAt, cutoffDate)
+      ))
+      .orderBy(asc(schema.users.deletedAt));
+  }
+
+  async permanentlyDeleteExpiredUsers(retentionDays: number): Promise<{ deleted: number; errors: string[] }> {
+    const expiredUsers = await this.getExpiredDeletedUsers(retentionDays);
+    let deleted = 0;
+    const errors: string[] = [];
+
+    for (const user of expiredUsers) {
+      try {
+        const success = await this.permanentlyDeleteUser(user.id);
+        if (success) {
+          deleted++;
+          console.log(`Permanently deleted expired user: ${user.username || user.email} (ID: ${user.id})`);
+        } else {
+          errors.push(`Failed to delete user ${user.id}`);
+        }
+      } catch (error: any) {
+        errors.push(`Error deleting user ${user.id}: ${error.message}`);
+      }
+    }
+
+    return { deleted, errors };
   }
 
   // Student subject assignment implementations

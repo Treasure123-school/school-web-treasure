@@ -321,6 +321,48 @@ function sanitizeLogData(data: any): any {
     console.log(`⚠️ Performance monitoring initialization warning: ${errorMessage}`);
   }
 
+  // Initialize scheduled job for automatic cleanup of expired deleted users
+  try {
+    const cron = await import('node-cron');
+    const { storage } = await import('./storage');
+    
+    // Run daily at 2:00 AM - cleanup expired deleted users
+    cron.default.schedule('0 2 * * *', async () => {
+      try {
+        console.log('🔄 Running scheduled cleanup of expired deleted users...');
+        const settings = await storage.getSystemSettings();
+        const retentionDays = settings?.deletedUserRetentionDays ?? 30;
+        
+        const result = await storage.permanentlyDeleteExpiredUsers(retentionDays);
+        
+        if (result.deleted > 0) {
+          console.log(`✅ Cleanup completed: ${result.deleted} expired deleted users permanently removed`);
+          // Log to audit
+          await storage.createAuditLog({
+            userId: 'system',
+            action: 'expired_users_cleanup',
+            entityType: 'system',
+            entityId: 'scheduled_cleanup',
+            reason: `Scheduled cleanup: ${result.deleted} expired deleted users permanently removed`,
+          });
+        } else {
+          console.log('✅ No expired deleted users to cleanup');
+        }
+        
+        if (result.errors.length > 0) {
+          console.log(`⚠️ Cleanup errors: ${result.errors.join(', ')}`);
+        }
+      } catch (error: any) {
+        console.error('❌ Scheduled cleanup error:', error.message);
+      }
+    });
+    
+    console.log('✅ Scheduled cleanup job initialized (runs daily at 2:00 AM)');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.log(`⚠️ Scheduled cleanup initialization warning: ${errorMessage}`);
+  }
+
   // Multer error handling middleware - must come before general error handler
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     if (err.name === 'MulterError' || err.message?.includes('Only image files') || err.message?.includes('Only document files') || err.message?.includes('Only CSV files')) {
