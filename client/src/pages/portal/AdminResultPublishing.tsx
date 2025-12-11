@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import html2canvas from 'html2canvas';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -133,6 +134,15 @@ export default function AdminResultPublishing() {
     },
   });
 
+  // Real-time updates for report card status changes (publish/unpublish/reject)
+  // This ensures the UI updates instantly when any admin changes a report card status
+  useSocketIORealtime({
+    table: 'report_cards',
+    queryKey: ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
+    enabled: true,
+    fallbackPollingInterval: 30000,
+  });
+
   const reportCards: FinalizedReportCard[] = reportCardsData?.reportCards || [];
   const statistics: Statistics = reportCardsData?.statistics || { draft: 0, finalized: 0, published: 0 };
 
@@ -158,7 +168,8 @@ export default function AdminResultPublishing() {
     },
     onSuccess: () => {
       toast({ title: "Success", description: "Report card published successfully" });
-      refetch();
+      // Invalidate all related caches for immediate UI update
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
       queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
     },
     onError: (error: Error) => {
@@ -178,7 +189,8 @@ export default function AdminResultPublishing() {
     onSuccess: (data) => {
       toast({ title: "Success", description: data.message });
       setSelectedReportCards([]);
-      refetch();
+      // Invalidate all related caches for immediate UI update
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
       queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
     },
     onError: (error: Error) => {
@@ -197,7 +209,8 @@ export default function AdminResultPublishing() {
     },
     onSuccess: () => {
       toast({ title: "Success", description: "Report card unpublished successfully. Students can no longer view it." });
-      refetch();
+      // Invalidate all related caches for immediate UI update
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
       queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
     },
     onError: (error: Error) => {
@@ -222,7 +235,8 @@ export default function AdminResultPublishing() {
     onSuccess: () => {
       toast({ title: "Success", description: "Selected report cards unpublished successfully" });
       setSelectedReportCards([]);
-      refetch();
+      // Invalidate all related caches for immediate UI update
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
       queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
     },
     onError: (error: Error) => {
@@ -244,7 +258,8 @@ export default function AdminResultPublishing() {
       setIsRejectDialogOpen(false);
       setRejectingId(null);
       setRejectReason('');
-      refetch();
+      // Invalidate all related caches for immediate UI update
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
       queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
     },
     onError: (error: Error) => {

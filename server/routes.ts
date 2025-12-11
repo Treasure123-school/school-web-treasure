@@ -10755,33 +10755,37 @@ Treasure-Home School Administration
         
         const { reportCard: updatedReportCard, previousStatus } = result;
         
-        // Emit realtime event asynchronously (non-blocking)
-        setImmediate(async () => {
-          const eventType = status === 'published' ? 'published' : 
-                            status === 'finalized' ? 'finalized' : 'reverted';
-          
-          // Get parent ID for published notifications
-          let parentIds: string[] = [];
-          if (status === 'published' && updatedReportCard.studentId) {
+        // Emit realtime event IMMEDIATELY for instant UI updates (CRITICAL FIX)
+        const eventType = status === 'published' ? 'published' : 
+                          status === 'finalized' ? 'finalized' : 'reverted';
+        
+        // Emit the event immediately so connected clients update their UI
+        realtimeService.emitReportCardEvent(Number(reportCardId), eventType, {
+          reportCardId: Number(reportCardId),
+          status,
+          studentId: updatedReportCard.studentId,
+          classId: updatedReportCard.classId,
+          termId: updatedReportCard.termId
+        }, req.user!.id);
+        
+        // Fetch parent IDs asynchronously for parent notifications (non-blocking)
+        if (status === 'published' && updatedReportCard.studentId) {
+          setImmediate(async () => {
             try {
               const student = await storage.getStudent(updatedReportCard.studentId);
               if (student?.parentId) {
-                parentIds = [student.parentId];
+                // Send additional notification to parents
+                realtimeService.emitToUser(student.parentId, 'reportcard.published', {
+                  reportCardId: Number(reportCardId),
+                  status,
+                  studentId: updatedReportCard.studentId
+                });
               }
             } catch (e) {
               console.warn('Could not fetch parent ID for notification:', e);
             }
-          }
-          
-          realtimeService.emitReportCardEvent(Number(reportCardId), eventType, {
-            reportCardId: Number(reportCardId),
-            status,
-            studentId: updatedReportCard.studentId,
-            classId: updatedReportCard.classId,
-            termId: updatedReportCard.termId,
-            parentIds
-          }, req.user!.id);
-        });
+          });
+        }
         
         // Return descriptive message based on transition
         let message = 'Status updated successfully';
@@ -11764,6 +11768,43 @@ Treasure-Home School Administration
         const successCount = results.filter(r => r.success).length;
         const failedCount = results.filter(r => !r.success).length;
         
+        // Emit real-time events IMMEDIATELY for successful publishes (CRITICAL FOR INSTANT UI UPDATES)
+        // This must happen BEFORE the response so connected clients update their UI
+        for (const r of results.filter(r => r.success && r.result)) {
+          const reportCard = (r as any).result.reportCard;
+          if (reportCard) {
+            realtimeService.emitReportCardEvent(reportCard.id, 'published', {
+              reportCardId: reportCard.id,
+              status: 'published',
+              studentId: reportCard.studentId,
+              classId: reportCard.classId,
+              termId: reportCard.termId,
+              action: 'bulk-publish'
+            }, req.user!.id);
+          }
+        }
+        
+        // Fetch parent IDs asynchronously for parent notifications (non-blocking)
+        setImmediate(async () => {
+          for (const r of results.filter(r => r.success && r.result)) {
+            const reportCard = (r as any).result.reportCard;
+            if (reportCard && reportCard.studentId) {
+              try {
+                const student = await storage.getStudent(reportCard.studentId);
+                if (student?.parentId) {
+                  realtimeService.emitToUser(student.parentId, 'reportcard.published', {
+                    reportCardId: reportCard.id,
+                    status: 'published',
+                    studentId: reportCard.studentId
+                  });
+                }
+              } catch (e) {
+                console.warn('Could not emit parent notification:', e);
+              }
+            }
+          }
+        });
+        
         res.json({
           message: `${successCount} report cards published successfully${failedCount > 0 ? `, ${failedCount} failed` : ''}`,
           results,
@@ -11788,6 +11829,19 @@ Treasure-Home School Administration
         if (!result) {
           return res.status(404).json({ message: 'Report card not found' });
         }
+        
+        const reportCard = result.reportCard;
+        
+        // Emit real-time event for instant UI update (CRITICAL FOR REALTIME)
+        realtimeService.emitReportCardEvent(Number(id), 'reverted', {
+          reportCardId: Number(id),
+          status: 'draft',
+          studentId: reportCard.studentId,
+          classId: reportCard.classId,
+          termId: reportCard.termId,
+          reason: reason || 'Rejected by admin',
+          action: 'reject'
+        }, req.user!.id);
         
         res.json({
           message: 'Report card rejected and reverted to draft',
