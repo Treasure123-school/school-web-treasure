@@ -4941,7 +4941,31 @@ export class DatabaseStorage implements IStorage {
         .where(eq(schema.reportCards.id, reportCardId))
         .returning();
 
-      return { reportCard: result[0], previousStatus: currentStatus };
+      const updatedReportCard = result[0];
+
+      // CRITICAL: When finalizing, recalculate and persist report card totals and class positions
+      // This ensures admin/parent/student views show correct class statistics
+      if (status === 'finalized' && updatedReportCard) {
+        console.log(`[REPORT-CARD-STATUS] Recalculating totals for finalized report card ${reportCardId}`);
+        
+        // Recalculate this report card's totals (averagePercentage, totalScore, etc.)
+        await this.recalculateReportCard(reportCardId, updatedReportCard.gradingScale || 'standard');
+        
+        // Recalculate class positions for all students in this class/term
+        if (updatedReportCard.classId && updatedReportCard.termId) {
+          await this.recalculateClassPositions(updatedReportCard.classId, updatedReportCard.termId);
+        }
+        
+        // Fetch the updated report card with recalculated values
+        const finalResult = await db.select()
+          .from(schema.reportCards)
+          .where(eq(schema.reportCards.id, reportCardId))
+          .limit(1);
+        
+        return { reportCard: finalResult[0], previousStatus: currentStatus };
+      }
+
+      return { reportCard: updatedReportCard, previousStatus: currentStatus };
     } catch (error) {
       console.error('Error updating report card status (optimized):', error);
       throw error;

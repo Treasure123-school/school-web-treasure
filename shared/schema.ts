@@ -282,6 +282,7 @@ export const systemSettings = sqliteTable("system_settings", {
   autoCreateReportCard: integer("auto_create_report_card", { mode: "boolean" }).notNull().default(true),
   showGradeBreakdown: integer("show_grade_breakdown", { mode: "boolean" }).notNull().default(true),
   allowTeacherOverrides: integer("allow_teacher_overrides", { mode: "boolean" }).notNull().default(true),
+  positioningMethod: text("positioning_method").notNull().default('average'),
   updatedBy: text("updated_by").references(() => users.id, { onDelete: 'set null' }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),

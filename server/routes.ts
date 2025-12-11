@@ -9087,8 +9087,11 @@ Treasure-Home School Administration
 
           // Get class statistics for this term (highest, lowest, average scores)
           const classReportCards = await db.select({
+            id: schema.reportCards.id,
+            studentId: schema.reportCards.studentId,
             totalScore: schema.reportCards.totalScore,
-            averagePercentage: schema.reportCards.averagePercentage
+            averagePercentage: schema.reportCards.averagePercentage,
+            averageScore: schema.reportCards.averageScore
           })
             .from(schema.reportCards)
             .where(
@@ -9098,12 +9101,44 @@ Treasure-Home School Administration
               )
             );
 
-          // Calculate class statistics using stored values from report_cards table
-          // PRIORITY: Use database-stored averagePercentage values directly for consistency with admin view
+          // Calculate class statistics - use stored averagePercentage if valid, otherwise compute from items
           const totalStudentsInClass = dbReportCard.totalStudentsInClass || classReportCards.length;
-          const validScores = classReportCards
-            .filter((r: { averagePercentage: number | null }) => r.averagePercentage !== null)
-            .map((r: { averagePercentage: number | null }) => r.averagePercentage ?? 0);
+          
+          // First try to use stored averagePercentage values (filter out null and 0)
+          let validScores = classReportCards
+            .filter((r: { averagePercentage: number | null }) => r.averagePercentage !== null && r.averagePercentage > 0)
+            .map((r: { averagePercentage: number | null }) => r.averagePercentage as number);
+          
+          // If stored values are all 0/null, compute fresh from report card items for each student
+          if (validScores.length === 0 && classReportCards.length > 0) {
+            console.log(`[REPORT-CARD] Computing class statistics dynamically for class ${student.classId}, term ${termId}`);
+            const computedScores: number[] = [];
+            
+            for (const rc of classReportCards) {
+              // Get items for this report card and compute average
+              const items = await db.select({
+                obtainedMarks: schema.reportCardItems.obtainedMarks,
+                totalMarks: schema.reportCardItems.totalMarks
+              })
+                .from(schema.reportCardItems)
+                .where(eq(schema.reportCardItems.reportCardId, rc.id));
+              
+              if (items.length > 0) {
+                const totalObt = items.reduce((sum: number, i: any) => sum + (i.obtainedMarks || 0), 0);
+                const totalMax = items.reduce((sum: number, i: any) => sum + (i.totalMarks || 100), 0);
+                if (totalMax > 0) {
+                  const pct = (totalObt / totalMax) * 100;
+                  if (pct > 0) {
+                    computedScores.push(pct);
+                  }
+                }
+              }
+            }
+            
+            if (computedScores.length > 0) {
+              validScores = computedScores;
+            }
+          }
           
           const classHighest = validScores.length > 0 ? Math.max(...validScores) : 0;
           const classLowest = validScores.length > 0 ? Math.min(...validScores) : 0;
