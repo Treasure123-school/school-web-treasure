@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,13 +8,98 @@ import SuperAdminLayout from "@/components/SuperAdminLayout";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Save, Key } from "lucide-react";
+import { Save, Key, Pen } from "lucide-react";
+import { SignatureDialog } from "@/components/ui/signature-pad";
 
 interface ProfileData {
   username: string;
   email: string;
   firstName: string;
   lastName: string;
+}
+
+function SignatureCard() {
+  const { toast } = useToast();
+  
+  const { data: signatureData, isLoading } = useQuery<{ signatureUrl: string | null; hasSignature: boolean }>({
+    queryKey: ['/api/user/signature'],
+  });
+
+  const handleSaveSignature = async (signatureDataUrl: string) => {
+    try {
+      await apiRequest('POST', '/api/user/signature', { signatureDataUrl });
+      queryClient.invalidateQueries({ queryKey: ['/api/user/signature'] });
+      toast({
+        title: 'Signature Saved',
+        description: 'Your principal signature has been saved successfully.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to save signature',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  return (
+    <Card className="dark:bg-slate-800 dark:border-slate-700">
+      <CardHeader>
+        <CardTitle className="dark:text-white flex items-center gap-2">
+          <Pen className="h-5 w-5" />
+          Principal Signature
+        </CardTitle>
+        <CardDescription className="dark:text-slate-400">
+          Your digital signature will be used when signing report cards as Principal
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <div className="h-24 flex items-center justify-center">
+            <span className="text-muted-foreground">Loading...</span>
+          </div>
+        ) : signatureData?.signatureUrl ? (
+          <div className="space-y-4">
+            <div className="border rounded-lg p-4 bg-white dark:bg-slate-950 inline-block">
+              <img
+                src={signatureData.signatureUrl}
+                alt="Principal Signature"
+                className="max-h-20 max-w-xs"
+                data-testid="img-principal-signature"
+              />
+            </div>
+            <div>
+              <SignatureDialog
+                trigger={
+                  <Button variant="outline" size="sm" data-testid="button-update-principal-signature">
+                    <Pen className="w-4 h-4 mr-2" />
+                    Update Signature
+                  </Button>
+                }
+                onSave={handleSaveSignature}
+                initialSignature={signatureData.signatureUrl}
+                title="Update Principal Signature"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">No signature set up yet</p>
+            <SignatureDialog
+              trigger={
+                <Button variant="default" size="sm" data-testid="button-setup-principal-signature">
+                  <Pen className="w-4 h-4 mr-2" />
+                  Draw Your Signature
+                </Button>
+              }
+              onSave={handleSaveSignature}
+              title="Set Up Principal Signature"
+            />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 interface PasswordData {
   currentPassword: string;
@@ -159,6 +244,9 @@ export default function SuperAdminProfile() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Digital Signature for Principal */}
+          <SignatureCard />
 
           {/* Change Password */}
           <Card className="dark:bg-slate-800 dark:border-slate-700">

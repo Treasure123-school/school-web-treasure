@@ -4,18 +4,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { User, Mail, Phone, MapPin, Save, Edit, Camera, GraduationCap, BookOpen, Users, CheckCircle, Clock, Award, FileText } from 'lucide-react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { User, Mail, Phone, MapPin, Save, Edit, Camera, GraduationCap, BookOpen, Users, CheckCircle, Clock, Award, FileText, Pen } from 'lucide-react';
 import { Link } from 'wouter';
 import React, { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { FileUpload } from '@/components/ui/file-upload';
 import { ImageCapture } from '@/components/ui/image-capture';
+import { SignatureDialog } from '@/components/ui/signature-pad';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
+import { apiRequest } from '@/lib/queryClient';
 import type { TeacherProfileWithUser, Class } from '@shared/schema';
 
 export default function TeacherProfile() {
@@ -772,25 +774,77 @@ export default function TeacherProfile() {
 
                   <div>
                     <Label className="text-muted-foreground mb-2 block">Digital Signature</Label>
-                    {isEditing ? (
-                      <ImageCapture
-                        value={signatureFile}
-                        onChange={setSignatureFile}
-                        label="Digital Signature"
-                        shape="square"
-                        className="max-w-xs"
-                      />
-                    ) : teacherProfile.signatureUrl ? (
-                      <div className="border rounded-lg p-4 bg-muted/30 inline-block">
-                        <img
-                          src={teacherProfile.signatureUrl}
-                          alt="Digital Signature"
-                          className="max-h-20 max-w-xs"
-                          data-testid="img-signature"
-                        />
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Your signature will be used when signing report cards for your assigned classes.
+                    </p>
+                    {teacherProfile.signatureUrl ? (
+                      <div className="space-y-3">
+                        <div className="border rounded-lg p-4 bg-white dark:bg-slate-950 inline-block">
+                          <img
+                            src={teacherProfile.signatureUrl}
+                            alt="Digital Signature"
+                            className="max-h-20 max-w-xs"
+                            data-testid="img-signature"
+                          />
+                        </div>
+                        <div>
+                          <SignatureDialog
+                            trigger={
+                              <Button variant="outline" size="sm" data-testid="button-update-signature">
+                                <Pen className="w-4 h-4 mr-2" />
+                                Update Signature
+                              </Button>
+                            }
+                            onSave={async (signatureDataUrl: string) => {
+                              try {
+                                await apiRequest('POST', '/api/user/signature', { signatureDataUrl });
+                                queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
+                                toast({
+                                  title: 'Signature Updated',
+                                  description: 'Your digital signature has been updated successfully.',
+                                });
+                              } catch (error: any) {
+                                toast({
+                                  title: 'Error',
+                                  description: error.message || 'Failed to update signature',
+                                  variant: 'destructive'
+                                });
+                              }
+                            }}
+                            initialSignature={teacherProfile.signatureUrl}
+                            title="Update Your Digital Signature"
+                          />
+                        </div>
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">No signature uploaded</p>
+                      <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground">No signature set up yet</p>
+                        <SignatureDialog
+                          trigger={
+                            <Button variant="default" size="sm" data-testid="button-setup-signature">
+                              <Pen className="w-4 h-4 mr-2" />
+                              Draw Your Signature
+                            </Button>
+                          }
+                          onSave={async (signatureDataUrl: string) => {
+                            try {
+                              await apiRequest('POST', '/api/user/signature', { signatureDataUrl });
+                              queryClient.invalidateQueries({ queryKey: ['/api/teacher/profile/me'] });
+                              toast({
+                                title: 'Signature Saved',
+                                description: 'Your digital signature has been saved successfully.',
+                              });
+                            } catch (error: any) {
+                              toast({
+                                title: 'Error',
+                                description: error.message || 'Failed to save signature',
+                                variant: 'destructive'
+                              });
+                            }
+                          }}
+                          title="Set Up Your Digital Signature"
+                        />
+                      </div>
                     )}
                   </div>
                 </CardContent>

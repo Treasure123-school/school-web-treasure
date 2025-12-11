@@ -226,6 +226,7 @@ export const adminProfiles = sqliteTable("admin_profiles", {
   department: text("department"),
   roleDescription: text("role_description"),
   accessLevel: text("access_level"),
+  signatureUrl: text("signature_url"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
@@ -250,6 +251,7 @@ export const superAdminProfiles = sqliteTable("super_admin_profiles", {
   twoFactorEnabled: integer("two_factor_enabled", { mode: "boolean" }).notNull().default(false),
   twoFactorSecret: text("two_factor_secret"),
   lastPasswordChange: integer("last_password_change", { mode: "timestamp" }),
+  signatureUrl: text("signature_url"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
@@ -587,8 +589,15 @@ export const reportCards = sqliteTable("report_cards", {
   averagePercentage: integer("average_percentage"),
   overallGrade: text("overall_grade"),
   teacherRemarks: text("teacher_remarks"),
-  status: text("status").notNull().default('draft'), // 'draft', 'finalized', 'published'
+  principalRemarks: text("principal_remarks"),
+  status: text("status").notNull().default('draft'), // 'draft', 'teacher_signed', 'awaiting_approval', 'approved', 'published'
   locked: integer("locked", { mode: "boolean" }).notNull().default(false),
+  teacherSignedBy: text("teacher_signed_by").references(() => users.id, { onDelete: 'set null' }),
+  teacherSignedAt: integer("teacher_signed_at", { mode: "timestamp" }),
+  teacherSignatureUrl: text("teacher_signature_url"),
+  principalSignedBy: text("principal_signed_by").references(() => users.id, { onDelete: 'set null' }),
+  principalSignedAt: integer("principal_signed_at", { mode: "timestamp" }),
+  principalSignatureUrl: text("principal_signature_url"),
   generatedAt: integer("generated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
   finalizedAt: integer("finalized_at", { mode: "timestamp" }),
   publishedAt: integer("published_at", { mode: "timestamp" }),

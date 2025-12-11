@@ -220,6 +220,7 @@ export const adminProfiles = pgTable("admin_profiles", {
   department: varchar("department", { length: 255 }),
   roleDescription: text("role_description"),
   accessLevel: varchar("access_level", { length: 50 }),
+  signatureUrl: text("signature_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -244,6 +245,7 @@ export const superAdminProfiles = pgTable("super_admin_profiles", {
   twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
   twoFactorSecret: text("two_factor_secret"),
   lastPasswordChange: timestamp("last_password_change"),
+  signatureUrl: text("signature_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -595,6 +597,12 @@ export const reportCards = pgTable("report_cards", {
   generatedBy: varchar("generated_by", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
   signedBy: varchar("signed_by", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
   signedAt: timestamp("signed_at"),
+  teacherSignedBy: varchar("teacher_signed_by", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
+  teacherSignedAt: timestamp("teacher_signed_at"),
+  teacherSignatureUrl: text("teacher_signature_url"),
+  principalSignedBy: varchar("principal_signed_by", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
+  principalSignedAt: timestamp("principal_signed_at"),
+  principalSignatureUrl: text("principal_signature_url"),
   generatedAt: timestamp("generated_at"),
   finalizedAt: timestamp("finalized_at"),
   publishedAt: timestamp("published_at"),
