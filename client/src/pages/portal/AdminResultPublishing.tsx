@@ -833,10 +833,10 @@ export default function AdminResultPublishing() {
                       status: fullReportCard.status,
                       generatedAt: fullReportCard.generatedAt,
                       classStatistics: {
-                        highestScore: 0,
-                        lowestScore: 0,
-                        classAverage: 0,
-                        totalStudents: fullReportCard.totalStudentsInClass || 0
+                        highestScore: fullReportCard.classStatistics?.highestScore || 0,
+                        lowestScore: fullReportCard.classStatistics?.lowestScore || 0,
+                        classAverage: fullReportCard.classStatistics?.classAverage || 0,
+                        totalStudents: fullReportCard.classStatistics?.totalStudents || fullReportCard.totalStudentsInClass || 0
                       },
                       attendance: {
                         timesSchoolOpened: 0,
