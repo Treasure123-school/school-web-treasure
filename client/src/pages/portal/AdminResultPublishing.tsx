@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, MutableRefObject } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
@@ -157,6 +157,41 @@ export default function AdminResultPublishing() {
     enabled: !!viewingReportCard?.id && isViewDialogOpen,
   });
 
+  // Track mutation in progress to prevent double-clicks without showing spinners
+  // Using refs to track in-progress IDs to avoid race conditions with setState
+  const publishingIdsRef = useRef<Set<number>>(new Set());
+  const unpublishingIdsRef = useRef<Set<number>>(new Set());
+  const rejectingIdsRef = useRef<Set<number>>(new Set());
+  const [, forceUpdate] = useState(0);
+  
+  // Helper to update the ref and trigger re-render
+  const addToSet = (ref: MutableRefObject<Set<number>>, id: number) => {
+    ref.current = new Set(ref.current).add(id);
+    forceUpdate(n => n + 1);
+  };
+  const removeFromSet = (ref: MutableRefObject<Set<number>>, id: number) => {
+    const next = new Set(ref.current);
+    next.delete(id);
+    ref.current = next;
+    forceUpdate(n => n + 1);
+  };
+  
+  // Helper to get base stats from any available filter cache
+  const getBaseStats = (previousDataMap: Record<string, any>) => {
+    // Try each filter in order of preference
+    const filters = ['all', 'finalized', 'published'];
+    for (const filter of filters) {
+      if (previousDataMap[filter]?.statistics) {
+        return previousDataMap[filter].statistics;
+      }
+    }
+    // Fallback - compute from current reportCardsData if available
+    if (reportCardsData?.statistics) {
+      return reportCardsData.statistics;
+    }
+    return { finalized: 0, published: 0, draft: 0 };
+  };
+
   const publishMutation = useMutation({
     mutationFn: async (reportCardId: number) => {
       const response = await apiRequest('PATCH', `/api/reports/${reportCardId}/status`, { status: 'published' });
@@ -167,52 +202,103 @@ export default function AdminResultPublishing() {
       return response.json();
     },
     onMutate: async (reportCardId: number) => {
+      // Check if already in progress to prevent double-clicks (check BEFORE adding)
+      if (publishingIdsRef.current.has(reportCardId)) {
+        throw new Error('Already processing');
+      }
+      // Mark as in-progress
+      addToSet(publishingIdsRef, reportCardId);
+      
       // Cancel any outgoing refetches to prevent race conditions
       await queryClient.cancelQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
       
-      // Snapshot the previous value for rollback
-      const previousData = queryClient.getQueryData(['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter]);
+      // Snapshot ALL filter views for complete rollback
+      const filterViews = ['finalized', 'published', 'all'];
+      const previousDataMap: Record<string, any> = {};
+      filterViews.forEach(filter => {
+        previousDataMap[filter] = queryClient.getQueryData(['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter]);
+      });
       
-      // Optimistically update the cache IMMEDIATELY for instant UI feedback
-      // If viewing "finalized" filter, remove the card; if viewing "all" or "published", update status
-      queryClient.setQueryData(
-        ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
-        (old: any) => {
-          if (!old) return old;
-          const shouldRemoveFromView = statusFilter === 'finalized';
-          return {
-            ...old,
-            reportCards: shouldRemoveFromView 
-              ? old.reportCards.filter((rc: FinalizedReportCard) => rc.id !== reportCardId)
-              : old.reportCards.map((rc: FinalizedReportCard) =>
+      // Get the report card being published for cross-filter updates
+      const reportCardToPublish = reportCards.find(rc => rc.id === reportCardId);
+      
+      // Calculate new statistics ONCE using helper to get from any available cache
+      const baseStats = getBaseStats(previousDataMap);
+      const newStats = {
+        ...baseStats,
+        finalized: Math.max(0, baseStats.finalized - 1),
+        published: baseStats.published + 1
+      };
+      
+      // Optimistically update ALL filter views for instant UI feedback across filter switches
+      filterViews.forEach(filter => {
+        queryClient.setQueryData(
+          ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter],
+          (old: any) => {
+            if (!old) return old;
+            
+            if (filter === 'finalized') {
+              return {
+                ...old,
+                reportCards: old.reportCards.filter((rc: FinalizedReportCard) => rc.id !== reportCardId),
+                statistics: newStats
+              };
+            } else if (filter === 'published') {
+              const alreadyExists = old.reportCards.some((rc: FinalizedReportCard) => rc.id === reportCardId);
+              if (alreadyExists) {
+                return {
+                  ...old,
+                  reportCards: old.reportCards.map((rc: FinalizedReportCard) =>
+                    rc.id === reportCardId ? { ...rc, status: 'published', publishedAt: new Date().toISOString() } : rc
+                  ),
+                  statistics: newStats
+                };
+              }
+              if (reportCardToPublish) {
+                return {
+                  ...old,
+                  reportCards: [...old.reportCards, { ...reportCardToPublish, status: 'published', publishedAt: new Date().toISOString() }],
+                  statistics: newStats
+                };
+              }
+              return old;
+            } else {
+              return {
+                ...old,
+                reportCards: old.reportCards.map((rc: FinalizedReportCard) =>
                   rc.id === reportCardId ? { ...rc, status: 'published', publishedAt: new Date().toISOString() } : rc
                 ),
-            statistics: {
-              ...old.statistics,
-              finalized: Math.max(0, old.statistics.finalized - 1),
-              published: old.statistics.published + 1
+                statistics: newStats
+              };
             }
-          };
-        }
-      );
-      
-      return { previousData };
-    },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Report card published successfully" });
-      // Silent background invalidation for all filter views (doesn't cause flickering, just marks as stale)
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/report-cards/finalized'], refetchType: 'none' });
-      queryClient.invalidateQueries({ queryKey: ['/api/reports'], refetchType: 'none' });
-    },
-    onError: (error: Error, _reportCardId, context) => {
-      // Rollback on error
-      if (context?.previousData) {
-        queryClient.setQueryData(
-          ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
-          context.previousData
+          }
         );
+      });
+      
+      return { previousDataMap, reportCardId };
+    },
+    onSuccess: (_data, reportCardId) => {
+      removeFromSet(publishingIdsRef, reportCardId);
+      toast({ title: "Success", description: "Report card published successfully" });
+    },
+    onError: (error: Error, reportCardId, context) => {
+      // Only remove from set and rollback if it was a real mutation (not a guard rejection)
+      if (error.message !== 'Already processing') {
+        removeFromSet(publishingIdsRef, reportCardId);
+        // Rollback ALL filter views
+        if (context?.previousDataMap) {
+          const filterViews = ['finalized', 'published', 'all'];
+          filterViews.forEach(filter => {
+            if (context.previousDataMap[filter]) {
+              queryClient.setQueryData(
+                ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter],
+                context.previousDataMap[filter]
+              );
+            }
+          });
+        }
+        toast({ title: "Error", description: error.message, variant: "destructive" });
       }
-      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -229,51 +315,86 @@ export default function AdminResultPublishing() {
       // Cancel any outgoing refetches to prevent race conditions
       await queryClient.cancelQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
       
-      // Snapshot the previous value for rollback
-      const previousData = queryClient.getQueryData(['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter]);
+      // Snapshot ALL filter views for complete rollback
+      const filterViews = ['finalized', 'published', 'all'];
+      const previousDataMap: Record<string, any> = {};
+      filterViews.forEach(filter => {
+        previousDataMap[filter] = queryClient.getQueryData(['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter]);
+      });
       
-      // Optimistically update the cache IMMEDIATELY for instant UI feedback
-      // If viewing "finalized" filter, remove the cards; if viewing "all" or "published", update status
-      const shouldRemoveFromView = statusFilter === 'finalized';
-      queryClient.setQueryData(
-        ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
-        (old: any) => {
-          if (!old) return old;
-          const publishedCount = reportCardIds.length;
-          return {
-            ...old,
-            reportCards: shouldRemoveFromView
-              ? old.reportCards.filter((rc: FinalizedReportCard) => !reportCardIds.includes(rc.id))
-              : old.reportCards.map((rc: FinalizedReportCard) =>
+      // Get the report cards being published for cross-filter updates
+      const reportCardsToPublish = reportCards.filter(rc => reportCardIds.includes(rc.id));
+      
+      // Calculate new statistics ONCE using helper
+      const baseStats = getBaseStats(previousDataMap);
+      const publishedCount = reportCardIds.length;
+      const newStats = {
+        ...baseStats,
+        finalized: Math.max(0, baseStats.finalized - publishedCount),
+        published: baseStats.published + publishedCount
+      };
+      
+      // Optimistically update ALL filter views
+      filterViews.forEach(filter => {
+        queryClient.setQueryData(
+          ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter],
+          (old: any) => {
+            if (!old) return old;
+            
+            if (filter === 'finalized') {
+              return {
+                ...old,
+                reportCards: old.reportCards.filter((rc: FinalizedReportCard) => !reportCardIds.includes(rc.id)),
+                statistics: newStats
+              };
+            } else if (filter === 'published') {
+              const existingIds = new Set(old.reportCards.map((rc: FinalizedReportCard) => rc.id));
+              const newCards = reportCardsToPublish
+                .filter(rc => !existingIds.has(rc.id))
+                .map(rc => ({ ...rc, status: 'published', publishedAt: new Date().toISOString() }));
+              return {
+                ...old,
+                reportCards: [
+                  ...old.reportCards.map((rc: FinalizedReportCard) =>
+                    reportCardIds.includes(rc.id) ? { ...rc, status: 'published', publishedAt: new Date().toISOString() } : rc
+                  ),
+                  ...newCards
+                ],
+                statistics: newStats
+              };
+            } else {
+              return {
+                ...old,
+                reportCards: old.reportCards.map((rc: FinalizedReportCard) =>
                   reportCardIds.includes(rc.id) ? { ...rc, status: 'published', publishedAt: new Date().toISOString() } : rc
                 ),
-            statistics: {
-              ...old.statistics,
-              finalized: Math.max(0, old.statistics.finalized - publishedCount),
-              published: old.statistics.published + publishedCount
+                statistics: newStats
+              };
             }
-          };
-        }
-      );
+          }
+        );
+      });
       
       // Clear selection immediately for instant feedback
       setSelectedReportCards([]);
       
-      return { previousData };
+      return { previousDataMap };
     },
     onSuccess: (data) => {
       toast({ title: "Success", description: data.message });
-      // Silent background invalidation for all filter views (doesn't cause flickering, just marks as stale)
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/report-cards/finalized'], refetchType: 'none' });
-      queryClient.invalidateQueries({ queryKey: ['/api/reports'], refetchType: 'none' });
     },
     onError: (error: Error, _reportCardIds, context) => {
-      // Rollback on error
-      if (context?.previousData) {
-        queryClient.setQueryData(
-          ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
-          context.previousData
-        );
+      // Rollback ALL filter views
+      if (context?.previousDataMap) {
+        const filterViews = ['finalized', 'published', 'all'];
+        filterViews.forEach(filter => {
+          if (context.previousDataMap[filter]) {
+            queryClient.setQueryData(
+              ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter],
+              context.previousDataMap[filter]
+            );
+          }
+        });
       }
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
@@ -289,52 +410,103 @@ export default function AdminResultPublishing() {
       return response.json();
     },
     onMutate: async (reportCardId: number) => {
+      // Check if already in progress to prevent double-clicks (check BEFORE adding)
+      if (unpublishingIdsRef.current.has(reportCardId)) {
+        throw new Error('Already processing');
+      }
+      // Mark as in-progress
+      addToSet(unpublishingIdsRef, reportCardId);
+      
       // Cancel any outgoing refetches to prevent race conditions
       await queryClient.cancelQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
       
-      // Snapshot the previous value for rollback
-      const previousData = queryClient.getQueryData(['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter]);
+      // Snapshot ALL filter views for complete rollback
+      const filterViews = ['finalized', 'published', 'all'];
+      const previousDataMap: Record<string, any> = {};
+      filterViews.forEach(filter => {
+        previousDataMap[filter] = queryClient.getQueryData(['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter]);
+      });
       
-      // Optimistically update the cache IMMEDIATELY for instant UI feedback
-      // If viewing "published" filter, remove the card; if viewing "all" or "finalized", update status
-      const shouldRemoveFromView = statusFilter === 'published';
-      queryClient.setQueryData(
-        ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
-        (old: any) => {
-          if (!old) return old;
-          return {
-            ...old,
-            reportCards: shouldRemoveFromView
-              ? old.reportCards.filter((rc: FinalizedReportCard) => rc.id !== reportCardId)
-              : old.reportCards.map((rc: FinalizedReportCard) =>
+      // Get the report card being unpublished for cross-filter updates
+      const reportCardToUnpublish = reportCards.find(rc => rc.id === reportCardId);
+      
+      // Calculate new statistics ONCE using helper to get from any available cache
+      const baseStats = getBaseStats(previousDataMap);
+      const newStats = {
+        ...baseStats,
+        published: Math.max(0, baseStats.published - 1),
+        finalized: baseStats.finalized + 1
+      };
+      
+      // Optimistically update ALL filter views for instant UI feedback across filter switches
+      filterViews.forEach(filter => {
+        queryClient.setQueryData(
+          ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter],
+          (old: any) => {
+            if (!old) return old;
+            
+            if (filter === 'published') {
+              return {
+                ...old,
+                reportCards: old.reportCards.filter((rc: FinalizedReportCard) => rc.id !== reportCardId),
+                statistics: newStats
+              };
+            } else if (filter === 'finalized') {
+              const alreadyExists = old.reportCards.some((rc: FinalizedReportCard) => rc.id === reportCardId);
+              if (alreadyExists) {
+                return {
+                  ...old,
+                  reportCards: old.reportCards.map((rc: FinalizedReportCard) =>
+                    rc.id === reportCardId ? { ...rc, status: 'finalized', publishedAt: null } : rc
+                  ),
+                  statistics: newStats
+                };
+              }
+              if (reportCardToUnpublish) {
+                return {
+                  ...old,
+                  reportCards: [...old.reportCards, { ...reportCardToUnpublish, status: 'finalized', publishedAt: null }],
+                  statistics: newStats
+                };
+              }
+              return old;
+            } else {
+              return {
+                ...old,
+                reportCards: old.reportCards.map((rc: FinalizedReportCard) =>
                   rc.id === reportCardId ? { ...rc, status: 'finalized', publishedAt: null } : rc
                 ),
-            statistics: {
-              ...old.statistics,
-              published: Math.max(0, old.statistics.published - 1),
-              finalized: old.statistics.finalized + 1
+                statistics: newStats
+              };
             }
-          };
-        }
-      );
-      
-      return { previousData };
-    },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Report card unpublished successfully. Students can no longer view it." });
-      // Silent background invalidation for all filter views (doesn't cause flickering, just marks as stale)
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/report-cards/finalized'], refetchType: 'none' });
-      queryClient.invalidateQueries({ queryKey: ['/api/reports'], refetchType: 'none' });
-    },
-    onError: (error: Error, _reportCardId, context) => {
-      // Rollback on error
-      if (context?.previousData) {
-        queryClient.setQueryData(
-          ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
-          context.previousData
+          }
         );
+      });
+      
+      return { previousDataMap, reportCardId };
+    },
+    onSuccess: (_data, reportCardId) => {
+      removeFromSet(unpublishingIdsRef, reportCardId);
+      toast({ title: "Success", description: "Report card unpublished successfully. Students can no longer view it." });
+    },
+    onError: (error: Error, reportCardId, context) => {
+      // Only remove from set and rollback if it was a real mutation (not a guard rejection)
+      if (error.message !== 'Already processing') {
+        removeFromSet(unpublishingIdsRef, reportCardId);
+        // Rollback ALL filter views
+        if (context?.previousDataMap) {
+          const filterViews = ['finalized', 'published', 'all'];
+          filterViews.forEach(filter => {
+            if (context.previousDataMap[filter]) {
+              queryClient.setQueryData(
+                ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter],
+                context.previousDataMap[filter]
+              );
+            }
+          });
+        }
+        toast({ title: "Error", description: error.message, variant: "destructive" });
       }
-      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -356,51 +528,86 @@ export default function AdminResultPublishing() {
       // Cancel any outgoing refetches to prevent race conditions
       await queryClient.cancelQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
       
-      // Snapshot the previous value for rollback
-      const previousData = queryClient.getQueryData(['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter]);
+      // Snapshot ALL filter views for complete rollback
+      const filterViews = ['finalized', 'published', 'all'];
+      const previousDataMap: Record<string, any> = {};
+      filterViews.forEach(filter => {
+        previousDataMap[filter] = queryClient.getQueryData(['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter]);
+      });
       
-      // Optimistically update the cache IMMEDIATELY for instant UI feedback
-      // If viewing "published" filter, remove the cards; if viewing "all" or "finalized", update status
-      const shouldRemoveFromView = statusFilter === 'published';
-      queryClient.setQueryData(
-        ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
-        (old: any) => {
-          if (!old) return old;
-          const unpublishedCount = reportCardIds.length;
-          return {
-            ...old,
-            reportCards: shouldRemoveFromView
-              ? old.reportCards.filter((rc: FinalizedReportCard) => !reportCardIds.includes(rc.id))
-              : old.reportCards.map((rc: FinalizedReportCard) =>
+      // Get the report cards being unpublished for cross-filter updates
+      const reportCardsToUnpublish = reportCards.filter(rc => reportCardIds.includes(rc.id));
+      
+      // Calculate new statistics ONCE using helper
+      const baseStats = getBaseStats(previousDataMap);
+      const unpublishedCount = reportCardIds.length;
+      const newStats = {
+        ...baseStats,
+        published: Math.max(0, baseStats.published - unpublishedCount),
+        finalized: baseStats.finalized + unpublishedCount
+      };
+      
+      // Optimistically update ALL filter views
+      filterViews.forEach(filter => {
+        queryClient.setQueryData(
+          ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter],
+          (old: any) => {
+            if (!old) return old;
+            
+            if (filter === 'published') {
+              return {
+                ...old,
+                reportCards: old.reportCards.filter((rc: FinalizedReportCard) => !reportCardIds.includes(rc.id)),
+                statistics: newStats
+              };
+            } else if (filter === 'finalized') {
+              const existingIds = new Set(old.reportCards.map((rc: FinalizedReportCard) => rc.id));
+              const newCards = reportCardsToUnpublish
+                .filter(rc => !existingIds.has(rc.id))
+                .map(rc => ({ ...rc, status: 'finalized', publishedAt: null }));
+              return {
+                ...old,
+                reportCards: [
+                  ...old.reportCards.map((rc: FinalizedReportCard) =>
+                    reportCardIds.includes(rc.id) ? { ...rc, status: 'finalized', publishedAt: null } : rc
+                  ),
+                  ...newCards
+                ],
+                statistics: newStats
+              };
+            } else {
+              return {
+                ...old,
+                reportCards: old.reportCards.map((rc: FinalizedReportCard) =>
                   reportCardIds.includes(rc.id) ? { ...rc, status: 'finalized', publishedAt: null } : rc
                 ),
-            statistics: {
-              ...old.statistics,
-              published: Math.max(0, old.statistics.published - unpublishedCount),
-              finalized: old.statistics.finalized + unpublishedCount
+                statistics: newStats
+              };
             }
-          };
-        }
-      );
+          }
+        );
+      });
       
       // Clear selection immediately for instant feedback
       setSelectedReportCards([]);
       
-      return { previousData };
+      return { previousDataMap };
     },
     onSuccess: () => {
       toast({ title: "Success", description: "Selected report cards unpublished successfully" });
-      // Silent background invalidation for all filter views (doesn't cause flickering, just marks as stale)
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/report-cards/finalized'], refetchType: 'none' });
-      queryClient.invalidateQueries({ queryKey: ['/api/reports'], refetchType: 'none' });
     },
     onError: (error: Error, _reportCardIds, context) => {
-      // Rollback on error
-      if (context?.previousData) {
-        queryClient.setQueryData(
-          ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
-          context.previousData
-        );
+      // Rollback ALL filter views
+      if (context?.previousDataMap) {
+        const filterViews = ['finalized', 'published', 'all'];
+        filterViews.forEach(filter => {
+          if (context.previousDataMap[filter]) {
+            queryClient.setQueryData(
+              ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter],
+              context.previousDataMap[filter]
+            );
+          }
+        });
       }
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
@@ -416,52 +623,75 @@ export default function AdminResultPublishing() {
       return response.json();
     },
     onMutate: async ({ id }: { id: number; reason: string }) => {
+      // Check if already in progress to prevent double-clicks (check BEFORE adding)
+      if (rejectingIdsRef.current.has(id)) {
+        throw new Error('Already processing');
+      }
+      // Mark as in-progress
+      addToSet(rejectingIdsRef, id);
+      
       // Cancel any outgoing refetches to prevent race conditions
       await queryClient.cancelQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
       
-      // Snapshot the previous value for rollback
-      const previousData = queryClient.getQueryData(['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter]);
+      // Snapshot ALL filter views for complete rollback
+      const filterViews = ['finalized', 'published', 'all'];
+      const previousDataMap: Record<string, any> = {};
+      filterViews.forEach(filter => {
+        previousDataMap[filter] = queryClient.getQueryData(['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter]);
+      });
       
-      // Optimistically update the cache IMMEDIATELY for instant UI feedback
-      // Always remove the rejected report card from the list (it goes to draft)
-      queryClient.setQueryData(
-        ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
-        (old: any) => {
-          if (!old) return old;
-          return {
-            ...old,
-            reportCards: old.reportCards.filter((rc: FinalizedReportCard) => rc.id !== id),
-            statistics: {
-              ...old.statistics,
-              finalized: Math.max(0, old.statistics.finalized - 1),
-              draft: old.statistics.draft + 1
-            }
-          };
-        }
-      );
+      // Calculate new statistics ONCE using helper to get from any available cache
+      const baseStats = getBaseStats(previousDataMap);
+      const newStats = {
+        ...baseStats,
+        finalized: Math.max(0, baseStats.finalized - 1),
+        draft: baseStats.draft + 1
+      };
+      
+      // Optimistically update ALL filter views - remove from all since it goes to draft
+      filterViews.forEach(filter => {
+        queryClient.setQueryData(
+          ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter],
+          (old: any) => {
+            if (!old) return old;
+            return {
+              ...old,
+              reportCards: old.reportCards.filter((rc: FinalizedReportCard) => rc.id !== id),
+              statistics: newStats
+            };
+          }
+        );
+      });
       
       // Close dialog immediately for instant feedback
       setIsRejectDialogOpen(false);
       setRejectingId(null);
       setRejectReason('');
       
-      return { previousData };
+      return { previousDataMap, id };
     },
-    onSuccess: () => {
+    onSuccess: (_data, { id }) => {
+      removeFromSet(rejectingIdsRef, id);
       toast({ title: "Report Card Rejected", description: "The report card has been reverted to draft for teacher revision" });
-      // Silent background invalidation for all filter views (doesn't cause flickering, just marks as stale)
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/report-cards/finalized'], refetchType: 'none' });
-      queryClient.invalidateQueries({ queryKey: ['/api/reports'], refetchType: 'none' });
     },
-    onError: (error: Error, _variables, context) => {
-      // Rollback on error
-      if (context?.previousData) {
-        queryClient.setQueryData(
-          ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
-          context.previousData
-        );
+    onError: (error: Error, { id }, context) => {
+      // Only remove from set and rollback if it was a real mutation (not a guard rejection)
+      if (error.message !== 'Already processing') {
+        removeFromSet(rejectingIdsRef, id);
+        // Rollback ALL filter views
+        if (context?.previousDataMap) {
+          const filterViews = ['finalized', 'published', 'all'];
+          filterViews.forEach(filter => {
+            if (context.previousDataMap[filter]) {
+              queryClient.setQueryData(
+                ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter],
+                context.previousDataMap[filter]
+              );
+            }
+          });
+        }
+        toast({ title: "Error", description: error.message, variant: "destructive" });
       }
-      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -640,15 +870,10 @@ export default function AdminResultPublishing() {
                     size="sm" 
                     variant="outline"
                     onClick={() => bulkUnpublishMutation.mutate(selectedReportCards)}
-                    disabled={bulkUnpublishMutation.isPending}
                     className="text-xs sm:text-sm"
                     data-testid="button-bulk-unpublish"
                   >
-                    {bulkUnpublishMutation.isPending ? (
-                      <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin" />
-                    ) : (
-                      <Undo2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                    )}
+                    <Undo2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                     <span className="hidden sm:inline">Unpublish Selected</span>
                     <span className="sm:hidden">Unpublish</span>
                   </Button>
@@ -656,15 +881,10 @@ export default function AdminResultPublishing() {
                   <Button 
                     size="sm" 
                     onClick={() => bulkPublishMutation.mutate(selectedReportCards)}
-                    disabled={bulkPublishMutation.isPending}
                     className="text-xs sm:text-sm"
                     data-testid="button-bulk-publish"
                   >
-                    {bulkPublishMutation.isPending ? (
-                      <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin" />
-                    ) : (
-                      <Send className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                    )}
+                    <Send className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                     <span className="hidden sm:inline">Publish Selected</span>
                     <span className="sm:hidden">Publish</span>
                   </Button>
@@ -772,11 +992,10 @@ export default function AdminResultPublishing() {
                                 <Eye className="w-4 h-4 mr-2" />
                                 Preview
                               </DropdownMenuItem>
-                              {rc.status === 'finalized' && (
+                              {rc.status === 'finalized' && !publishingIdsRef.current.has(rc.id) && !rejectingIdsRef.current.has(rc.id) && (
                                 <>
                                   <DropdownMenuItem 
                                     onClick={() => publishMutation.mutate(rc.id)}
-                                    disabled={publishMutation.isPending}
                                   >
                                     <Send className="w-4 h-4 mr-2" />
                                     Approve & Publish
@@ -791,12 +1010,11 @@ export default function AdminResultPublishing() {
                                   </DropdownMenuItem>
                                 </>
                               )}
-                              {rc.status === 'published' && (
+                              {rc.status === 'published' && !unpublishingIdsRef.current.has(rc.id) && (
                                 <>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem 
                                     onClick={() => unpublishMutation.mutate(rc.id)}
-                                    disabled={unpublishMutation.isPending}
                                     className="text-amber-600"
                                   >
                                     <Undo2 className="w-4 h-4 mr-2" />
@@ -854,11 +1072,10 @@ export default function AdminResultPublishing() {
                                   <Eye className="w-4 h-4 mr-2" />
                                   Preview
                                 </DropdownMenuItem>
-                                {rc.status === 'finalized' && (
+                                {rc.status === 'finalized' && !publishingIdsRef.current.has(rc.id) && !rejectingIdsRef.current.has(rc.id) && (
                                   <>
                                     <DropdownMenuItem 
                                       onClick={() => publishMutation.mutate(rc.id)}
-                                      disabled={publishMutation.isPending}
                                     >
                                       <Send className="w-4 h-4 mr-2" />
                                       Approve & Publish
@@ -873,12 +1090,11 @@ export default function AdminResultPublishing() {
                                     </DropdownMenuItem>
                                   </>
                                 )}
-                                {rc.status === 'published' && (
+                                {rc.status === 'published' && !unpublishingIdsRef.current.has(rc.id) && (
                                   <>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem 
                                       onClick={() => unpublishMutation.mutate(rc.id)}
-                                      disabled={unpublishMutation.isPending}
                                       className="text-amber-600"
                                     >
                                       <Undo2 className="w-4 h-4 mr-2" />
@@ -977,7 +1193,6 @@ export default function AdminResultPublishing() {
                             publishMutation.mutate(fullReportCard.id);
                             setIsViewDialogOpen(false);
                           }}
-                          disabled={publishMutation.isPending}
                           size="sm"
                           className="text-xs sm:text-sm h-9"
                           data-testid="button-publish-dialog"
@@ -1008,7 +1223,6 @@ export default function AdminResultPublishing() {
                           unpublishMutation.mutate(fullReportCard.id);
                           setIsViewDialogOpen(false);
                         }}
-                        disabled={unpublishMutation.isPending}
                         className="text-xs sm:text-sm h-9 text-amber-600 hover:text-amber-700"
                         data-testid="button-unpublish-dialog"
                       >
@@ -1118,15 +1332,10 @@ export default function AdminResultPublishing() {
             <Button 
               variant="destructive"
               onClick={confirmReject}
-              disabled={rejectMutation.isPending}
               className="w-full sm:w-auto"
               data-testid="button-confirm-reject"
             >
-              {rejectMutation.isPending ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <XCircle className="w-4 h-4 mr-2" />
-              )}
+              <XCircle className="w-4 h-4 mr-2" />
               Reject & Revert
             </Button>
           </DialogFooter>
