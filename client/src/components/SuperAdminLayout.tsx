@@ -129,6 +129,7 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
       label: "Security & Audit",
       icon: Activity,
       children: [
+        { label: "Recovery Tools", path: "/portal/superadmin/recovery-tools" },
         { label: "System Logs", path: "/portal/superadmin/logs" },
         { label: "Login History", path: "/portal/superadmin/placeholder?page=login-history" },
         { label: "Activity Tracking", path: "/portal/superadmin/placeholder?page=activity" },

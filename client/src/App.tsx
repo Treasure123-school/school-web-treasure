@@ -33,6 +33,7 @@ const SuperAdminLogs = lazy(() => import("@/pages/portal/SuperAdminLogs"));
 const SuperAdminAllUsers = lazy(() => import("@/pages/portal/SuperAdminAllUsers"));
 const SuperAdminAuthenticationSettings = lazy(() => import("@/pages/portal/SuperAdminAuthenticationSettings"));
 const SuperAdminPlaceholder = lazy(() => import("@/pages/portal/SuperAdminPlaceholder"));
+const AdminRecoveryTools = lazy(() => import("@/pages/portal/AdminRecoveryTools"));
 
 // Super Admin Subject Manager pages (used in Super Admin routes)
 const SubjectsManagement = lazy(() => import("@/pages/portal/SubjectsManagement"));
@@ -75,6 +76,13 @@ function Router() {
         <Route path="/portal/superadmin/logs">
           <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
             <SuperAdminLogs />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/portal/superadmin/recovery-tools">
+          <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
+            <SuperAdminLayout>
+              <AdminRecoveryTools />
+            </SuperAdminLayout>
           </ProtectedRoute>
         </Route>
         <Route path="/portal/superadmin/settings">
