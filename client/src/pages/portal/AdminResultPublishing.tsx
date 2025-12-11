@@ -1,8 +1,10 @@
-import { useState, useRef, MutableRefObject } from 'react';
+import { useState, useRef, useCallback, MutableRefObject } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import html2canvas from 'html2canvas';
+
+const STATUS_BADGE_TRANSITION = "transition-all duration-300 ease-in-out";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -134,15 +136,6 @@ export default function AdminResultPublishing() {
     },
   });
 
-  // Real-time updates for report card status changes (publish/unpublish/reject)
-  // This ensures the UI updates instantly when any admin changes a report card status
-  useSocketIORealtime({
-    table: 'report_cards',
-    queryKey: ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
-    enabled: true,
-    fallbackPollingInterval: 30000,
-  });
-
   const reportCards: FinalizedReportCard[] = reportCardsData?.reportCards || [];
   const statistics: Statistics = reportCardsData?.statistics || { draft: 0, finalized: 0, published: 0 };
 
@@ -176,6 +169,16 @@ export default function AdminResultPublishing() {
     forceUpdate(n => n + 1);
   };
   
+  // Real-time updates for report card status changes (publish/unpublish/reject)
+  // This ensures the UI updates instantly when any admin changes a report card status
+  // Real-time stays enabled - optimistic state takes precedence via query cache
+  useSocketIORealtime({
+    table: 'report_cards',
+    queryKey: ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, statusFilter],
+    enabled: true,
+    fallbackPollingInterval: 30000,
+  });
+  
   // Helper to get base stats from any available filter cache
   const getBaseStats = (previousDataMap: Record<string, any>) => {
     // Try each filter in order of preference
@@ -202,9 +205,9 @@ export default function AdminResultPublishing() {
       return response.json();
     },
     onMutate: async (reportCardId: number) => {
-      // Check if already in progress to prevent double-clicks (check BEFORE adding)
+      // Check if already in progress to prevent double-clicks - throw to stop mutationFn
       if (publishingIdsRef.current.has(reportCardId)) {
-        throw new Error('Already processing');
+        throw new Error('DUPLICATE_BLOCKED');
       }
       // Mark as in-progress
       addToSet(publishingIdsRef, reportCardId);
@@ -282,23 +285,22 @@ export default function AdminResultPublishing() {
       toast({ title: "Success", description: "Report card published successfully" });
     },
     onError: (error: Error, reportCardId, context) => {
-      // Only remove from set and rollback if it was a real mutation (not a guard rejection)
-      if (error.message !== 'Already processing') {
-        removeFromSet(publishingIdsRef, reportCardId);
-        // Rollback ALL filter views
-        if (context?.previousDataMap) {
-          const filterViews = ['finalized', 'published', 'all'];
-          filterViews.forEach(filter => {
-            if (context.previousDataMap[filter]) {
-              queryClient.setQueryData(
-                ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter],
-                context.previousDataMap[filter]
-              );
-            }
-          });
-        }
-        toast({ title: "Error", description: error.message, variant: "destructive" });
+      // Silently ignore duplicate blocked errors (no toast, no cleanup needed)
+      if (error.message === 'DUPLICATE_BLOCKED') return;
+      removeFromSet(publishingIdsRef, reportCardId);
+      // Rollback ALL filter views
+      if (context?.previousDataMap) {
+        const filterViews = ['finalized', 'published', 'all'];
+        filterViews.forEach(filter => {
+          if (context.previousDataMap[filter]) {
+            queryClient.setQueryData(
+              ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter],
+              context.previousDataMap[filter]
+            );
+          }
+        });
       }
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -410,9 +412,9 @@ export default function AdminResultPublishing() {
       return response.json();
     },
     onMutate: async (reportCardId: number) => {
-      // Check if already in progress to prevent double-clicks (check BEFORE adding)
+      // Check if already in progress to prevent double-clicks - throw to stop mutationFn
       if (unpublishingIdsRef.current.has(reportCardId)) {
-        throw new Error('Already processing');
+        throw new Error('DUPLICATE_BLOCKED');
       }
       // Mark as in-progress
       addToSet(unpublishingIdsRef, reportCardId);
@@ -490,23 +492,22 @@ export default function AdminResultPublishing() {
       toast({ title: "Success", description: "Report card unpublished successfully. Students can no longer view it." });
     },
     onError: (error: Error, reportCardId, context) => {
-      // Only remove from set and rollback if it was a real mutation (not a guard rejection)
-      if (error.message !== 'Already processing') {
-        removeFromSet(unpublishingIdsRef, reportCardId);
-        // Rollback ALL filter views
-        if (context?.previousDataMap) {
-          const filterViews = ['finalized', 'published', 'all'];
-          filterViews.forEach(filter => {
-            if (context.previousDataMap[filter]) {
-              queryClient.setQueryData(
-                ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter],
-                context.previousDataMap[filter]
-              );
-            }
-          });
-        }
-        toast({ title: "Error", description: error.message, variant: "destructive" });
+      // Silently ignore duplicate blocked errors (no toast, no cleanup needed)
+      if (error.message === 'DUPLICATE_BLOCKED') return;
+      removeFromSet(unpublishingIdsRef, reportCardId);
+      // Rollback ALL filter views
+      if (context?.previousDataMap) {
+        const filterViews = ['finalized', 'published', 'all'];
+        filterViews.forEach(filter => {
+          if (context.previousDataMap[filter]) {
+            queryClient.setQueryData(
+              ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter],
+              context.previousDataMap[filter]
+            );
+          }
+        });
       }
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -623,9 +624,9 @@ export default function AdminResultPublishing() {
       return response.json();
     },
     onMutate: async ({ id }: { id: number; reason: string }) => {
-      // Check if already in progress to prevent double-clicks (check BEFORE adding)
+      // Check if already in progress to prevent double-clicks - throw to stop mutationFn
       if (rejectingIdsRef.current.has(id)) {
-        throw new Error('Already processing');
+        throw new Error('DUPLICATE_BLOCKED');
       }
       // Mark as in-progress
       addToSet(rejectingIdsRef, id);
@@ -675,23 +676,22 @@ export default function AdminResultPublishing() {
       toast({ title: "Report Card Rejected", description: "The report card has been reverted to draft for teacher revision" });
     },
     onError: (error: Error, { id }, context) => {
-      // Only remove from set and rollback if it was a real mutation (not a guard rejection)
-      if (error.message !== 'Already processing') {
-        removeFromSet(rejectingIdsRef, id);
-        // Rollback ALL filter views
-        if (context?.previousDataMap) {
-          const filterViews = ['finalized', 'published', 'all'];
-          filterViews.forEach(filter => {
-            if (context.previousDataMap[filter]) {
-              queryClient.setQueryData(
-                ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter],
-                context.previousDataMap[filter]
-              );
-            }
-          });
-        }
-        toast({ title: "Error", description: error.message, variant: "destructive" });
+      // Silently ignore duplicate blocked errors (no toast, no cleanup needed)
+      if (error.message === 'DUPLICATE_BLOCKED') return;
+      removeFromSet(rejectingIdsRef, id);
+      // Rollback ALL filter views
+      if (context?.previousDataMap) {
+        const filterViews = ['finalized', 'published', 'all'];
+        filterViews.forEach(filter => {
+          if (context.previousDataMap[filter]) {
+            queryClient.setQueryData(
+              ['/api/admin/report-cards/finalized', selectedClass, selectedTerm, filter],
+              context.previousDataMap[filter]
+            );
+          }
+        });
       }
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -733,18 +733,27 @@ export default function AdminResultPublishing() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = useCallback((status: string, reportCardId?: number) => {
+    const isPending = reportCardId && (
+      publishingIdsRef.current.has(reportCardId) || 
+      unpublishingIdsRef.current.has(reportCardId) || 
+      rejectingIdsRef.current.has(reportCardId)
+    );
+    
+    const baseClasses = `text-xs ${STATUS_BADGE_TRANSITION}`;
+    const pendingOpacity = isPending ? 'opacity-70' : '';
+    
     switch (status) {
       case 'draft':
-        return <Badge variant="secondary" className="text-xs"><Clock className="w-3 h-3 mr-1" /> Draft</Badge>;
+        return <Badge variant="secondary" className={`${baseClasses} ${pendingOpacity}`}><Clock className="w-3 h-3 mr-1" /> Draft</Badge>;
       case 'finalized':
-        return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 text-xs"><FileCheck className="w-3 h-3 mr-1" /> Awaiting Approval</Badge>;
+        return <Badge className={`bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 ${baseClasses} ${pendingOpacity}`}><FileCheck className="w-3 h-3 mr-1" /> Awaiting Approval</Badge>;
       case 'published':
-        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs"><CheckCircle className="w-3 h-3 mr-1" /> Published</Badge>;
+        return <Badge className={`bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 ${baseClasses} ${pendingOpacity}`}><CheckCircle className="w-3 h-3 mr-1" /> Published</Badge>;
       default:
-        return <Badge variant="secondary" className="text-xs">{status}</Badge>;
+        return <Badge variant="secondary" className={`${baseClasses} ${pendingOpacity}`}>{status}</Badge>;
     }
-  };
+  }, []);
 
   const finalizedCount = reportCards.filter(rc => rc.status === 'finalized').length;
   const publishedCount = reportCards.filter(rc => rc.status === 'published').length;
@@ -752,8 +761,13 @@ export default function AdminResultPublishing() {
   const allPublishedSelected = publishedCount > 0 && selectedReportCards.length === publishedCount;
   const isPublishedView = statusFilter === 'published';
 
+  const pendingCount = publishingIdsRef.current.size + unpublishingIdsRef.current.size + rejectingIdsRef.current.size;
+  
   return (
     <div className="space-y-4 p-3 sm:p-4 md:p-6" data-testid="page-admin-result-publishing">
+      <div className="sr-only" aria-live="polite" aria-atomic="true" data-testid="aria-live-status">
+        {pendingCount > 0 ? `Processing ${pendingCount} report card${pendingCount > 1 ? 's' : ''}...` : ''}
+      </div>
       <div className="flex flex-col gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2" data-testid="text-page-title">
@@ -976,7 +990,7 @@ export default function AdminResultPublishing() {
                         <TableCell>
                           <Badge variant="outline" className="text-xs">{rc.overallGrade || '-'}</Badge>
                         </TableCell>
-                        <TableCell>{getStatusBadge(rc.status)}</TableCell>
+                        <TableCell>{getStatusBadge(rc.status, rc.id)}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {rc.finalizedAt ? format(new Date(rc.finalizedAt), 'MMM d, yyyy') : '-'}
                         </TableCell>
@@ -1113,7 +1127,7 @@ export default function AdminResultPublishing() {
                             </span>
                           </div>
                           <div className="mt-2 flex items-center justify-between">
-                            {getStatusBadge(rc.status)}
+                            {getStatusBadge(rc.status, rc.id)}
                             <span className="text-xs text-muted-foreground">
                               {rc.finalizedAt ? format(new Date(rc.finalizedAt), 'MMM d') : '-'}
                             </span>
