@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   FileText, 
   Users, 
@@ -51,7 +52,9 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  User
+  User,
+  Filter,
+  SlidersHorizontal
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -139,9 +142,10 @@ export default function TeacherReportCards() {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('students');
   const [remarks, setRemarks] = useState({ teacher: '', principal: '' });
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const reportCardRef = useRef<HTMLDivElement>(null);
 
   const handleDownloadAsImage = async () => {
@@ -762,34 +766,24 @@ export default function TeacherReportCards() {
   } : null;
 
   return (
-    <div className="space-y-6" data-testid="teacher-report-cards">
-        <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
+    <div className="space-y-4" data-testid="teacher-report-cards">
+        {/* Compact Header */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Report Cards</h1>
-            <p className="text-muted-foreground">View and manage auto-generated student report cards</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Report Cards</h1>
+            <p className="text-sm text-muted-foreground">View and manage auto-generated student report cards</p>
           </div>
         </div>
 
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-primary" />
-                  Auto-Generated Report Cards
-                </CardTitle>
-                <CardDescription>
-                  Report cards are automatically created when students complete exams. Select a class and term to view and manage them.
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs sm:text-sm">Class</Label>
+        {/* Streamlined Filters Card */}
+        <Card className="border-0 shadow-sm bg-card/50">
+          <CardContent className="p-3 sm:p-4">
+            {/* Primary Filters - Always Visible */}
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex flex-col gap-1 min-w-[120px] flex-1 sm:flex-none sm:w-40">
+                <Label className="text-xs text-muted-foreground">Class</Label>
                 <Select value={selectedClass} onValueChange={setSelectedClass}>
-                  <SelectTrigger className="w-full" data-testid="select-class">
+                  <SelectTrigger className="h-9" data-testid="select-class">
                     <SelectValue placeholder="Select Class" />
                   </SelectTrigger>
                   <SelectContent>
@@ -808,10 +802,10 @@ export default function TeacherReportCards() {
                 </Select>
               </div>
               
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs sm:text-sm">Term</Label>
+              <div className="flex flex-col gap-1 min-w-[120px] flex-1 sm:flex-none sm:w-44">
+                <Label className="text-xs text-muted-foreground">Term</Label>
                 <Select value={selectedTerm} onValueChange={setSelectedTerm}>
-                  <SelectTrigger className="w-full" data-testid="select-term">
+                  <SelectTrigger className="h-9" data-testid="select-term">
                     <SelectValue placeholder="Select Term" />
                   </SelectTrigger>
                   <SelectContent>
@@ -823,26 +817,13 @@ export default function TeacherReportCards() {
                   </SelectContent>
                 </Select>
               </div>
-              
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs sm:text-sm">Grading Scale</Label>
-                <Select value={selectedGradingScale} onValueChange={setSelectedGradingScale}>
-                  <SelectTrigger className="w-full" data-testid="select-grading-scale">
-                    <SelectValue placeholder="Grading Scale" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="standard">Standard (A-F)</SelectItem>
-                    <SelectItem value="waec">WAEC (A1-F9)</SelectItem>
-                    <SelectItem value="percentage">Percentage</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
 
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs sm:text-sm">Status Filter</Label>
+              {/* Status Filter - Always visible for quick filtering */}
+              <div className="flex flex-col gap-1 min-w-[100px] flex-1 sm:flex-none sm:w-32">
+                <Label className="text-xs text-muted-foreground">Status</Label>
                 <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-                  <SelectTrigger className="w-full" data-testid="select-status-filter">
-                    <SelectValue placeholder="All Status" />
+                  <SelectTrigger className="h-9" data-testid="select-status-filter">
+                    <SelectValue placeholder="All" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
@@ -852,18 +833,47 @@ export default function TeacherReportCards() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* More Filters Toggle Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className="h-9 gap-1.5"
+                data-testid="button-toggle-filters"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">More</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} />
+              </Button>
+
+              {/* Test/Exam Weight Info */}
+              <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground ml-auto">
+                <BarChart3 className="w-3 h-3" />
+                <span>Test {testWeight}% | Exam {examWeight}%</span>
+              </div>
             </div>
-            
-            {/* Weight info shown below filters */}
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-3 pt-3 border-t">
-              <BarChart3 className="w-3 h-3" />
-              <span>Test: {testWeight}% | Exam: {examWeight}%</span>
-              {statusFilter !== 'all' && (
-                <span className="ml-auto">
-                  Showing {filteredReportCards.length} of {reportCards.length}
-                </span>
-              )}
-            </div>
+
+            {/* Collapsible Advanced Filters - Only grading scale */}
+            <Collapsible open={showAdvancedFilters}>
+              <CollapsibleContent className="mt-3 pt-3 border-t">
+                <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-col gap-1 min-w-[140px]">
+                    <Label className="text-xs text-muted-foreground">Grading Scale</Label>
+                    <Select value={selectedGradingScale} onValueChange={setSelectedGradingScale}>
+                      <SelectTrigger className="h-9" data-testid="select-grading-scale">
+                        <SelectValue placeholder="Grading Scale" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="standard">Standard (A-F)</SelectItem>
+                        <SelectItem value="waec">WAEC (A1-F9)</SelectItem>
+                        <SelectItem value="percentage">Percentage</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </CardContent>
         </Card>
 
@@ -885,84 +895,76 @@ export default function TeacherReportCards() {
             </CardContent>
           </Card>
         ) : (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="students">Students</TabsTrigger>
-              <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            </TabsList>
+          <>
+            {/* Compact Stats Bar - Only visible when report cards exist */}
+            {statistics && reportCards.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 py-2 px-1" data-testid="compact-stats-bar">
+                {/* Primary Stats - Horizontal Scrollable Pills */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin flex-1">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/60 whitespace-nowrap">
+                    <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Total:</span>
+                    <span className="text-sm font-semibold">{statistics.totalStudents}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-100 dark:bg-green-900/30 whitespace-nowrap">
+                    <CheckCircle className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                    <span className="text-xs text-green-700 dark:text-green-300">Passed:</span>
+                    <span className="text-sm font-semibold text-green-700 dark:text-green-300">{statistics.passedStudents}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-100 dark:bg-red-900/30 whitespace-nowrap">
+                    <AlertCircle className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
+                    <span className="text-xs text-red-700 dark:text-red-300">Failed:</span>
+                    <span className="text-sm font-semibold text-red-700 dark:text-red-300">{statistics.failedStudents}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-100 dark:bg-blue-900/30 whitespace-nowrap">
+                    <TrendingUp className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                    <span className="text-xs text-blue-700 dark:text-blue-300">Avg:</span>
+                    <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">{statistics.classAverage}%</span>
+                  </div>
+                </div>
+                
+                {/* Status Progress Indicator - Compact on mobile */}
+                <div className="hidden sm:flex items-center gap-3 px-3 py-1.5 rounded-md bg-muted/40">
+                  <div className="flex items-center gap-1" title="Draft">
+                    <Clock className="w-3 h-3 text-yellow-500" />
+                    <span className="text-xs font-medium">{statistics.draftCount}</span>
+                  </div>
+                  <div className="w-px h-3 bg-border" />
+                  <div className="flex items-center gap-1" title="Finalized">
+                    <FileCheck className="w-3 h-3 text-blue-500" />
+                    <span className="text-xs font-medium">{statistics.finalizedCount}</span>
+                  </div>
+                  <div className="w-px h-3 bg-border" />
+                  <div className="flex items-center gap-1" title="Published">
+                    <Send className="w-3 h-3 text-green-500" />
+                    <span className="text-xs font-medium">{statistics.publishedCount}</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
-            <TabsContent value="overview" className="space-y-4">
-              {statistics && (
-                <Card data-testid="overview-stats-card">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4" />
-                      Class Overview
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4">
-                      <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
-                        <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <div className="min-w-0">
-                          <div className="text-xs text-muted-foreground">Total</div>
-                          <div className="text-lg font-bold truncate">{statistics.totalStudents}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 p-2 rounded-md bg-green-50 dark:bg-green-900/20">
-                        <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <div className="text-xs text-muted-foreground">Passed</div>
-                          <div className="text-lg font-bold text-green-600 dark:text-green-400 truncate">{statistics.passedStudents}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 p-2 rounded-md bg-red-50 dark:bg-red-900/20">
-                        <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <div className="text-xs text-muted-foreground">Failed</div>
-                          <div className="text-lg font-bold text-red-600 dark:text-red-400 truncate">{statistics.failedStudents}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
-                        <TrendingUp className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <div className="min-w-0">
-                          <div className="text-xs text-muted-foreground">Average</div>
-                          <div className="text-lg font-bold truncate">{statistics.classAverage}%</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 p-2 rounded-md bg-yellow-50 dark:bg-yellow-900/20">
-                        <Clock className="h-4 w-4 text-yellow-500 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <div className="text-xs text-muted-foreground">Draft</div>
-                          <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400 truncate">{statistics.draftCount}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 p-2 rounded-md bg-blue-50 dark:bg-blue-900/20">
-                        <CheckCircle className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <div className="text-xs text-muted-foreground">Finalized</div>
-                          <div className="text-lg font-bold text-blue-600 dark:text-blue-400 truncate">{statistics.finalizedCount}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 p-2 rounded-md bg-green-50 dark:bg-green-900/20">
-                        <Send className="h-4 w-4 text-green-500 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <div className="text-xs text-muted-foreground">Published</div>
-                          <div className="text-lg font-bold text-green-600 dark:text-green-400 truncate">{statistics.publishedCount}</div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+            {/* Two tabs only: Students and Analytics */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+              <TabsList className="grid w-full grid-cols-2 max-w-xs">
+                <TabsTrigger value="students">Students</TabsTrigger>
+                <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              </TabsList>
 
+            <TabsContent value="students" className="space-y-4">
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <GraduationCap className="w-5 h-5" />
-                    Class Report Cards
-                  </CardTitle>
+                <CardHeader className="pb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <GraduationCap className="w-4 h-4" />
+                      Class Report Cards
+                    </CardTitle>
+                    {/* Mobile status indicators */}
+                    <div className="flex sm:hidden items-center gap-2 text-xs">
+                      <span className="flex items-center gap-1 text-yellow-600"><Clock className="w-3 h-3" />{statistics?.draftCount || 0}</span>
+                      <span className="flex items-center gap-1 text-blue-600"><FileCheck className="w-3 h-3" />{statistics?.finalizedCount || 0}</span>
+                      <span className="flex items-center gap-1 text-green-600"><Send className="w-3 h-3" />{statistics?.publishedCount || 0}</span>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {reportCards.length === 0 ? (
@@ -970,9 +972,6 @@ export default function TeacherReportCards() {
                       <Sparkles className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                       <h3 className="text-lg font-medium mb-2">No Report Cards Yet</h3>
                       <p className="text-muted-foreground mb-2">Report cards will appear here automatically as students complete their exams.</p>
-                      <p className="text-sm text-muted-foreground">
-                        Once a student submits their first exam for this term, their report card will be created and updated with each subsequent exam.
-                      </p>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -982,47 +981,54 @@ export default function TeacherReportCards() {
                           placeholder="Search students..."
                           value={searchTerm}
                           onChange={(e) => handleSearchChange(e.target.value)}
-                          className="pl-10"
+                          className="pl-10 h-9"
                           data-testid="input-search-students"
                         />
                       </div>
                       
-                      {/* Mobile Card View */}
-                      <div className="block sm:hidden space-y-3">
+                      {/* Simplified Mobile Card View */}
+                      <div className="block sm:hidden space-y-2">
                         {paginatedReportCards.map((rc: any) => (
                           <div 
                             key={rc.id} 
-                            className="border rounded-md p-3 hover-elevate cursor-pointer"
+                            className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover-elevate cursor-pointer"
                             onClick={() => handleViewReportCard(rc)}
                             data-testid={`mobile-row-${rc.id}`}
                           >
-                            <div className="flex items-start justify-between gap-2 mb-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <Avatar className="h-10 w-10 flex-shrink-0">
-                                  {rc.studentPhoto ? (
-                                    <AvatarImage src={rc.studentPhoto} alt={rc.studentName} />
-                                  ) : null}
-                                  <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                                    {rc.studentName?.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || <User className="w-4 h-4" />}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="min-w-0">
-                                  <div className="font-medium text-sm truncate">{rc.studentName}</div>
-                                  <div className="text-xs text-muted-foreground font-mono">{rc.studentUsername || '-'}</div>
-                                </div>
-                              </div>
-                              <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                                <Badge className={`text-xs ${getGradeColor(rc.overallGrade)}`}>
-                                  {rc.overallGrade || '-'}
-                                </Badge>
-                                <span className={`text-xs font-semibold ${(rc.averagePercentage || 0) >= 50 ? 'text-green-600' : 'text-red-600'}`}>
-                                  {rc.averagePercentage || 0}%
-                                </span>
-                              </div>
+                            {/* Position Badge */}
+                            <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold" aria-label={`Position ${rc.position || 'unknown'}`}>
+                              {rc.position || '-'}
                             </div>
-                            <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
-                              <span>{rc.position ? formatPosition(rc.position) : '-'} of {rc.totalStudentsInClass || reportCards.length}</span>
-                              {getStatusBadge(rc.status)}
+                            
+                            {/* Student Info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-sm truncate">{rc.studentName}</div>
+                              <div className="text-xs text-muted-foreground">{rc.averagePercentage || 0}% avg</div>
+                            </div>
+                            
+                            {/* Grade & Status with accessible labels */}
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <Badge className={`text-xs px-2 ${getGradeColor(rc.overallGrade)}`}>
+                                {rc.overallGrade || '-'}
+                              </Badge>
+                              {rc.status === 'published' && (
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800">
+                                  <CheckCircle className="w-3 h-3 mr-0.5" aria-hidden="true" />
+                                  <span className="sr-only">Published</span>
+                                </Badge>
+                              )}
+                              {rc.status === 'finalized' && (
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800">
+                                  <FileCheck className="w-3 h-3 mr-0.5" aria-hidden="true" />
+                                  <span className="sr-only">Finalized</span>
+                                </Badge>
+                              )}
+                              {rc.status === 'draft' && (
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800">
+                                  <Clock className="w-3 h-3 mr-0.5" aria-hidden="true" />
+                                  <span className="sr-only">Draft</span>
+                                </Badge>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -1179,119 +1185,6 @@ export default function TeacherReportCards() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="students" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <Users className="w-5 h-5" />
-                        Student Report Cards
-                      </CardTitle>
-                      <CardDescription>Click on a card to view details and manage scores</CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded-md">
-                      <BarChart3 className="w-3 h-3" />
-                      <span>Test {testWeight}% | Exam {examWeight}%</span>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="relative w-full sm:max-w-sm">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                      <Input
-                        placeholder="Search by name or ID..."
-                        value={searchTerm}
-                        onChange={(e) => handleSearchChange(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {paginatedReportCards.map((rc: any) => (
-                        <Card 
-                          key={rc.id} 
-                          className="hover-elevate cursor-pointer group relative overflow-visible" 
-                          onClick={() => handleViewReportCard(rc)} 
-                          data-testid={`card-student-${rc.id}`}
-                        >
-                          <CardContent className="p-4">
-                            <div className="flex items-start justify-between gap-2 mb-3">
-                              <div className="flex items-center gap-3">
-                                <Avatar className="h-12 w-12 border-2 border-primary/10">
-                                  {rc.studentPhoto ? (
-                                    <AvatarImage src={rc.studentPhoto} alt={rc.studentName} />
-                                  ) : null}
-                                  <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-bold">
-                                    {rc.studentName?.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="min-w-0">
-                                  <h4 className="font-semibold text-sm truncate">{rc.studentName}</h4>
-                                  <Badge variant="outline" className="font-mono text-xs mt-1 bg-muted/50">
-                                    {rc.studentUsername || rc.admissionNumber || '-'}
-                                  </Badge>
-                                </div>
-                              </div>
-                              <div className="flex flex-col items-end gap-1">
-                                <Badge className={`text-lg px-3 ${getGradeColor(rc.overallGrade)}`}>
-                                  {rc.overallGrade || '-'}
-                                </Badge>
-                                <span className={`text-sm font-bold ${(rc.averagePercentage || 0) >= 50 ? 'text-green-600' : 'text-red-600'}`}>
-                                  {rc.averagePercentage || 0}%
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                              <div className="flex items-center gap-2">
-                                <Award className="w-4 h-4 text-muted-foreground" />
-                                <span className="text-sm text-muted-foreground">
-                                  {rc.position ? formatPosition(rc.position) : '-'} of {rc.totalStudentsInClass || reportCards.length}
-                                </span>
-                              </div>
-                              {getStatusBadge(rc.status)}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                    
-                    {/* Pagination Controls */}
-                    {totalPages > 1 && (
-                      <div className="flex items-center justify-between pt-4 border-t">
-                        <div className="text-xs sm:text-sm text-muted-foreground">
-                          Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredReportCards.length)} of {filteredReportCards.length}
-                        </div>
-                        <div className="flex items-center gap-1 sm:gap-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                            className="h-8 w-8"
-                          >
-                            <ChevronLeft className="h-4 w-4" />
-                          </Button>
-                          <span className="text-xs sm:text-sm font-medium px-2">
-                            {currentPage} / {totalPages}
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            disabled={currentPage === totalPages}
-                            className="h-8 w-8"
-                          >
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
             <TabsContent value="analytics" className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card>
@@ -1361,6 +1254,7 @@ export default function TeacherReportCards() {
               </div>
             </TabsContent>
           </Tabs>
+          </>
         )}
 
       {/* View Report Card Dialog - Fully Responsive for all screen sizes */}
