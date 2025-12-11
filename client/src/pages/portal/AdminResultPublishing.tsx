@@ -166,11 +166,13 @@ export default function AdminResultPublishing() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Force immediate refetch for instant UI update (not just invalidate)
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['/api/admin/report-cards/finalized'], type: 'active' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
+      ]);
       toast({ title: "Success", description: "Report card published successfully" });
-      // Invalidate all related caches for immediate UI update
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -186,12 +188,14 @@ export default function AdminResultPublishing() {
       }
       return response.json();
     },
-    onSuccess: (data) => {
-      toast({ title: "Success", description: data.message });
+    onSuccess: async (data) => {
       setSelectedReportCards([]);
-      // Invalidate all related caches for immediate UI update
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
+      // Force immediate refetch for instant UI update (not just invalidate)
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['/api/admin/report-cards/finalized'], type: 'active' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
+      ]);
+      toast({ title: "Success", description: data.message });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -207,11 +211,13 @@ export default function AdminResultPublishing() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Force immediate refetch for instant UI update (not just invalidate)
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['/api/admin/report-cards/finalized'], type: 'active' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
+      ]);
       toast({ title: "Success", description: "Report card unpublished successfully. Students can no longer view it." });
-      // Invalidate all related caches for immediate UI update
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -232,12 +238,14 @@ export default function AdminResultPublishing() {
       );
       return results;
     },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Selected report cards unpublished successfully" });
+    onSuccess: async () => {
       setSelectedReportCards([]);
-      // Invalidate all related caches for immediate UI update
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
+      // Force immediate refetch for instant UI update (not just invalidate)
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['/api/admin/report-cards/finalized'], type: 'active' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
+      ]);
+      toast({ title: "Success", description: "Selected report cards unpublished successfully" });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -253,14 +261,16 @@ export default function AdminResultPublishing() {
       }
       return response.json();
     },
-    onSuccess: () => {
-      toast({ title: "Report Card Rejected", description: "The report card has been reverted to draft for teacher revision" });
+    onSuccess: async () => {
       setIsRejectDialogOpen(false);
       setRejectingId(null);
       setRejectReason('');
-      // Invalidate all related caches for immediate UI update
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
+      // Force immediate refetch for instant UI update (not just invalidate)
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['/api/admin/report-cards/finalized'], type: 'active' }),
+        queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
+      ]);
+      toast({ title: "Report Card Rejected", description: "The report card has been reverted to draft for teacher revision" });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
