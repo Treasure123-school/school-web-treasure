@@ -10145,7 +10145,42 @@ Treasure-Home School Administration
           };
         });
         
-        res.json({ ...reportCard, items: enhancedItems });
+        // Calculate class statistics for this report card's class and term
+        // This calculation matches exactly what the teacher view does in TeacherReportCards.tsx
+        let classStatistics = {
+          highestScore: 0,
+          lowestScore: 0,
+          classAverage: 0,
+          totalStudents: 0
+        };
+        
+        if (reportCard.classId && reportCard.termId) {
+          try {
+            // Get all report cards for this class and term to calculate statistics
+            const allClassReportCards = await storage.getReportCardsByClassAndTerm(
+              reportCard.classId, 
+              reportCard.termId
+            );
+            
+            if (allClassReportCards && allClassReportCards.length > 0) {
+              // Match teacher view calculation exactly: rc.averagePercentage || 0
+              // Do NOT filter out zeros - include all students in statistics
+              const percentages = allClassReportCards.map((rc: any) => rc.averagePercentage || 0);
+              const totalStudents = allClassReportCards.length;
+              
+              classStatistics = {
+                highestScore: Math.max(...percentages),
+                lowestScore: Math.min(...percentages),
+                classAverage: Math.round((percentages.reduce((sum: number, p: number) => sum + p, 0) / totalStudents) * 10) / 10,
+                totalStudents: totalStudents
+              };
+            }
+          } catch (statsError) {
+            console.error('Error calculating class statistics:', statsError);
+          }
+        }
+        
+        res.json({ ...reportCard, items: enhancedItems, classStatistics });
       } catch (error: any) {
         console.error('Error getting report card:', error);
         res.status(500).json({ message: error.message || 'Failed to get report card' });
