@@ -12635,6 +12635,91 @@ Treasure-Home School Administration
       }
     });
 
+    // ADMIN: Comprehensive sync of ALL missing exam scores to report cards
+    // This is a powerful data repair tool that finds all exam results not reflected in report cards
+    app.post('/api/admin/sync-all-missing-exam-scores', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { termId } = req.body;
+        
+        console.log(`[ADMIN-SYNC-MISSING] User ${req.user!.id} triggered comprehensive exam score sync`);
+        
+        const result = await storage.syncAllMissingExamScores(termId ? Number(termId) : undefined);
+        
+        // Invalidate caches
+        enhancedCache.invalidate(/^reportcard:/);
+        
+        console.log(`[ADMIN-SYNC-MISSING] Completed: ${result.synced} synced, ${result.failed} failed`);
+        
+        res.json({
+          message: `Comprehensive exam score sync completed`,
+          synced: result.synced,
+          failed: result.failed,
+          errors: result.errors.length > 0 ? result.errors.slice(0, 20) : undefined,
+          totalErrors: result.errors.length
+        });
+      } catch (error: any) {
+        console.error('[ADMIN-SYNC-MISSING] Error:', error);
+        res.status(500).json({ message: error.message || 'Failed to sync missing exam scores' });
+      }
+    });
+
+    // TEACHER: Bulk sync all results from a specific exam to report cards
+    // This allows teachers to sync all their exam results at once
+    app.post('/api/teacher/exams/:examId/sync-all-to-reportcards', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const examId = parseInt(req.params.examId);
+        const teacherId = req.user!.id;
+        
+        if (isNaN(examId) || examId <= 0) {
+          return res.status(400).json({ message: 'Invalid exam ID' });
+        }
+        
+        // Get the exam
+        const exam = await storage.getExamById(examId);
+        if (!exam) {
+          return res.status(404).json({ message: 'Exam not found' });
+        }
+        
+        // For teachers, verify ownership
+        if (req.user!.roleId === ROLES.TEACHER) {
+          const isCreator = exam.createdBy === teacherId;
+          const isTeacherInCharge = exam.teacherInChargeId === teacherId;
+          
+          let isClassSubjectTeacher = false;
+          if (exam.classId && exam.subjectId) {
+            try {
+              const teachers = await storage.getTeachersForClassSubject(exam.classId, exam.subjectId);
+              isClassSubjectTeacher = teachers?.some((t: any) => t.id === teacherId) || false;
+            } catch (e) {
+              // Silent fail
+            }
+          }
+          
+          if (!isCreator && !isTeacherInCharge && !isClassSubjectTeacher) {
+            return res.status(403).json({ message: 'You can only sync results for exams you created, are assigned to, or teach' });
+          }
+        }
+        
+        console.log(`[TEACHER-BULK-SYNC] User ${teacherId} syncing all results for exam ${examId}`);
+        
+        const result = await storage.syncExamResultsToReportCards(examId);
+        
+        // Emit realtime event
+        realtimeService.emitTableChange('report_cards', 'UPDATE', { examId, bulkSync: true }, undefined, teacherId);
+        
+        res.json({
+          message: `Synced ${result.synced} exam results to report cards`,
+          synced: result.synced,
+          failed: result.failed,
+          errors: result.errors.length > 0 ? result.errors.slice(0, 10) : undefined,
+          totalErrors: result.errors.length
+        });
+      } catch (error: any) {
+        console.error('[TEACHER-BULK-SYNC] Error:', error);
+        res.status(500).json({ message: error.message || 'Failed to sync exam results' });
+      }
+    });
+
     // ==================== STUDENT PORTAL SUBJECT ROUTES ====================
 
     // Get current student's info (for student portal)

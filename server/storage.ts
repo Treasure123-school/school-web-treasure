@@ -361,6 +361,12 @@ export interface IStorage {
   // Auto-sync exam score to report card (called after exam submission)
   syncExamScoreToReportCard(studentId: string, examId: number, score: number, maxScore: number): Promise<{ success: boolean; reportCardId?: number; message: string; isNewReportCard?: boolean }>;
   
+  // Bulk sync all missing exam scores to existing report card items
+  syncAllMissingExamScores(termId?: number): Promise<{ synced: number; failed: number; errors: string[] }>;
+  
+  // Bulk sync exam results for a specific exam to all students' report cards
+  syncExamResultsToReportCards(examId: number): Promise<{ synced: number; failed: number; errors: string[] }>;
+  
   // Get report cards accessible by a specific teacher (only subjects where they created exams)
   getTeacherAccessibleReportCards(teacherId: string, termId?: number, classId?: number): Promise<any[]>;
 
@@ -7738,6 +7744,233 @@ export class DatabaseStorage implements IStorage {
     } catch (error: any) {
       console.error(`[SYNC] Error syncing report card items for exam ${examId}:`, error);
       return { updated: 0, errors: [error.message] };
+    }
+  }
+
+  /**
+   * COMPREHENSIVE FIX: Sync all missing exam scores to existing report card items
+   * This finds all exam_results that have scores but aren't reflected in report_card_items
+   * and syncs them properly
+   */
+  async syncAllMissingExamScores(termId?: number): Promise<{ synced: number; failed: number; errors: string[] }> {
+    let synced = 0;
+    let failed = 0;
+    const errors: string[] = [];
+    
+    try {
+      console.log(`[SYNC-ALL-MISSING] Starting comprehensive sync of missing exam scores...`);
+      
+      // Get current term if not specified
+      let targetTermId = termId;
+      if (!targetTermId) {
+        const currentTerm = await this.getCurrentTerm();
+        if (currentTerm) {
+          targetTermId = currentTerm.id;
+        }
+      }
+      
+      // Find all exam results where:
+      // 1. The exam is of type 'exam' (main exam)
+      // 2. There's a report card for that student/term
+      // 3. The report card item exists but has NULL exam_score
+      // OR the report card item doesn't exist at all
+      const missingExamScores = await db.select({
+        examResultId: schema.examResults.id,
+        studentId: schema.examResults.studentId,
+        examId: schema.examResults.examId,
+        score: schema.examResults.score,
+        maxScore: schema.examResults.maxScore,
+        examType: schema.exams.examType,
+        subjectId: schema.exams.subjectId,
+        classId: schema.exams.classId,
+        examTermId: schema.exams.termId,
+        gradingScale: schema.exams.gradingScale,
+        createdBy: schema.exams.createdBy,
+        reportCardId: schema.reportCards.id,
+        reportCardItemId: schema.reportCardItems.id,
+        currentExamScore: schema.reportCardItems.examScore,
+        currentTestScore: schema.reportCardItems.testScore
+      })
+        .from(schema.examResults)
+        .innerJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
+        .innerJoin(schema.reportCards, and(
+          eq(schema.reportCards.studentId, schema.examResults.studentId),
+          eq(schema.reportCards.termId, schema.exams.termId)
+        ))
+        .leftJoin(schema.reportCardItems, and(
+          eq(schema.reportCardItems.reportCardId, schema.reportCards.id),
+          eq(schema.reportCardItems.subjectId, schema.exams.subjectId)
+        ))
+        .where(and(
+          sql`${schema.examResults.score} IS NOT NULL`,
+          targetTermId ? eq(schema.exams.termId, targetTermId) : sql`1=1`,
+          or(
+            // Exam type results missing in report card
+            and(
+              inArray(schema.exams.examType, ['exam', 'final', 'midterm']),
+              or(
+                sql`${schema.reportCardItems.id} IS NULL`,
+                sql`${schema.reportCardItems.exam_score} IS NULL`
+              )
+            ),
+            // Test type results missing in report card
+            and(
+              inArray(schema.exams.examType, ['test', 'quiz', 'assignment']),
+              or(
+                sql`${schema.reportCardItems.id} IS NULL`,
+                sql`${schema.reportCardItems.test_score} IS NULL`
+              )
+            )
+          )
+        ));
+      
+      console.log(`[SYNC-ALL-MISSING] Found ${missingExamScores.length} exam results to sync`);
+      
+      // Group by report card to batch recalculations
+      const reportCardIdsToRecalculate = new Set<number>();
+      
+      for (const record of missingExamScores) {
+        try {
+          const isTest = ['test', 'quiz', 'assignment'].includes(record.examType);
+          const isMainExam = ['exam', 'final', 'midterm'].includes(record.examType);
+          
+          // Skip if the score already exists for this type
+          if (isMainExam && record.currentExamScore !== null) continue;
+          if (isTest && record.currentTestScore !== null) continue;
+          
+          const safeScore = typeof record.score === 'number' ? record.score : parseInt(String(record.score), 10) || 0;
+          const safeMaxScore = typeof record.maxScore === 'number' ? record.maxScore : parseInt(String(record.maxScore), 10) || 0;
+          
+          if (record.reportCardItemId) {
+            // Update existing report card item
+            const updateData: any = { updatedAt: new Date() };
+            
+            if (isTest) {
+              updateData.testExamId = record.examId;
+              updateData.testExamCreatedBy = record.createdBy;
+              updateData.testScore = safeScore;
+              updateData.testMaxScore = safeMaxScore;
+            } else if (isMainExam) {
+              updateData.examExamId = record.examId;
+              updateData.examExamCreatedBy = record.createdBy;
+              updateData.examScore = safeScore;
+              updateData.examMaxScore = safeMaxScore;
+            }
+            
+            await db.update(schema.reportCardItems)
+              .set(updateData)
+              .where(eq(schema.reportCardItems.id, record.reportCardItemId));
+            
+            reportCardIdsToRecalculate.add(record.reportCardId);
+            synced++;
+            console.log(`[SYNC-ALL-MISSING] Updated item ${record.reportCardItemId}: ${isTest ? 'test' : 'exam'} score ${safeScore}/${safeMaxScore}`);
+          } else if (record.reportCardId && record.subjectId) {
+            // Create new report card item
+            const newItem = await db.insert(schema.reportCardItems)
+              .values({
+                reportCardId: record.reportCardId,
+                subjectId: record.subjectId,
+                totalMarks: 100,
+                obtainedMarks: 0,
+                percentage: 0,
+                testExamId: isTest ? record.examId : null,
+                testExamCreatedBy: isTest ? record.createdBy : null,
+                testScore: isTest ? safeScore : null,
+                testMaxScore: isTest ? safeMaxScore : null,
+                examExamId: isMainExam ? record.examId : null,
+                examExamCreatedBy: isMainExam ? record.createdBy : null,
+                examScore: isMainExam ? safeScore : null,
+                examMaxScore: isMainExam ? safeMaxScore : null
+              })
+              .returning();
+            
+            reportCardIdsToRecalculate.add(record.reportCardId);
+            synced++;
+            console.log(`[SYNC-ALL-MISSING] Created new item for report card ${record.reportCardId}, subject ${record.subjectId}`);
+          }
+        } catch (recordError: any) {
+          failed++;
+          errors.push(`Failed to sync exam result ${record.examResultId}: ${recordError.message}`);
+        }
+      }
+      
+      // Recalculate all affected report cards
+      console.log(`[SYNC-ALL-MISSING] Recalculating ${reportCardIdsToRecalculate.size} report cards...`);
+      for (const reportCardId of reportCardIdsToRecalculate) {
+        try {
+          await this.recalculateReportCard(reportCardId, 'standard');
+        } catch (calcError: any) {
+          errors.push(`Failed to recalculate report card ${reportCardId}: ${calcError.message}`);
+        }
+      }
+      
+      console.log(`[SYNC-ALL-MISSING] Completed: ${synced} synced, ${failed} failed`);
+      return { synced, failed, errors };
+    } catch (error: any) {
+      console.error('[SYNC-ALL-MISSING] Error:', error);
+      return { synced: 0, failed: 0, errors: [error.message] };
+    }
+  }
+
+  /**
+   * Bulk sync all results for a specific exam to report cards
+   * Useful for teachers to sync all their exam results at once
+   */
+  async syncExamResultsToReportCards(examId: number): Promise<{ synced: number; failed: number; errors: string[] }> {
+    let synced = 0;
+    let failed = 0;
+    const errors: string[] = [];
+    
+    try {
+      console.log(`[SYNC-EXAM-RESULTS] Starting bulk sync for exam ${examId}...`);
+      
+      // Get all results for this exam
+      const examResults = await db.select({
+        id: schema.examResults.id,
+        studentId: schema.examResults.studentId,
+        score: schema.examResults.score,
+        maxScore: schema.examResults.maxScore
+      })
+        .from(schema.examResults)
+        .where(and(
+          eq(schema.examResults.examId, examId),
+          sql`${schema.examResults.score} IS NOT NULL`
+        ));
+      
+      console.log(`[SYNC-EXAM-RESULTS] Found ${examResults.length} results to sync for exam ${examId}`);
+      
+      // Get exam details
+      const exam = await this.getExamById(examId);
+      if (!exam) {
+        return { synced: 0, failed: 0, errors: ['Exam not found'] };
+      }
+      
+      for (const result of examResults) {
+        try {
+          const syncResult = await this.syncExamScoreToReportCard(
+            result.studentId,
+            examId,
+            result.score || 0,
+            result.maxScore || exam.totalMarks || 100
+          );
+          
+          if (syncResult.success) {
+            synced++;
+          } else {
+            failed++;
+            errors.push(`Student ${result.studentId}: ${syncResult.message}`);
+          }
+        } catch (studentError: any) {
+          failed++;
+          errors.push(`Student ${result.studentId}: ${studentError.message}`);
+        }
+      }
+      
+      console.log(`[SYNC-EXAM-RESULTS] Completed: ${synced} synced, ${failed} failed`);
+      return { synced, failed, errors };
+    } catch (error: any) {
+      console.error('[SYNC-EXAM-RESULTS] Error:', error);
+      return { synced: 0, failed: 0, errors: [error.message] };
     }
   }
 }

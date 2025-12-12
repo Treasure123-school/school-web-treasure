@@ -182,6 +182,36 @@ export default function TeacherExamResults() {
     },
   });
 
+  // Bulk sync all results to report cards
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
+  const syncAllToReportCardsMutation = useMutation({
+    mutationFn: async () => {
+      setIsSyncingAll(true);
+      const response = await apiRequest('POST', `/api/teacher/exams/${examId}/sync-all-to-reportcards`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to sync all to report cards');
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "All Results Synced",
+        description: `Successfully synced ${data.synced} results to report cards.${data.failed > 0 ? ` ${data.failed} failed.` : ''}`,
+      });
+      setIsSyncingAll(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/exam-results/exam', examId] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Bulk Sync Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      setIsSyncingAll(false);
+    },
+  });
+
   const allowRetakeMutation = useMutation({
     mutationFn: async ({ studentId }: { studentId: string; resultId: number }) => {
       const response = await apiRequest('POST', `/api/teacher/exams/${examId}/allow-retake/${studentId}`);
@@ -375,10 +405,26 @@ export default function TeacherExamResults() {
             </p>
           </div>
         </div>
-        <Button onClick={downloadResults} disabled={totalSubmissions === 0} data-testid="button-download" className="w-full sm:w-auto">
-          <Download className="h-4 w-4 mr-2" />
-          Download Results
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button 
+            onClick={() => syncAllToReportCardsMutation.mutate()} 
+            disabled={totalSubmissions === 0 || isSyncingAll} 
+            data-testid="button-sync-all"
+            variant="outline"
+            className="w-full sm:w-auto"
+          >
+            {isSyncingAll ? (
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            {isSyncingAll ? 'Syncing...' : 'Sync All to Report Cards'}
+          </Button>
+          <Button onClick={downloadResults} disabled={totalSubmissions === 0} data-testid="button-download" className="w-full sm:w-auto">
+            <Download className="h-4 w-4 mr-2" />
+            Download Results
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
