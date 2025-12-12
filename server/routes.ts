@@ -31,6 +31,7 @@ import { getVisibleExamsForStudent, getVisibleExamsForParent, invalidateVisibili
 import { SubjectAssignmentService } from "./services/subject-assignment-service";
 import { performanceCache, PerformanceCache } from "./performance-cache";
 import { enhancedCache, EnhancedCache } from "./enhanced-cache";
+import { reliableSyncService } from "./services/reliable-sync-service";
 
 // Helper function to extract file path from URL (local filesystem)
 function extractFilePathFromUrl(url: string): string {
@@ -1998,19 +1999,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Use the existing syncExamScoreToReportCard method
-      const syncResult = await storage.syncExamScoreToReportCard(
+      // Use the reliable sync service with audit logging
+      const syncResult = await reliableSyncService.syncExamScoreToReportCardReliable(
         result.studentId,
         result.examId,
         result.score || 0,
-        result.maxScore || exam.totalMarks || 100
+        result.maxScore || exam.totalMarks || 100,
+        {
+          syncType: 'manual_sync',
+          triggeredBy: teacherId
+        }
       );
 
       if (!syncResult.success) {
-        return res.status(400).json({ message: syncResult.message });
+        return res.status(400).json({ 
+          message: syncResult.message,
+          errorCode: syncResult.errorCode,
+          auditLogId: syncResult.auditLogId
+        });
       }
 
-      // Emit realtime event
+      // Emit realtime event (already handled by reliable sync service, but emit extra for UI consistency)
       if (syncResult.reportCardId) {
         realtimeService.emitTableChange('report_cards', 'UPDATE', { id: syncResult.reportCardId }, undefined, teacherId);
       }
@@ -2018,7 +2027,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ 
         message: syncResult.message,
         reportCardId: syncResult.reportCardId,
-        isNewReportCard: syncResult.isNewReportCard
+        reportCardItemId: syncResult.reportCardItemId,
+        isNewReportCard: syncResult.isNewReportCard,
+        auditLogId: syncResult.auditLogId
       });
     } catch (error: any) {
       console.error('[EXAM-RESULTS] Error syncing to report card:', error?.message);
@@ -2524,68 +2535,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalTime = Date.now() - startTime;
       const percentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
 
-      // AUTO-SYNC: Sync exam score to report card immediately after scoring
+      // AUTO-SYNC: Use reliable sync service with audit logging and automatic retry
       // Report cards are auto-created when a student completes their first exam for a term
-      // Includes retry logic for reliability - will attempt up to 3 times with exponential backoff
-      let reportCardSync: { success: boolean; message: string; reportCardId?: number; isNewReportCard?: boolean } = { success: false, message: '' };
-      const MAX_SYNC_RETRIES = 3;
-      let syncAttempt = 0;
+      // The reliable sync service handles: transactions, idempotency, audit logging, and retries
+      let reportCardSync: { success: boolean; message: string; reportCardId?: number; isNewReportCard?: boolean; auditLogId?: number } = { success: false, message: '' };
       
-      while (syncAttempt < MAX_SYNC_RETRIES && !reportCardSync.success) {
-        syncAttempt++;
-        try {
-          console.log(`[SUBMIT] Report card sync attempt ${syncAttempt}/${MAX_SYNC_RETRIES} for student ${studentId}, exam ${examId}`);
-          reportCardSync = await storage.syncExamScoreToReportCard(studentId, examId, totalScore, maxScore);
+      try {
+        console.log(`[SUBMIT] Starting reliable sync for student ${studentId}, exam ${examId}, score ${totalScore}/${maxScore}`);
+        reportCardSync = await reliableSyncService.syncExamScoreToReportCardReliable(
+          studentId,
+          examId,
+          totalScore,
+          maxScore,
+          {
+            syncType: 'exam_submit',
+            triggeredBy: studentId
+          }
+        );
+        
+        if (reportCardSync.success) {
+          console.log(`[SUBMIT] Reliable sync successful: ${reportCardSync.message} (auditLogId: ${reportCardSync.auditLogId})`);
           
-          if (reportCardSync.success) {
-            console.log(`[SUBMIT] Report card sync successful on attempt ${syncAttempt}: ${reportCardSync.message}`);
-            
-            // Emit realtime event for report card update so dashboards refresh
-            if (reportCardSync.reportCardId) {
-              const eventType = reportCardSync.isNewReportCard ? 'created' : 'updated';
-              realtimeService.emitReportCardEvent(reportCardSync.reportCardId, eventType, {
-                studentId,
-                examId,
-                classId: exam.classId,
-                score: totalScore,
-                maxScore,
-                percentage: maxScore > 0 ? Math.round((totalScore / maxScore) * 10000) / 100 : 0,
-                isNewReportCard: reportCardSync.isNewReportCard,
-                autoGenerated: reportCardSync.isNewReportCard
-              });
-            }
-            
-            // Also emit to class channel for teachers monitoring report cards
-            const tableOperation = reportCardSync.isNewReportCard ? 'INSERT' : 'UPDATE';
-            realtimeService.emitTableChange('report_cards', tableOperation, {
-              reportCardId: reportCardSync.reportCardId,
+          // Emit realtime event for report card update so dashboards refresh
+          if (reportCardSync.reportCardId) {
+            const eventType = reportCardSync.isNewReportCard ? 'created' : 'updated';
+            realtimeService.emitReportCardEvent(reportCardSync.reportCardId, eventType, {
               studentId,
               examId,
               classId: exam.classId,
               score: totalScore,
               maxScore,
-              isNewReportCard: reportCardSync.isNewReportCard
-            }, undefined, studentId);
-            break; // Exit retry loop on success
-          } else {
-            console.warn(`[SUBMIT] Report card sync attempt ${syncAttempt} failed: ${reportCardSync.message}`);
-            if (syncAttempt < MAX_SYNC_RETRIES) {
-              // Wait before retry with exponential backoff (100ms, 200ms, 400ms)
-              await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, syncAttempt - 1)));
-            }
+              percentage: maxScore > 0 ? Math.round((totalScore / maxScore) * 10000) / 100 : 0,
+              isNewReportCard: reportCardSync.isNewReportCard,
+              autoGenerated: reportCardSync.isNewReportCard
+            });
           }
-        } catch (syncError: any) {
-          console.warn(`[SUBMIT] Report card sync attempt ${syncAttempt} error:`, syncError?.message);
-          if (syncAttempt < MAX_SYNC_RETRIES) {
-            await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, syncAttempt - 1)));
-          }
+          
+          // Also emit to class channel for teachers monitoring report cards
+          const tableOperation = reportCardSync.isNewReportCard ? 'INSERT' : 'UPDATE';
+          realtimeService.emitTableChange('report_cards', tableOperation, {
+            reportCardId: reportCardSync.reportCardId,
+            studentId,
+            examId,
+            classId: exam.classId,
+            score: totalScore,
+            maxScore,
+            isNewReportCard: reportCardSync.isNewReportCard
+          }, undefined, studentId);
+        } else {
+          console.error(`[SUBMIT] Reliable sync failed for student ${studentId}, exam ${examId}: ${reportCardSync.message}`);
+          // The audit log has recorded this failure - it can be retried later via admin tools
+          console.error(`[SUBMIT] Sync failure logged with auditLogId: ${reportCardSync.auditLogId}`);
         }
-      }
-      
-      if (!reportCardSync.success) {
-        console.error(`[SUBMIT] Report card sync FAILED after ${MAX_SYNC_RETRIES} attempts for student ${studentId}, exam ${examId}. Message: ${reportCardSync.message}`);
-        // Log additional context for debugging
-        console.error(`[SUBMIT] Sync context: score=${totalScore}, maxScore=${maxScore}, classId=${exam.classId}, termId=${exam.termId}`);
+      } catch (syncError: any) {
+        console.error(`[SUBMIT] Reliable sync unhandled error for student ${studentId}, exam ${examId}:`, syncError?.message);
+        reportCardSync = { success: false, message: syncError?.message || 'Unknown sync error' };
       }
 
       // Format time taken for display
@@ -12717,6 +12721,115 @@ Treasure-Home School Administration
       } catch (error: any) {
         console.error('[TEACHER-BULK-SYNC] Error:', error);
         res.status(500).json({ message: error.message || 'Failed to sync exam results' });
+      }
+    });
+
+    // ==================== SYNC AUDIT LOG ENDPOINTS ====================
+
+    // ADMIN: Get sync audit logs with filters
+    app.get('/api/admin/sync-audit-logs', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { studentId, examId, status, syncType, limit, offset } = req.query;
+        
+        const result = await reliableSyncService.getSyncAuditLogs({
+          studentId: studentId as string | undefined,
+          examId: examId ? parseInt(examId as string) : undefined,
+          status: status as 'pending' | 'success' | 'failed' | 'retrying' | undefined,
+          syncType: syncType as 'exam_submit' | 'manual_sync' | 'bulk_sync' | 'retry' | 'admin_repair' | undefined,
+          limit: limit ? parseInt(limit as string) : 50,
+          offset: offset ? parseInt(offset as string) : 0
+        });
+        
+        res.json(result);
+      } catch (error: any) {
+        console.error('[SYNC-AUDIT] Error fetching logs:', error);
+        res.status(500).json({ message: error.message || 'Failed to fetch sync audit logs' });
+      }
+    });
+
+    // ADMIN: Retry all failed syncs (batch retry)
+    app.post('/api/admin/sync-audit-logs/retry-failed', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        console.log(`[SYNC-AUDIT] User ${req.user!.id} triggered batch retry of failed syncs`);
+        
+        const result = await reliableSyncService.retryFailedSyncs();
+        
+        res.json({
+          message: `Processed ${result.processed} failed syncs: ${result.succeeded} succeeded, ${result.failed} still failing`,
+          processed: result.processed,
+          succeeded: result.succeeded,
+          failed: result.failed
+        });
+      } catch (error: any) {
+        console.error('[SYNC-AUDIT] Error retrying failed syncs:', error);
+        res.status(500).json({ message: error.message || 'Failed to retry syncs' });
+      }
+    });
+
+    // ADMIN: Manually resync a specific audit log entry
+    app.post('/api/admin/sync-audit-logs/:auditLogId/resync', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const auditLogId = parseInt(req.params.auditLogId);
+        const adminId = req.user!.id;
+        
+        if (isNaN(auditLogId) || auditLogId <= 0) {
+          return res.status(400).json({ message: 'Invalid audit log ID' });
+        }
+        
+        console.log(`[SYNC-AUDIT] Admin ${adminId} manually resyncing audit log ${auditLogId}`);
+        
+        const result = await reliableSyncService.manualResyncById(auditLogId, adminId);
+        
+        if (!result.success) {
+          return res.status(400).json({
+            message: result.message,
+            errorCode: result.errorCode
+          });
+        }
+        
+        res.json({
+          message: result.message,
+          reportCardId: result.reportCardId,
+          reportCardItemId: result.reportCardItemId,
+          isNewReportCard: result.isNewReportCard,
+          auditLogId: result.auditLogId
+        });
+      } catch (error: any) {
+        console.error('[SYNC-AUDIT] Error resyncing:', error);
+        res.status(500).json({ message: error.message || 'Failed to resync' });
+      }
+    });
+
+    // ADMIN: Get sync statistics summary
+    app.get('/api/admin/sync-audit-logs/stats', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const [
+          totalLogs,
+          successfulSyncs,
+          failedSyncs,
+          pendingSyncs,
+          retryingSyncs
+        ] = await Promise.all([
+          db.select({ count: sql<number>`count(*)` }).from(schema.syncAuditLogs),
+          db.select({ count: sql<number>`count(*)` }).from(schema.syncAuditLogs).where(eq(schema.syncAuditLogs.status, 'success')),
+          db.select({ count: sql<number>`count(*)` }).from(schema.syncAuditLogs).where(eq(schema.syncAuditLogs.status, 'failed')),
+          db.select({ count: sql<number>`count(*)` }).from(schema.syncAuditLogs).where(eq(schema.syncAuditLogs.status, 'pending')),
+          db.select({ count: sql<number>`count(*)` }).from(schema.syncAuditLogs).where(eq(schema.syncAuditLogs.status, 'retrying'))
+        ]);
+        
+        res.json({
+          total: Number(totalLogs[0]?.count || 0),
+          successful: Number(successfulSyncs[0]?.count || 0),
+          failed: Number(failedSyncs[0]?.count || 0),
+          pending: Number(pendingSyncs[0]?.count || 0),
+          retrying: Number(retryingSyncs[0]?.count || 0),
+          successRate: totalLogs[0]?.count 
+            ? Math.round((Number(successfulSyncs[0]?.count || 0) / Number(totalLogs[0]?.count)) * 100) 
+            : 0
+        });
+      } catch (error: any) {
+        console.error('[SYNC-AUDIT] Error fetching stats:', error);
+        res.status(500).json({ message: error.message || 'Failed to fetch sync stats' });
       }
     });
 

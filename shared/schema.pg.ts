@@ -985,6 +985,42 @@ export const approvedTeachers = pgTable("approved_teachers", {
   approvedTeachersEmailIdx: index("approved_teachers_email_idx").on(table.googleEmail),
 }));
 
+// Sync audit log table - tracks all exam-to-report-card sync attempts for reliability and debugging
+export const syncAuditLogs = pgTable("sync_audit_logs", {
+  id: serial("id").primaryKey(),
+  syncType: varchar("sync_type", { length: 50 }).notNull(), // 'exam_submit', 'manual_sync', 'bulk_sync', 'retry'
+  studentId: varchar("student_id", { length: 36 }).notNull().references(() => students.id, { onDelete: 'cascade' }),
+  examId: integer("exam_id").references(() => exams.id, { onDelete: 'set null' }),
+  examResultId: integer("exam_result_id").references(() => examResults.id, { onDelete: 'set null' }),
+  reportCardId: integer("report_card_id").references(() => reportCards.id, { onDelete: 'set null' }),
+  reportCardItemId: integer("report_card_item_id").references(() => reportCardItems.id, { onDelete: 'set null' }),
+  subjectId: integer("subject_id").references(() => subjects.id, { onDelete: 'set null' }),
+  termId: integer("term_id").references(() => academicTerms.id, { onDelete: 'set null' }),
+  score: integer("score"),
+  maxScore: integer("max_score"),
+  status: varchar("status", { length: 20 }).notNull().default('pending'), // 'pending', 'success', 'failed', 'retrying'
+  errorMessage: text("error_message"),
+  errorCode: varchar("error_code", { length: 50 }),
+  retryCount: integer("retry_count").notNull().default(0),
+  maxRetries: integer("max_retries").notNull().default(3),
+  lastRetryAt: timestamp("last_retry_at"),
+  nextRetryAt: timestamp("next_retry_at"),
+  triggeredBy: varchar("triggered_by", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
+  syncedAt: timestamp("synced_at"),
+  metadata: text("metadata"), // JSON string for additional context
+  idempotencyKey: varchar("idempotency_key", { length: 100 }), // Prevents duplicate syncs
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  syncAuditLogsStudentIdx: index("sync_audit_logs_student_idx").on(table.studentId),
+  syncAuditLogsExamIdx: index("sync_audit_logs_exam_idx").on(table.examId),
+  syncAuditLogsStatusIdx: index("sync_audit_logs_status_idx").on(table.status),
+  syncAuditLogsTypeIdx: index("sync_audit_logs_type_idx").on(table.syncType),
+  syncAuditLogsIdempotencyIdx: uniqueIndex("sync_audit_logs_idempotency_idx").on(table.idempotencyKey),
+  syncAuditLogsCreatedAtIdx: index("sync_audit_logs_created_at_idx").on(table.createdAt),
+  syncAuditLogsRetryIdx: index("sync_audit_logs_retry_idx").on(table.status, table.nextRetryAt),
+}));
+
 // Export types (compatible with SQLite schema types)
 export type Role = typeof roles.$inferSelect;
 export type InsertRole = typeof roles.$inferInsert;
@@ -1082,3 +1118,5 @@ export type StudentSubjectAssignment = typeof studentSubjectAssignments.$inferSe
 export type InsertStudentSubjectAssignment = typeof studentSubjectAssignments.$inferInsert;
 export type ClassSubjectMapping = typeof classSubjectMappings.$inferSelect;
 export type InsertClassSubjectMapping = typeof classSubjectMappings.$inferInsert;
+export type SyncAuditLog = typeof syncAuditLogs.$inferSelect;
+export type InsertSyncAuditLog = typeof syncAuditLogs.$inferInsert;
