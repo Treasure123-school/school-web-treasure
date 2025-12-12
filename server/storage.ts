@@ -4507,6 +4507,13 @@ export class DatabaseStorage implements IStorage {
           classInfo.level?.toLowerCase().includes(level.toLowerCase())
         );
 
+      // Get class teacher's signature for pre-population
+      let classTeacherSignatureUrl: string | null = null;
+      if (classInfo?.classTeacherId) {
+        const teacherProfile = await this.getTeacherProfile(classInfo.classTeacherId);
+        classTeacherSignatureUrl = teacherProfile?.signatureUrl || null;
+      }
+
       for (const student of students) {
         try {
           // Check if report card already exists
@@ -4521,7 +4528,11 @@ export class DatabaseStorage implements IStorage {
           let reportCardId: number;
 
           if (existingReportCard.length === 0) {
-            // Create new report card
+            // Get student name for generating default comments
+            const studentUser = await this.getUser(student.userId);
+            const studentFirstName = studentUser?.firstName || 'Student';
+            
+            // Create new report card with pre-populated teacher signature and default comments
             const newReportCard = await db.insert(schema.reportCards)
               .values({
                 studentId: student.id,
@@ -4531,7 +4542,12 @@ export class DatabaseStorage implements IStorage {
                 gradingScale: gradingScale,
                 scoreAggregationMode: 'last',
                 generatedBy: generatedBy,
-                generatedAt: new Date()
+                generatedAt: new Date(),
+                // Pre-populate class teacher's signature if available
+                teacherSignatureUrl: classTeacherSignatureUrl,
+                teacherSignedBy: classTeacherSignatureUrl ? classInfo?.classTeacherId : null,
+                teacherSignedAt: classTeacherSignatureUrl ? new Date() : null,
+                // Default comments will be generated after scores are populated
               })
               .returning();
             reportCardId = newReportCard[0].id;

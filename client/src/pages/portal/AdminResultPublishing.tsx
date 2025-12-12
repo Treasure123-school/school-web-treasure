@@ -695,6 +695,33 @@ export default function AdminResultPublishing() {
     },
   });
 
+  // Backfill default comments mutation
+  const [isBackfillDialogOpen, setIsBackfillDialogOpen] = useState(false);
+  const [backfillOverwrite, setBackfillOverwrite] = useState(false);
+  
+  const backfillCommentsMutation = useMutation({
+    mutationFn: async ({ termId, classId, overwrite }: { termId?: number; classId?: number; overwrite: boolean }) => {
+      const response = await apiRequest('POST', '/api/reports/backfill-comments', { termId, classId, overwrite });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to backfill comments');
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Comments Generated",
+        description: `Updated ${data.updated} report cards with default comments. ${data.skipped} already had comments.`,
+      });
+      setIsBackfillDialogOpen(false);
+      // Refresh the report cards list
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/report-cards/finalized'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       if (statusFilter === 'published') {
@@ -827,16 +854,37 @@ export default function AdminResultPublishing() {
                    statusFilter === 'published' ? 'Published report cards' : 'All report cards'}
                 </CardDescription>
               </div>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={() => refetch()}
-                className="shrink-0"
-                aria-label="Refresh report cards"
-                data-testid="button-refresh"
-              >
-                <RefreshCw className="w-4 h-4" />
-              </Button>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={() => setIsBackfillDialogOpen(true)}
+                  className="sm:hidden"
+                  aria-label="Generate comments"
+                  data-testid="button-generate-comments-mobile"
+                >
+                  <FileText className="w-4 h-4" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setIsBackfillDialogOpen(true)}
+                  className="hidden sm:flex"
+                  data-testid="button-generate-comments"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Generate Comments
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={() => refetch()}
+                  aria-label="Refresh report cards"
+                  data-testid="button-refresh"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Select value={selectedClass} onValueChange={setSelectedClass}>
@@ -1351,6 +1399,73 @@ export default function AdminResultPublishing() {
             >
               <XCircle className="w-4 h-4 mr-2" />
               Reject & Revert
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Backfill Comments Dialog */}
+      <Dialog open={isBackfillDialogOpen} onOpenChange={setIsBackfillDialogOpen}>
+        <DialogContent className="w-[95vw] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              Generate Default Comments
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              Automatically generate encouraging teacher and principal comments based on each student's academic performance.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="p-3 bg-muted rounded-md text-sm">
+              <p className="font-medium mb-2">This will generate comments for:</p>
+              <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                <li>{selectedClass === 'all' ? 'All classes' : `Class: ${classes.find((c: any) => c.id.toString() === selectedClass)?.name || selectedClass}`}</li>
+                <li>{selectedTerm === 'all' ? 'All terms' : `Term: ${terms.find((t: any) => t.id.toString() === selectedTerm)?.name || selectedTerm}`}</li>
+              </ul>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="overwrite-comments" 
+                checked={backfillOverwrite}
+                onCheckedChange={(checked) => setBackfillOverwrite(Boolean(checked))}
+                data-testid="checkbox-overwrite-comments"
+              />
+              <Label htmlFor="overwrite-comments" className="text-sm">
+                Overwrite existing comments (if any)
+              </Label>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsBackfillDialogOpen(false);
+                setBackfillOverwrite(false);
+              }}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => backfillCommentsMutation.mutate({
+                termId: selectedTerm !== 'all' ? parseInt(selectedTerm) : undefined,
+                classId: selectedClass !== 'all' ? parseInt(selectedClass) : undefined,
+                overwrite: backfillOverwrite
+              })}
+              disabled={backfillCommentsMutation.isPending}
+              className="w-full sm:w-auto"
+              data-testid="button-confirm-generate-comments"
+            >
+              {backfillCommentsMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <FileCheck className="w-4 h-4 mr-2" />
+              )}
+              Generate Comments
             </Button>
           </DialogFooter>
         </DialogContent>
