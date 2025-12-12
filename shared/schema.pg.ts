@@ -576,6 +576,21 @@ export const contactMessages = pgTable("contact_messages", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Report comment templates table - Admin-managed default comments by performance level
+export const reportCommentTemplates = pgTable("report_comment_templates", {
+  id: serial("id").primaryKey(),
+  role: varchar("role", { length: 20 }).notNull(), // 'teacher' or 'principal'
+  performanceLevel: varchar("performance_level", { length: 30 }).notNull(), // 'excellent', 'very_good', 'good', 'fair', 'needs_improvement'
+  minPercentage: integer("min_percentage").notNull(),
+  maxPercentage: integer("max_percentage").notNull(),
+  commentTemplate: text("comment_template").notNull(), // Use {lastName} as placeholder
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: varchar("created_by", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
+  updatedBy: varchar("updated_by", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Report cards table
 export const reportCards = pgTable("report_cards", {
   id: serial("id").primaryKey(),
@@ -1009,6 +1024,8 @@ export type HomePageContent = typeof homePageContent.$inferSelect;
 export type InsertHomePageContent = typeof homePageContent.$inferInsert;
 export type ContactMessage = typeof contactMessages.$inferSelect;
 export type InsertContactMessage = typeof contactMessages.$inferInsert;
+export type ReportCommentTemplate = typeof reportCommentTemplates.$inferSelect;
+export type InsertReportCommentTemplate = typeof reportCommentTemplates.$inferInsert;
 export type ReportCard = typeof reportCards.$inferSelect;
 export type InsertReportCard = typeof reportCards.$inferInsert;
 export type ReportCardItem = typeof reportCardItems.$inferSelect;

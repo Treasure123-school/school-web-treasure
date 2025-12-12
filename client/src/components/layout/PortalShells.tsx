@@ -56,6 +56,7 @@ const AssignSubjectTeachers = lazy(() => import('@/pages/portal/AssignSubjectTea
 const AdminResultPublishing = lazy(() => import('@/pages/portal/AdminResultPublishing'));
 const AdminRecoveryTools = lazy(() => import('@/pages/portal/AdminRecoveryTools'));
 const AdminProfile = lazy(() => import('@/pages/portal/AdminProfile'));
+const ReportCommentTemplates = lazy(() => import('@/pages/portal/ReportCommentTemplates'));
 
 const ParentDashboard = lazy(() => import('@/pages/portal/ParentDashboard'));
 const ParentReportCards = lazy(() => import('@/pages/portal/ParentReportCards'));
@@ -65,7 +66,8 @@ export function StudentPortalShell() {
   
   if (isLoading || !user) return <PortalLayoutSkeleton />;
   
-  const userName = `${user.firstName} ${user.lastName}`;
+  // Use lastName for display as per school convention
+  const userName = user.lastName;
   const userInitials = `${user.firstName[0]}${user.lastName[0]}`;
   
   return (
@@ -96,7 +98,8 @@ export function TeacherPortalShell() {
   
   if (isLoading || !user) return <PortalLayoutSkeleton />;
   
-  const userName = `${user.firstName} ${user.lastName}`;
+  // Use lastName for display as per school convention
+  const userName = user.lastName;
   const userInitials = `${user.firstName[0]}${user.lastName[0]}`;
   
   return (
@@ -128,7 +131,8 @@ export function AdminPortalShell() {
   
   if (isLoading || !user) return <PortalLayoutSkeleton />;
   
-  const userName = `${user.firstName} ${user.lastName}`;
+  // Use lastName for display as per school convention
+  const userName = user.lastName;
   const userInitials = `${user.firstName[0]}${user.lastName[0]}`;
   
   return (
@@ -169,6 +173,7 @@ export function AdminPortalShell() {
           <Route path="/portal/admin/academics/timetable" component={PortalComingSoon} />
           <Route path="/portal/admin/academics/curriculum" component={PortalComingSoon} />
           <Route path="/portal/admin/profile" component={AdminProfile} />
+          <Route path="/portal/admin/comment-templates" component={ReportCommentTemplates} />
           <Route path="/portal/admin/*" component={PortalComingSoon} />
         </Switch>
       </Suspense>
@@ -181,7 +186,8 @@ export function ParentPortalShell() {
   
   if (isLoading || !user) return <PortalLayoutSkeleton />;
   
-  const userName = `${user.firstName} ${user.lastName}`;
+  // Use lastName for display as per school convention
+  const userName = user.lastName;
   const userInitials = `${user.firstName[0]}${user.lastName[0]}`;
   
   return (

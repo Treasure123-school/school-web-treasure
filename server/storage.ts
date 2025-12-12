@@ -364,6 +364,14 @@ export interface IStorage {
   // Get report cards accessible by a specific teacher (only subjects where they created exams)
   getTeacherAccessibleReportCards(teacherId: string, termId?: number, classId?: number): Promise<any[]>;
 
+  // Report comment templates (admin-managed)
+  getReportCommentTemplates(role?: string): Promise<any[]>;
+  getReportCommentTemplate(id: number): Promise<any | undefined>;
+  createReportCommentTemplate(template: any): Promise<any>;
+  updateReportCommentTemplate(id: number, template: any): Promise<any | undefined>;
+  deleteReportCommentTemplate(id: number): Promise<boolean>;
+  getCommentTemplateByPerformance(role: string, percentage: number): Promise<any | undefined>;
+
   // Report finalization methods
   getExamResultById(id: number): Promise<ExamResult | undefined>;
   getFinalizedReportsByExams(examIds: number[], filters?: {
@@ -5015,6 +5023,93 @@ export class DatabaseStorage implements IStorage {
       return result[0];
     } catch (error) {
       console.error('Error updating report card remarks:', error);
+      return undefined;
+    }
+  }
+
+  // Report comment template methods
+  async getReportCommentTemplates(role?: string): Promise<any[]> {
+    try {
+      if (role) {
+        return await db.select()
+          .from(schema.reportCommentTemplates)
+          .where(eq(schema.reportCommentTemplates.role, role))
+          .orderBy(desc(schema.reportCommentTemplates.minPercentage));
+      }
+      return await db.select()
+        .from(schema.reportCommentTemplates)
+        .orderBy(schema.reportCommentTemplates.role, desc(schema.reportCommentTemplates.minPercentage));
+    } catch (error) {
+      console.error('Error getting report comment templates:', error);
+      return [];
+    }
+  }
+
+  async getReportCommentTemplate(id: number): Promise<any | undefined> {
+    try {
+      const result = await db.select()
+        .from(schema.reportCommentTemplates)
+        .where(eq(schema.reportCommentTemplates.id, id))
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error('Error getting report comment template:', error);
+      return undefined;
+    }
+  }
+
+  async createReportCommentTemplate(template: any): Promise<any> {
+    try {
+      const result = await db.insert(schema.reportCommentTemplates)
+        .values(template)
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error('Error creating report comment template:', error);
+      throw error;
+    }
+  }
+
+  async updateReportCommentTemplate(id: number, template: any): Promise<any | undefined> {
+    try {
+      const result = await db.update(schema.reportCommentTemplates)
+        .set({ ...template, updatedAt: new Date() })
+        .where(eq(schema.reportCommentTemplates.id, id))
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error('Error updating report comment template:', error);
+      return undefined;
+    }
+  }
+
+  async deleteReportCommentTemplate(id: number): Promise<boolean> {
+    try {
+      await db.delete(schema.reportCommentTemplates)
+        .where(eq(schema.reportCommentTemplates.id, id));
+      return true;
+    } catch (error) {
+      console.error('Error deleting report comment template:', error);
+      return false;
+    }
+  }
+
+  async getCommentTemplateByPerformance(role: string, percentage: number): Promise<any | undefined> {
+    try {
+      const result = await db.select()
+        .from(schema.reportCommentTemplates)
+        .where(
+          and(
+            eq(schema.reportCommentTemplates.role, role),
+            eq(schema.reportCommentTemplates.isActive, true),
+            lte(schema.reportCommentTemplates.minPercentage, percentage),
+            gte(schema.reportCommentTemplates.maxPercentage, percentage)
+          )
+        )
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error('Error getting comment template by performance:', error);
       return undefined;
     }
   }

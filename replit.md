@@ -25,6 +25,13 @@ The backend is an Express.js application built with Node.js and TypeScript, leve
   - Class Teacher's Comment: Only the assigned class teacher (or admins) can edit
   - Principal's Comment: Only admins can edit
   - Auto-generated encouraging comments based on student performance (Excellent/Very Good/Good/Fair/Needs Improvement)
+  - Comments use lastName instead of firstName as per school convention
+- **Admin Comment Template Management**: 
+  - Admin-only page at `/portal/admin/comment-templates` for managing default comment templates
+  - Separate templates for teacher and principal comments
+  - Templates organized by performance level (Excellent, Very Good, Good, Fair, Needs Improvement) with percentage ranges
+  - Uses `{lastName}` placeholder for dynamic student name insertion
+  - Active/inactive status toggle for templates
 - **Signature Management**: 
   - Admin (Principal) profile includes digital signature setup for report card signing
   - Teacher profiles include digital signature setup for class teacher signing

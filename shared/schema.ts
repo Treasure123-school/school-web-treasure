@@ -580,6 +580,21 @@ export const contactMessages = sqliteTable("contact_messages", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
+// Report comment templates table - Admin-managed default comments by performance level
+export const reportCommentTemplates = sqliteTable("report_comment_templates", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  role: text("role").notNull(), // 'teacher' or 'principal'
+  performanceLevel: text("performance_level").notNull(), // 'excellent', 'very_good', 'good', 'fair', 'needs_improvement'
+  minPercentage: integer("min_percentage").notNull(),
+  maxPercentage: integer("max_percentage").notNull(),
+  commentTemplate: text("comment_template").notNull(), // Use {lastName} as placeholder
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  createdBy: text("created_by").references(() => users.id, { onDelete: 'set null' }),
+  updatedBy: text("updated_by").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+});
+
 // Report cards table
 export const reportCards = sqliteTable("report_cards", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -1024,6 +1039,7 @@ export const insertGalleryCategorySchema = createInsertSchema(galleryCategories)
 export const insertGallerySchema = createInsertSchema(gallery).omit({ id: true, createdAt: true });
 export const insertHomePageContentSchema = createInsertSchema(homePageContent).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertContactMessageSchema = createInsertSchema(contactMessages).omit({ id: true, createdAt: true });
+export const insertReportCommentTemplateSchema = createInsertSchema(reportCommentTemplates).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertReportCardSchema = createInsertSchema(reportCards).omit({ id: true, createdAt: true });
 export const insertReportCardItemSchema = createInsertSchema(reportCardItems).omit({ id: true, createdAt: true });
 export const insertStudyResourceSchema = createInsertSchema(studyResources).omit({ id: true, createdAt: true, downloads: true });
@@ -1232,6 +1248,7 @@ export type GalleryCategory = typeof galleryCategories.$inferSelect;
 export type Gallery = typeof gallery.$inferSelect;
 export type HomePageContent = typeof homePageContent.$inferSelect;
 export type ContactMessage = typeof contactMessages.$inferSelect;
+export type ReportCommentTemplate = typeof reportCommentTemplates.$inferSelect;
 export type ReportCard = typeof reportCards.$inferSelect;
 export type ReportCardItem = typeof reportCardItems.$inferSelect;
 export type StudyResource = typeof studyResources.$inferSelect;
@@ -1288,6 +1305,7 @@ export type InsertGalleryCategory = z.infer<typeof insertGalleryCategorySchema>;
 export type InsertGallery = z.infer<typeof insertGallerySchema>;
 export type InsertHomePageContent = z.infer<typeof insertHomePageContentSchema>;
 export type InsertContactMessage = z.infer<typeof insertContactMessageSchema>;
+export type InsertReportCommentTemplate = z.infer<typeof insertReportCommentTemplateSchema>;
 export type InsertReportCard = z.infer<typeof insertReportCardSchema>;
 export type InsertReportCardItem = z.infer<typeof insertReportCardItemSchema>;
 export type InsertStudyResource = z.infer<typeof insertStudyResourceSchema>;

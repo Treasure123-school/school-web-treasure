@@ -974,89 +974,95 @@ async function createGradingTasksForSession(sessionId: number, examId: number, s
 }
 
 // Generate encouraging teacher comments based on performance level
+// Uses lastName as per school convention
 function generateTeacherComment(studentName: string, percentage: number): string {
-  const firstName = studentName.split(' ')[0];
+  // Extract lastName - assuming "FirstName LastName" format, get the last part
+  const nameParts = studentName.trim().split(' ');
+  const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : nameParts[0];
   
   if (percentage >= 70) {
     // Excellent (A grade)
     const comments = [
-      `${firstName} has shown exceptional academic performance this term. Keep up the excellent work!`,
-      `Outstanding achievement this term! ${firstName} demonstrates strong understanding and dedication to learning.`,
-      `${firstName} has maintained an excellent standard throughout this term. A truly commendable performance.`,
+      `${lastName} has shown exceptional academic performance this term. Keep up the excellent work!`,
+      `Outstanding achievement this term! ${lastName} demonstrates strong understanding and dedication to learning.`,
+      `${lastName} has maintained an excellent standard throughout this term. A truly commendable performance.`,
     ];
     return comments[Math.floor(Math.random() * comments.length)];
   } else if (percentage >= 60) {
     // Very Good (B grade)
     const comments = [
-      `${firstName} has performed very well this term. With a little more effort, excellence is within reach.`,
-      `A very good performance from ${firstName}. Continue with the same dedication and aim higher.`,
-      `${firstName} shows great potential and has done very well this term. Keep striving for the best.`,
+      `${lastName} has performed very well this term. With a little more effort, excellence is within reach.`,
+      `A very good performance from ${lastName}. Continue with the same dedication and aim higher.`,
+      `${lastName} shows great potential and has done very well this term. Keep striving for the best.`,
     ];
     return comments[Math.floor(Math.random() * comments.length)];
   } else if (percentage >= 50) {
     // Good (C grade)
     const comments = [
-      `${firstName} has shown good effort this term. There is room for improvement with more focus and hard work.`,
-      `A satisfactory performance from ${firstName}. With extra effort, better results are achievable.`,
-      `${firstName} is capable of more. Encourage consistent study habits for improved performance next term.`,
+      `${lastName} has shown good effort this term. There is room for improvement with more focus and hard work.`,
+      `A satisfactory performance from ${lastName}. With extra effort, better results are achievable.`,
+      `${lastName} is capable of more. Encourage consistent study habits for improved performance next term.`,
     ];
     return comments[Math.floor(Math.random() * comments.length)];
   } else if (percentage >= 40) {
     // Fair (D grade)
     const comments = [
-      `${firstName} needs to put in more effort. With additional support and dedication, improvement is possible.`,
-      `${firstName} should focus more on studies. Regular revision and asking questions will help improve performance.`,
-      `${firstName} has the potential to do better. Extra tutoring and more practice are recommended.`,
+      `${lastName} needs to put in more effort. With additional support and dedication, improvement is possible.`,
+      `${lastName} should focus more on studies. Regular revision and asking questions will help improve performance.`,
+      `${lastName} has the potential to do better. Extra tutoring and more practice are recommended.`,
     ];
     return comments[Math.floor(Math.random() * comments.length)];
   } else {
     // Needs Improvement (F grade)
     const comments = [
-      `${firstName} needs significant improvement. Extra classes and consistent practice are strongly recommended.`,
-      `${firstName} should seek additional help and focus on building strong foundations in all subjects.`,
-      `${firstName} requires intensive support. Regular study sessions and parent involvement will be beneficial.`,
+      `${lastName} needs significant improvement. Extra classes and consistent practice are strongly recommended.`,
+      `${lastName} should seek additional help and focus on building strong foundations in all subjects.`,
+      `${lastName} requires intensive support. Regular study sessions and parent involvement will be beneficial.`,
     ];
     return comments[Math.floor(Math.random() * comments.length)];
   }
 }
 
 // Generate encouraging principal comments based on performance level
+// Uses lastName as per school convention
 function generatePrincipalComment(studentName: string, percentage: number): string {
-  const firstName = studentName.split(' ')[0];
+  // Extract lastName - assuming "FirstName LastName" format, get the last part
+  const nameParts = studentName.trim().split(' ');
+  const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : nameParts[0];
   
   if (percentage >= 70) {
     const comments = [
-      `${firstName} is a model student who consistently demonstrates excellence. The school is proud of this achievement.`,
-      `Congratulations to ${firstName} on an outstanding performance. Continue to be an inspiration to others.`,
-      `${firstName} has achieved excellent results. We look forward to continued success in future terms.`,
+      `${lastName} is a model student who consistently demonstrates excellence. The school is proud of this achievement.`,
+      `Congratulations to ${lastName} on an outstanding performance. Continue to be an inspiration to others.`,
+      `${lastName} has achieved excellent results. We look forward to continued success in future terms.`,
     ];
     return comments[Math.floor(Math.random() * comments.length)];
   } else if (percentage >= 60) {
     const comments = [
-      `${firstName} has shown commendable effort and achieved very good results. Keep up the good work.`,
-      `Well done to ${firstName} on a very good performance. The potential for excellence is evident.`,
-      `${firstName} is on the right track. Continue working hard and aim for even greater heights.`,
+      `${lastName} has shown commendable effort and achieved very good results. Keep up the good work.`,
+      `Well done to ${lastName} on a very good performance. The potential for excellence is evident.`,
+      `${lastName} is on the right track. Continue working hard and aim for even greater heights.`,
     ];
     return comments[Math.floor(Math.random() * comments.length)];
   } else if (percentage >= 50) {
     const comments = [
-      `${firstName} has shown satisfactory progress. With increased focus, even better results are attainable.`,
-      `We encourage ${firstName} to continue making efforts. The school supports all students on their learning journey.`,
-      `${firstName} has the ability to excel. We encourage more dedication to studies next term.`,
+      `${lastName} has shown satisfactory progress. With increased focus, even better results are attainable.`,
+      `We encourage ${lastName} to continue making efforts. The school supports all students on their learning journey.`,
+      `${lastName} has the ability to excel. We encourage more dedication to studies next term.`,
     ];
     return comments[Math.floor(Math.random() * comments.length)];
   } else if (percentage >= 40) {
     const comments = [
-      `${firstName} should dedicate more time to academic work. The school will provide necessary support for improvement.`,
-      `We urge ${firstName} to take studies more seriously. With proper guidance and effort, improvement is possible.`,
-      `${firstName} needs to focus more on academics. We recommend parent-teacher collaboration for support.`,
+      `${lastName} should dedicate more time to academic work. The school will provide necessary support for improvement.`,
+      `We urge ${lastName} to take studies more seriously. With proper guidance and effort, improvement is possible.`,
+      `${lastName} needs to focus more on academics. We recommend parent-teacher collaboration for support.`,
     ];
     return comments[Math.floor(Math.random() * comments.length)];
   } else {
     const comments = [
-      `${firstName} requires immediate academic intervention. We recommend scheduling a meeting to discuss a support plan.`,
-      `The school is concerned about ${firstName}'s performance. A structured study plan and monitoring are recommended.`,
-      `${firstName} needs intensive academic support. We encourage parents to work closely with teachers for improvement.`,
+      `${lastName} requires immediate academic intervention. We recommend scheduling a meeting to discuss a support plan.`,
+      `The school is concerned about ${lastName}'s performance. A structured study plan and monitoring are recommended.`,
+      `${lastName} needs intensive academic support. We encourage parents to work closely with teachers for improvement.`,
     ];
     return comments[Math.floor(Math.random() * comments.length)];
   }
@@ -12198,6 +12204,103 @@ Treasure-Home School Administration
       } catch (error: any) {
         console.error('[ADMIN-REPAIR] Error:', error);
         res.status(500).json({ message: error.message || 'Failed to repair report cards' });
+      }
+    });
+
+    // ==================== REPORT COMMENT TEMPLATES (Admin-managed) ====================
+    
+    // ADMIN: Get all comment templates
+    app.get('/api/admin/report-comment-templates', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { role } = req.query;
+        const templates = await storage.getReportCommentTemplates(role as string | undefined);
+        res.json(templates);
+      } catch (error: any) {
+        console.error('[COMMENT-TEMPLATES] Error fetching templates:', error);
+        res.status(500).json({ message: error.message || 'Failed to fetch comment templates' });
+      }
+    });
+
+    // ADMIN: Get single comment template
+    app.get('/api/admin/report-comment-templates/:id', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const template = await storage.getReportCommentTemplate(parseInt(req.params.id));
+        if (!template) {
+          return res.status(404).json({ message: 'Comment template not found' });
+        }
+        res.json(template);
+      } catch (error: any) {
+        console.error('[COMMENT-TEMPLATES] Error fetching template:', error);
+        res.status(500).json({ message: error.message || 'Failed to fetch comment template' });
+      }
+    });
+
+    // ADMIN: Create comment template
+    app.post('/api/admin/report-comment-templates', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { role, performanceLevel, minPercentage, maxPercentage, commentTemplate, isActive } = req.body;
+        
+        if (!role || !performanceLevel || minPercentage === undefined || maxPercentage === undefined || !commentTemplate) {
+          return res.status(400).json({ message: 'All fields are required' });
+        }
+        
+        if (!['teacher', 'principal'].includes(role)) {
+          return res.status(400).json({ message: 'Role must be either teacher or principal' });
+        }
+        
+        const template = await storage.createReportCommentTemplate({
+          role,
+          performanceLevel,
+          minPercentage,
+          maxPercentage,
+          commentTemplate,
+          isActive: isActive !== false,
+          createdBy: req.user!.id
+        });
+        
+        res.status(201).json(template);
+      } catch (error: any) {
+        console.error('[COMMENT-TEMPLATES] Error creating template:', error);
+        res.status(500).json({ message: error.message || 'Failed to create comment template' });
+      }
+    });
+
+    // ADMIN: Update comment template
+    app.patch('/api/admin/report-comment-templates/:id', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { role, performanceLevel, minPercentage, maxPercentage, commentTemplate, isActive } = req.body;
+        
+        const updateData: any = { updatedBy: req.user!.id };
+        if (role !== undefined) updateData.role = role;
+        if (performanceLevel !== undefined) updateData.performanceLevel = performanceLevel;
+        if (minPercentage !== undefined) updateData.minPercentage = minPercentage;
+        if (maxPercentage !== undefined) updateData.maxPercentage = maxPercentage;
+        if (commentTemplate !== undefined) updateData.commentTemplate = commentTemplate;
+        if (isActive !== undefined) updateData.isActive = isActive;
+        
+        const template = await storage.updateReportCommentTemplate(parseInt(req.params.id), updateData);
+        if (!template) {
+          return res.status(404).json({ message: 'Comment template not found' });
+        }
+        
+        res.json(template);
+      } catch (error: any) {
+        console.error('[COMMENT-TEMPLATES] Error updating template:', error);
+        res.status(500).json({ message: error.message || 'Failed to update comment template' });
+      }
+    });
+
+    // ADMIN: Delete comment template
+    app.delete('/api/admin/report-comment-templates/:id', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const success = await storage.deleteReportCommentTemplate(parseInt(req.params.id));
+        if (!success) {
+          return res.status(404).json({ message: 'Comment template not found' });
+        }
+        res.json({ message: 'Comment template deleted successfully' });
+      } catch (error: any) {
+        console.error('[COMMENT-TEMPLATES] Error deleting template:', error);
+        res.status(500).json({ message: error.message || 'Failed to delete comment template' });
       }
     });
 

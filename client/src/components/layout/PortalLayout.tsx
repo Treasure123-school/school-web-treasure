@@ -238,6 +238,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
             items: [
               { href: `/portal/${userRole}/reports`, icon: BarChart3, label: 'Academic Reports' },
               { href: `/portal/${userRole}/performance`, icon: Activity, label: 'Performance Analytics' },
+              { href: `/portal/${userRole}/comment-templates`, icon: MessageSquare, label: 'Comment Templates' },
             ]
           },
           { name: 'Settings', href: `/portal/${userRole}/settings`, icon: Settings },
