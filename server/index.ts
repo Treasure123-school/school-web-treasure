@@ -358,9 +358,23 @@ function sanitizeLogData(data: any): any {
     });
     
     console.log('✅ Scheduled cleanup job initialized (runs daily at 2:00 AM)');
+    
+    // Run every 5 minutes - retry failed exam-to-report-card syncs
+    const { reliableSyncService } = await import('./services/reliable-sync-service');
+    cron.default.schedule('*/5 * * * *', async () => {
+      try {
+        const result = await reliableSyncService.retryFailedSyncs();
+        if (result.processed > 0) {
+          console.log(`🔄 Sync retry: ${result.succeeded} succeeded, ${result.failed} failed out of ${result.processed} processed`);
+        }
+      } catch (error: any) {
+        console.error('❌ Sync retry job error:', error.message);
+      }
+    });
+    console.log('✅ Sync retry job initialized (runs every 5 minutes)');
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.log(`⚠️ Scheduled cleanup initialization warning: ${errorMessage}`);
+    console.log(`⚠️ Scheduled jobs initialization warning: ${errorMessage}`);
   }
 
   // Multer error handling middleware - must come before general error handler

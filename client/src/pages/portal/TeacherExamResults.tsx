@@ -50,6 +50,11 @@ interface EnrichedExamResult extends ExamResult {
   testScore?: number | null;
 }
 
+interface SyncStatusData {
+  byStudent: Record<string, { status: string; syncedAt: string | null; errorMessage: string | null; retryCount: number }>;
+  summary: { synced: number; pending: number; failed: number; retrying: number; total: number };
+}
+
 interface EditableScore {
   resultId: number;
   testScore: number | null;
@@ -102,6 +107,17 @@ export default function TeacherExamResults() {
   const { data: classes = [] } = useQuery<Class[]>({
     queryKey: ['/api/classes'],
   });
+
+  // Fetch sync status for this exam's results
+  const { data: syncStatusData, refetch: refetchSyncStatus } = useQuery<SyncStatusData>({
+    queryKey: ['/api/teacher/exams', examId, 'sync-status'],
+    enabled: !!examId,
+  });
+
+  // Helper to get sync status for a student
+  const getSyncStatus = (studentId: string): { status: string; syncedAt: string | null; errorMessage: string | null } | null => {
+    return syncStatusData?.byStudent?.[studentId] ?? null;
+  };
 
   useSocketIORealtime({
     table: 'exam_results',
@@ -167,6 +183,7 @@ export default function TeacherExamResults() {
         return next;
       });
       queryClient.invalidateQueries({ queryKey: ['/api/exam-results/exam', examId] });
+      refetchSyncStatus();
     },
     onError: (error: Error, variables) => {
       toast({
@@ -179,6 +196,7 @@ export default function TeacherExamResults() {
         next.delete(variables.resultId);
         return next;
       });
+      refetchSyncStatus();
     },
   });
 
@@ -201,6 +219,7 @@ export default function TeacherExamResults() {
       });
       setIsSyncingAll(false);
       queryClient.invalidateQueries({ queryKey: ['/api/exam-results/exam', examId] });
+      refetchSyncStatus();
     },
     onError: (error: Error) => {
       toast({
@@ -209,6 +228,7 @@ export default function TeacherExamResults() {
         variant: "destructive",
       });
       setIsSyncingAll(false);
+      refetchSyncStatus();
     },
   });
 
@@ -636,6 +656,7 @@ export default function TeacherExamResults() {
                         <TableHead className="text-xs">Grade</TableHead>
                         <TableHead className="text-xs hidden xl:table-cell">Submitted At</TableHead>
                         <TableHead className="text-xs hidden xl:table-cell">Remarks</TableHead>
+                        <TableHead className="text-xs">Sync Status</TableHead>
                         <TableHead className="text-xs">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -681,6 +702,43 @@ export default function TeacherExamResults() {
                             </TableCell>
                             <TableCell className="text-xs hidden xl:table-cell py-2 max-w-[150px] truncate" data-testid={`text-remarks-${index}`} title={result.remarks || '-'}>
                               {result.remarks || '-'}
+                            </TableCell>
+                            <TableCell className="py-2">
+                              {(() => {
+                                const syncStatus = getSyncStatus(result.studentId);
+                                if (!syncStatus) {
+                                  return (
+                                    <Badge variant="outline" className="text-xs" data-testid={`badge-sync-${index}`}>
+                                      Not Synced
+                                    </Badge>
+                                  );
+                                }
+                                if (syncStatus.status === 'success') {
+                                  return (
+                                    <Badge variant="default" className="text-xs bg-green-600" data-testid={`badge-sync-${index}`}>
+                                      <CheckCircle className="h-3 w-3 mr-1" />
+                                      Synced
+                                    </Badge>
+                                  );
+                                }
+                                if (syncStatus.status === 'pending' || syncStatus.status === 'retrying') {
+                                  return (
+                                    <Badge variant="secondary" className="text-xs" data-testid={`badge-sync-${index}`}>
+                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                      {syncStatus.status === 'retrying' ? 'Retrying' : 'Pending'}
+                                    </Badge>
+                                  );
+                                }
+                                if (syncStatus.status === 'failed') {
+                                  return (
+                                    <Badge variant="destructive" className="text-xs" data-testid={`badge-sync-${index}`} title={syncStatus.errorMessage || 'Sync failed'}>
+                                      <XCircle className="h-3 w-3 mr-1" />
+                                      Failed
+                                    </Badge>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </TableCell>
                             <TableCell className="py-2">
                               <div className="flex items-center gap-1">

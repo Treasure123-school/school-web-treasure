@@ -12724,6 +12724,59 @@ Treasure-Home School Administration
       }
     });
 
+    // TEACHER: Get sync status for exam results (shows which results are synced/pending/failed)
+    app.get('/api/teacher/exams/:examId/sync-status', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const examId = parseInt(req.params.examId);
+        
+        if (isNaN(examId) || examId <= 0) {
+          return res.status(400).json({ message: 'Invalid exam ID' });
+        }
+        
+        // Get latest sync status for each student for this exam
+        const syncStatuses = await db.select({
+          studentId: schema.syncAuditLogs.studentId,
+          status: schema.syncAuditLogs.status,
+          syncedAt: schema.syncAuditLogs.syncedAt,
+          errorMessage: schema.syncAuditLogs.errorMessage,
+          retryCount: schema.syncAuditLogs.retryCount
+        })
+          .from(schema.syncAuditLogs)
+          .where(eq(schema.syncAuditLogs.examId, examId))
+          .orderBy(desc(schema.syncAuditLogs.createdAt));
+        
+        // Get unique latest status per student
+        const statusByStudent = new Map<string, { status: string; syncedAt: Date | null; errorMessage: string | null; retryCount: number }>();
+        for (const s of syncStatuses) {
+          if (!statusByStudent.has(s.studentId)) {
+            statusByStudent.set(s.studentId, {
+              status: s.status,
+              syncedAt: s.syncedAt,
+              errorMessage: s.errorMessage,
+              retryCount: s.retryCount
+            });
+          }
+        }
+        
+        // Count stats
+        let synced = 0, pending = 0, failed = 0, retrying = 0;
+        statusByStudent.forEach(v => {
+          if (v.status === 'success') synced++;
+          else if (v.status === 'pending') pending++;
+          else if (v.status === 'failed') failed++;
+          else if (v.status === 'retrying') retrying++;
+        });
+        
+        res.json({
+          byStudent: Object.fromEntries(statusByStudent),
+          summary: { synced, pending, failed, retrying, total: statusByStudent.size }
+        });
+      } catch (error: any) {
+        console.error('[TEACHER-SYNC-STATUS] Error:', error);
+        res.status(500).json({ message: error.message || 'Failed to get sync status' });
+      }
+    });
+
     // ==================== SYNC AUDIT LOG ENDPOINTS ====================
 
     // ADMIN: Get sync audit logs with filters
