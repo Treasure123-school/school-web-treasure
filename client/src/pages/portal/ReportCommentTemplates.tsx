@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Edit, Trash2, MessageSquare, User, Award, AlertCircle, Info, Filter } from 'lucide-react';
+import { Plus, Edit, Trash2, MessageSquare, User, Award, AlertCircle, Info, Filter, RefreshCw, CheckCircle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -129,6 +129,35 @@ export default function ReportCommentTemplates() {
       toast({ title: "Error", description: error.message || "Failed to delete template", variant: "destructive" });
     },
   });
+
+  const [isBackfilling, setIsBackfilling] = useState(false);
+  const [backfillResult, setBackfillResult] = useState<{ updated: number; skipped: number; total: number } | null>(null);
+
+  const handleBackfillComments = async (overwrite: boolean = false) => {
+    setIsBackfilling(true);
+    setBackfillResult(null);
+    try {
+      const response = await apiRequest('POST', '/api/reports/backfill-comments', { overwrite });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to backfill comments');
+      }
+      const result = await response.json();
+      setBackfillResult({ updated: result.updated, skipped: result.skipped, total: result.total });
+      toast({ 
+        title: "Comments Applied", 
+        description: `Updated ${result.updated} report cards. Skipped ${result.skipped} (already had comments).` 
+      });
+    } catch (error: any) {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to apply default comments", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsBackfilling(false);
+    }
+  };
 
   const onSubmit = (data: TemplateForm) => {
     if (editingTemplate) {
@@ -253,6 +282,70 @@ export default function ReportCommentTemplates() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Card className="border-dashed">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <RefreshCw className="w-5 h-5" />
+            Apply Comments to Existing Reports
+          </CardTitle>
+          <CardDescription>
+            Use this to automatically populate teacher and principal comments on existing report cards 
+            based on student performance averages and your configured templates above.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              Comments will be generated using the student's last name and their overall performance level.
+              This follows school convention by using <strong>lastName</strong> (not first name) in all comments.
+            </AlertDescription>
+          </Alert>
+          
+          {backfillResult && (
+            <Alert className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
+              <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <AlertDescription className="text-green-800 dark:text-green-200">
+                Successfully processed {backfillResult.total} report cards. 
+                Updated: {backfillResult.updated}, Skipped: {backfillResult.skipped}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="flex flex-wrap gap-3">
+            <Button 
+              onClick={() => handleBackfillComments(false)} 
+              disabled={isBackfilling}
+              variant="outline"
+              data-testid="button-backfill-empty"
+            >
+              {isBackfilling ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-2" />
+              )}
+              Apply to Empty Comments Only
+            </Button>
+            <Button 
+              onClick={() => handleBackfillComments(true)} 
+              disabled={isBackfilling}
+              variant="secondary"
+              data-testid="button-backfill-all"
+            >
+              {isBackfilling ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-2" />
+              )}
+              Regenerate All Comments
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            "Empty Comments Only" will preserve existing comments. "Regenerate All" will overwrite all comments.
+          </p>
+        </CardContent>
+      </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={(open) => {
         setIsDialogOpen(open);

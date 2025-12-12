@@ -243,7 +243,7 @@ export default function StudentDashboard() {
             </div>
             <div>
               <h1 className="text-2xl md:text-3xl font-bold mb-1">
-                Welcome back, {user.firstName}!
+                Welcome back, {user.lastName}!
               </h1>
               <p className="text-blue-100 text-sm">
                 Here's what's happening with your academics today

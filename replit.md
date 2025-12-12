@@ -32,6 +32,7 @@ The backend is an Express.js application built with Node.js and TypeScript, leve
   - Templates organized by performance level (Excellent, Very Good, Good, Fair, Needs Improvement) with percentage ranges
   - Uses `{lastName}` placeholder for dynamic student name insertion
   - Active/inactive status toggle for templates
+  - **Backfill Comments Feature**: Admin UI to apply default comments to existing report cards based on student performance, with options to preserve or overwrite existing comments
 - **Signature Management**: 
   - Admin (Principal) profile includes digital signature setup for report card signing
   - Teacher profiles include digital signature setup for class teacher signing

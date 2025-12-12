@@ -292,7 +292,7 @@ export default function TeacherDashboard() {
             </div>
             <div className="flex-1">
               <h2 className="text-2xl font-bold tracking-tight" data-testid="text-personalized-greeting">
-                Welcome back, {user.firstName}!
+                Welcome back, {user.lastName}!
               </h2>
               <p className="text-emerald-100 text-sm mt-1" data-testid="text-teacher-assignment">
                 Ready to inspire minds today?

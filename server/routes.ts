@@ -11069,12 +11069,12 @@ Treasure-Home School Administration
               continue;
             }
             
-            // Get student name for personalized comments
+            // Get student last name for personalized comments (school convention uses lastName)
             // getStudent returns user fields merged with student data (firstName, lastName, etc.)
             const student = await storage.getStudent(rc.studentId);
             let studentName = 'Student';
             if (student) {
-              studentName = (student as any).firstName || 'Student';
+              studentName = (student as any).lastName || 'Student';
             }
             
             const percentage = rc.averagePercentage || 0;
@@ -11290,26 +11290,61 @@ Treasure-Home School Administration
 
         // Store signature based on user role
         if (userRoleId === ROLES.TEACHER) {
-          await db.update(schema.teacherProfiles)
-            .set({ 
+          // Check if profile exists first
+          const existingProfile = await storage.getTeacherProfile(userId);
+          if (!existingProfile) {
+            // Create a minimal profile with just the signature
+            await db.insert(schema.teacherProfiles).values({
+              userId,
               signatureUrl: signatureDataUrl,
+              firstLogin: true,
+              createdAt: new Date(),
               updatedAt: new Date()
-            })
-            .where(eq(schema.teacherProfiles.userId, userId));
+            });
+          } else {
+            await db.update(schema.teacherProfiles)
+              .set({ 
+                signatureUrl: signatureDataUrl,
+                updatedAt: new Date()
+              })
+              .where(eq(schema.teacherProfiles.userId, userId));
+          }
         } else if (userRoleId === ROLES.ADMIN) {
-          await db.update(schema.adminProfiles)
-            .set({ 
+          // Check if profile exists first
+          const existingProfile = await storage.getAdminProfile(userId);
+          if (!existingProfile) {
+            await db.insert(schema.adminProfiles).values({
+              userId,
               signatureUrl: signatureDataUrl,
+              createdAt: new Date(),
               updatedAt: new Date()
-            })
-            .where(eq(schema.adminProfiles.userId, userId));
+            });
+          } else {
+            await db.update(schema.adminProfiles)
+              .set({ 
+                signatureUrl: signatureDataUrl,
+                updatedAt: new Date()
+              })
+              .where(eq(schema.adminProfiles.userId, userId));
+          }
         } else if (userRoleId === ROLES.SUPER_ADMIN) {
-          await db.update(schema.superAdminProfiles)
-            .set({ 
+          // Check if profile exists first
+          const existingProfile = await storage.getSuperAdminProfile(userId);
+          if (!existingProfile) {
+            await db.insert(schema.superAdminProfiles).values({
+              userId,
               signatureUrl: signatureDataUrl,
+              createdAt: new Date(),
               updatedAt: new Date()
-            })
-            .where(eq(schema.superAdminProfiles.userId, userId));
+            });
+          } else {
+            await db.update(schema.superAdminProfiles)
+              .set({ 
+                signatureUrl: signatureDataUrl,
+                updatedAt: new Date()
+              })
+              .where(eq(schema.superAdminProfiles.userId, userId));
+          }
         } else {
           return res.status(403).json({ message: 'Signature not applicable for your role' });
         }

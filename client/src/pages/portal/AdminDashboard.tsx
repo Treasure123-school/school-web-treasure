@@ -640,7 +640,7 @@ export default function AdminDashboard() {
             <Shield className="h-10 w-10 text-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">Welcome back, {user.firstName}!</h2>
+            <h2 className="text-2xl font-bold tracking-tight">Welcome back, {user.lastName}!</h2>
             <p className="text-red-100 text-sm">Manage all aspects of Treasure-Home School</p>
           </div>
         </div>
