@@ -138,6 +138,9 @@ interface ProfessionalReportCardProps {
   onEditSubject?: (item: SubjectScore) => void;
   onSaveRemarks?: (teacherRemarks: string, principalRemarks: string) => void;
   canEditRemarks?: boolean;
+  canEditTeacherRemarks?: boolean;
+  canEditPrincipalRemarks?: boolean;
+  onGenerateDefaultComments?: () => Promise<{ teacherComment: string; principalComment: string }>;
   isLoading?: boolean;
   hideActionButtons?: boolean;
 }
@@ -218,6 +221,9 @@ export function ProfessionalReportCard({
   onEditSubject,
   onSaveRemarks,
   canEditRemarks = false,
+  canEditTeacherRemarks,
+  canEditPrincipalRemarks,
+  onGenerateDefaultComments,
   isLoading = false,
   hideActionButtons = false
 }: ProfessionalReportCardProps) {
@@ -225,10 +231,33 @@ export function ProfessionalReportCard({
   const [isAffectiveOpen, setIsAffectiveOpen] = useState(true);
   const [isPsychomotorOpen, setIsPsychomotorOpen] = useState(true);
   const [isAttendanceOpen, setIsAttendanceOpen] = useState(true);
+  const [isGeneratingComments, setIsGeneratingComments] = useState(false);
   const [localRemarks, setLocalRemarks] = useState({
     teacher: reportCard.teacherRemarks || '',
     principal: reportCard.principalRemarks || ''
   });
+  
+  // Use explicit permissions if provided, otherwise fall back to canEditRemarks
+  const canEditTeacher = canEditTeacherRemarks !== undefined ? canEditTeacherRemarks : canEditRemarks;
+  const canEditPrincipal = canEditPrincipalRemarks !== undefined ? canEditPrincipalRemarks : canEditRemarks;
+
+  const handleGenerateComments = async () => {
+    if (!onGenerateDefaultComments) return;
+    setIsGeneratingComments(true);
+    try {
+      const comments = await onGenerateDefaultComments();
+      if (comments.teacherComment && canEditTeacher) {
+        setLocalRemarks(prev => ({ ...prev, teacher: comments.teacherComment }));
+      }
+      if (comments.principalComment && canEditPrincipal) {
+        setLocalRemarks(prev => ({ ...prev, principal: comments.principalComment }));
+      }
+    } catch (error) {
+      console.error('Failed to generate comments:', error);
+    } finally {
+      setIsGeneratingComments(false);
+    }
+  };
   
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -717,16 +746,42 @@ export function ProfessionalReportCard({
           </CardTitle>
         </CardHeader>
         <CardContent className="p-3 sm:p-4 pt-0 space-y-4">
+          {/* Generate Default Comments Button */}
+          {(canEditTeacher || canEditPrincipal) && onGenerateDefaultComments && (
+            <div className="flex justify-end print:hidden">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGenerateComments}
+                disabled={isGeneratingComments}
+                data-testid="button-generate-comments"
+              >
+                {isGeneratingComments ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Star className="w-4 h-4 mr-2" />
+                )}
+                Generate Default Comments
+              </Button>
+            </div>
+          )}
+          
           {/* Teacher's Comment */}
           <div>
-            <Label className="text-sm font-medium text-muted-foreground mb-2 block">
-              Teacher's Comment
+            <Label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
+              Class Teacher's Comment
+              {!canEditTeacher && canEditPrincipal && (
+                <Badge variant="secondary" className="text-xs font-normal">
+                  <Lock className="w-3 h-3 mr-1" />
+                  View Only
+                </Badge>
+              )}
             </Label>
-            {canEditRemarks ? (
+            {canEditTeacher ? (
               <Textarea
                 value={localRemarks.teacher}
                 onChange={(e) => setLocalRemarks(prev => ({ ...prev, teacher: e.target.value }))}
-                placeholder="Enter teacher's comment..."
+                placeholder="Enter class teacher's comment..."
                 className="min-h-[80px]"
                 data-testid="textarea-teacher-remarks"
               />
@@ -741,10 +796,16 @@ export function ProfessionalReportCard({
 
           {/* Principal's Comment */}
           <div>
-            <Label className="text-sm font-medium text-muted-foreground mb-2 block">
+            <Label className="text-sm font-medium text-muted-foreground mb-2 block flex items-center gap-2">
               Principal's Comment
+              {canEditTeacher && !canEditPrincipal && (
+                <Badge variant="secondary" className="text-xs font-normal">
+                  <Lock className="w-3 h-3 mr-1" />
+                  Admin Only
+                </Badge>
+              )}
             </Label>
-            {canEditRemarks ? (
+            {canEditPrincipal ? (
               <Textarea
                 value={localRemarks.principal}
                 onChange={(e) => setLocalRemarks(prev => ({ ...prev, principal: e.target.value }))}
@@ -762,7 +823,7 @@ export function ProfessionalReportCard({
           </div>
 
           {/* Save Button */}
-          {canEditRemarks && onSaveRemarks && (
+          {(canEditTeacher || canEditPrincipal) && onSaveRemarks && (
             <div className="flex justify-end print:hidden">
               <Button
                 onClick={() => onSaveRemarks(localRemarks.teacher, localRemarks.principal)}

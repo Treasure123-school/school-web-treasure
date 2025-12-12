@@ -21,6 +21,14 @@ The backend is an Express.js application built with Node.js and TypeScript, leve
 - **Database Schema**: Over 40 tables covering academic and administrative functions.
 - **Exam System**: Features reliable submission, instant auto-scoring for MCQs, anti-cheat measures, auto-submission, and real-time progress saving. Exam creation is teacher-centric with strong validation.
 - **Report Card System**: Comprehensive auto-generation and score management with weighted scoring (40% test, 60% exam), teacher-specific editing permissions, auto-recalculation, max score handling, and status workflow (Draft → Finalized → Published). Includes a Role-Based Approval Workflow where teachers finalize and admins publish. Features a professional, print-ready component with detailed student info, subject performance, traits, attendance, class statistics, and editable remarks.
+- **Report Card Comments Access Control**: Role-based permission system for comments:
+  - Class Teacher's Comment: Only the assigned class teacher (or admins) can edit
+  - Principal's Comment: Only admins can edit
+  - Auto-generated encouraging comments based on student performance (Excellent/Very Good/Good/Fair/Needs Improvement)
+- **Signature Management**: 
+  - Admin (Principal) profile includes digital signature setup for report card signing
+  - Teacher profiles include digital signature setup for class teacher signing
+  - SuperAdmin portal does not have principal signature (reserved for Admin role)
 - **File Management**: Unified upload interface with Cloudinary CDN.
 - **Unified Subject Assignment System**: Centralized subject visibility and assignment configuration, serving as the single source of truth for all subject-related operations. Supports JSS classes and SSS departments with bulk assignment capabilities.
 - **Automatic Student Subject Sync**: Modifying subject assignments automatically synchronizes `student_subject_assignments` for affected students.

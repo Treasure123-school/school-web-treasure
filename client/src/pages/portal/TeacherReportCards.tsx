@@ -1432,13 +1432,37 @@ export default function TeacherReportCards() {
                   examWeight={examWeight}
                   onEditSubject={(item) => handleOverrideScore(item as ReportCardItem)}
                   onSaveRemarks={(teacher, principal) => {
-                    updateRemarksMutation.mutate({
+                    // Determine edit permissions based on role
+                    // Admin and SuperAdmin can edit teacher remarks
+                    // ONLY Admin (not SuperAdmin) can edit principal remarks
+                    const classInfo = classes.find((c: any) => c.id === Number(selectedClass));
+                    const isPrincipal = user?.role?.toLowerCase() === 'admin';
+                    const canEditTeacher = isAdmin || classInfo?.classTeacherId === user?.id;
+                    const canEditPrincipal = isPrincipal;
+                    
+                    // Only send the fields the user is authorized to edit
+                    const payload: { reportCardId: number; teacherRemarks?: string; principalRemarks?: string } = {
                       reportCardId: fullReportCard.id,
-                      teacherRemarks: teacher,
-                      principalRemarks: principal
-                    });
+                    };
+                    if (canEditTeacher) {
+                      payload.teacherRemarks = teacher;
+                    }
+                    if (canEditPrincipal) {
+                      payload.principalRemarks = principal;
+                    }
+                    
+                    updateRemarksMutation.mutate(payload);
                   }}
-                  canEditRemarks={fullReportCard.status === 'draft'}
+                  canEditTeacherRemarks={
+                    fullReportCard.status === 'draft' && 
+                    (isAdmin || classes.find((c: any) => c.id === Number(selectedClass))?.classTeacherId === user?.id)
+                  }
+                  canEditPrincipalRemarks={fullReportCard.status === 'draft' && user?.role?.toLowerCase() === 'admin'}
+                  onGenerateDefaultComments={async () => {
+                    const response = await apiRequest('GET', `/api/reports/${fullReportCard.id}/default-comments`);
+                    if (!response.ok) throw new Error('Failed to generate comments');
+                    return await response.json();
+                  }}
                   isLoading={updateRemarksMutation.isPending}
                   hideActionButtons={true}
                   />

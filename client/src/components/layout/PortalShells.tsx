@@ -55,6 +55,7 @@ const UnifiedSubjectAssignment = lazy(() => import('@/pages/portal/UnifiedSubjec
 const AssignSubjectTeachers = lazy(() => import('@/pages/portal/AssignSubjectTeachers'));
 const AdminResultPublishing = lazy(() => import('@/pages/portal/AdminResultPublishing'));
 const AdminRecoveryTools = lazy(() => import('@/pages/portal/AdminRecoveryTools'));
+const AdminProfile = lazy(() => import('@/pages/portal/AdminProfile'));
 
 const ParentDashboard = lazy(() => import('@/pages/portal/ParentDashboard'));
 const ParentReportCards = lazy(() => import('@/pages/portal/ParentReportCards'));
@@ -167,6 +168,7 @@ export function AdminPortalShell() {
           <Route path="/portal/admin/results/publishing" component={AdminResultPublishing} />
           <Route path="/portal/admin/academics/timetable" component={PortalComingSoon} />
           <Route path="/portal/admin/academics/curriculum" component={PortalComingSoon} />
+          <Route path="/portal/admin/profile" component={AdminProfile} />
           <Route path="/portal/admin/*" component={PortalComingSoon} />
         </Switch>
       </Suspense>

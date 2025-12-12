@@ -973,6 +973,95 @@ async function createGradingTasksForSession(sessionId: number, examId: number, s
   }
 }
 
+// Generate encouraging teacher comments based on performance level
+function generateTeacherComment(studentName: string, percentage: number): string {
+  const firstName = studentName.split(' ')[0];
+  
+  if (percentage >= 70) {
+    // Excellent (A grade)
+    const comments = [
+      `${firstName} has shown exceptional academic performance this term. Keep up the excellent work!`,
+      `Outstanding achievement this term! ${firstName} demonstrates strong understanding and dedication to learning.`,
+      `${firstName} has maintained an excellent standard throughout this term. A truly commendable performance.`,
+    ];
+    return comments[Math.floor(Math.random() * comments.length)];
+  } else if (percentage >= 60) {
+    // Very Good (B grade)
+    const comments = [
+      `${firstName} has performed very well this term. With a little more effort, excellence is within reach.`,
+      `A very good performance from ${firstName}. Continue with the same dedication and aim higher.`,
+      `${firstName} shows great potential and has done very well this term. Keep striving for the best.`,
+    ];
+    return comments[Math.floor(Math.random() * comments.length)];
+  } else if (percentage >= 50) {
+    // Good (C grade)
+    const comments = [
+      `${firstName} has shown good effort this term. There is room for improvement with more focus and hard work.`,
+      `A satisfactory performance from ${firstName}. With extra effort, better results are achievable.`,
+      `${firstName} is capable of more. Encourage consistent study habits for improved performance next term.`,
+    ];
+    return comments[Math.floor(Math.random() * comments.length)];
+  } else if (percentage >= 40) {
+    // Fair (D grade)
+    const comments = [
+      `${firstName} needs to put in more effort. With additional support and dedication, improvement is possible.`,
+      `${firstName} should focus more on studies. Regular revision and asking questions will help improve performance.`,
+      `${firstName} has the potential to do better. Extra tutoring and more practice are recommended.`,
+    ];
+    return comments[Math.floor(Math.random() * comments.length)];
+  } else {
+    // Needs Improvement (F grade)
+    const comments = [
+      `${firstName} needs significant improvement. Extra classes and consistent practice are strongly recommended.`,
+      `${firstName} should seek additional help and focus on building strong foundations in all subjects.`,
+      `${firstName} requires intensive support. Regular study sessions and parent involvement will be beneficial.`,
+    ];
+    return comments[Math.floor(Math.random() * comments.length)];
+  }
+}
+
+// Generate encouraging principal comments based on performance level
+function generatePrincipalComment(studentName: string, percentage: number): string {
+  const firstName = studentName.split(' ')[0];
+  
+  if (percentage >= 70) {
+    const comments = [
+      `${firstName} is a model student who consistently demonstrates excellence. The school is proud of this achievement.`,
+      `Congratulations to ${firstName} on an outstanding performance. Continue to be an inspiration to others.`,
+      `${firstName} has achieved excellent results. We look forward to continued success in future terms.`,
+    ];
+    return comments[Math.floor(Math.random() * comments.length)];
+  } else if (percentage >= 60) {
+    const comments = [
+      `${firstName} has shown commendable effort and achieved very good results. Keep up the good work.`,
+      `Well done to ${firstName} on a very good performance. The potential for excellence is evident.`,
+      `${firstName} is on the right track. Continue working hard and aim for even greater heights.`,
+    ];
+    return comments[Math.floor(Math.random() * comments.length)];
+  } else if (percentage >= 50) {
+    const comments = [
+      `${firstName} has shown satisfactory progress. With increased focus, even better results are attainable.`,
+      `We encourage ${firstName} to continue making efforts. The school supports all students on their learning journey.`,
+      `${firstName} has the ability to excel. We encourage more dedication to studies next term.`,
+    ];
+    return comments[Math.floor(Math.random() * comments.length)];
+  } else if (percentage >= 40) {
+    const comments = [
+      `${firstName} should dedicate more time to academic work. The school will provide necessary support for improvement.`,
+      `We urge ${firstName} to take studies more seriously. With proper guidance and effort, improvement is possible.`,
+      `${firstName} needs to focus more on academics. We recommend parent-teacher collaboration for support.`,
+    ];
+    return comments[Math.floor(Math.random() * comments.length)];
+  } else {
+    const comments = [
+      `${firstName} requires immediate academic intervention. We recommend scheduling a meeting to discuss a support plan.`,
+      `The school is concerned about ${firstName}'s performance. A structured study plan and monitoring are recommended.`,
+      `${firstName} needs intensive academic support. We encourage parents to work closely with teachers for improvement.`,
+    ];
+    return comments[Math.floor(Math.random() * comments.length)];
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Import performance modules
   const { performanceMonitor } = await import('./performance-monitor');
@@ -10813,16 +10902,77 @@ Treasure-Home School Administration
       }
     });
 
-    // Update report card remarks
+    // Update report card remarks with strict role-based access control
+    // - Class teacher (or admin) can edit teacherRemarks
+    // - Only admin can edit principalRemarks
+    // SECURITY: Rejects requests where user submits unauthorized fields
     app.patch('/api/reports/:reportCardId/remarks', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
       try {
         const { reportCardId } = req.params;
         const { teacherRemarks, principalRemarks } = req.body;
+        const userId = req.user!.id;
+        const userRoleId = req.user!.roleId;
         
+        // Get the report card and class info
+        const reportCard = await storage.getReportCard(Number(reportCardId));
+        if (!reportCard) {
+          return res.status(404).json({ message: 'Report card not found' });
+        }
+        
+        const classInfo = await storage.getClass(reportCard.classId);
+        if (!classInfo) {
+          return res.status(404).json({ message: 'Class not found' });
+        }
+        
+        const isClassTeacher = classInfo.classTeacherId === userId;
+        // For principal remarks: ONLY Admin role (not SuperAdmin) can edit
+        // This reflects the principal's administrative role
+        const isPrincipal = userRoleId === ROLES.ADMIN;
+        // For teacher remarks: Admin, SuperAdmin, or the assigned class teacher can edit
+        const isAdminOrSuperAdmin = userRoleId === ROLES.ADMIN || userRoleId === ROLES.SUPER_ADMIN;
+        
+        // STRICT SECURITY: Reject unauthorized field submissions immediately
+        // Only Admin (principal role) can edit principalRemarks - NOT SuperAdmin
+        if (principalRemarks !== undefined && !isPrincipal) {
+          return res.status(403).json({ 
+            message: 'Only the school administrator (principal) can edit principal comments. This field is not allowed in your request.',
+            code: 'NOT_PRINCIPAL'
+          });
+        }
+        
+        // Non-class teachers cannot submit teacherRemarks (unless admin/superadmin)
+        if (teacherRemarks !== undefined && !isClassTeacher && !isAdminOrSuperAdmin) {
+          return res.status(403).json({ 
+            message: 'Only the assigned class teacher can edit class teacher comments. This field is not allowed in your request.',
+            code: 'NOT_CLASS_TEACHER'
+          });
+        }
+        
+        // At least one valid field must be provided
+        const hasTeacherRemarks = teacherRemarks !== undefined;
+        const hasPrincipalRemarks = principalRemarks !== undefined;
+        
+        if (!hasTeacherRemarks && !hasPrincipalRemarks) {
+          return res.status(400).json({ 
+            message: 'No remarks fields provided for update',
+            code: 'NO_FIELDS'
+          });
+        }
+        
+        // Build update object with only authorized fields
+        const updateData: { teacherRemarks?: string; principalRemarks?: string } = {};
+        if (hasTeacherRemarks) {
+          updateData.teacherRemarks = teacherRemarks;
+        }
+        if (hasPrincipalRemarks) {
+          updateData.principalRemarks = principalRemarks;
+        }
+        
+        // Use the existing update method - it only updates fields that are provided
         const updatedReportCard = await storage.updateReportCardRemarks(
           Number(reportCardId),
-          teacherRemarks,
-          principalRemarks
+          updateData.teacherRemarks,
+          updateData.principalRemarks
         );
         
         if (!updatedReportCard) {
@@ -10841,6 +10991,36 @@ Treasure-Home School Administration
       } catch (error: any) {
         console.error('Error updating remarks:', error);
         res.status(500).json({ message: error.message || 'Failed to update remarks' });
+      }
+    });
+    
+    // Get default comments based on student performance
+    app.get('/api/reports/:reportCardId/default-comments', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { reportCardId } = req.params;
+        
+        const reportCard = await storage.getReportCard(Number(reportCardId));
+        if (!reportCard) {
+          return res.status(404).json({ message: 'Report card not found' });
+        }
+        
+        const student = await storage.getStudent(reportCard.studentId);
+        const studentName = student ? `${(await storage.getUser(student.userId))?.firstName || 'Student'}` : 'Student';
+        const percentage = reportCard.averagePercentage || 0;
+        
+        // Generate encouraging comments based on performance
+        const teacherComment = generateTeacherComment(studentName, percentage);
+        const principalComment = generatePrincipalComment(studentName, percentage);
+        
+        res.json({ 
+          teacherComment, 
+          principalComment,
+          studentName,
+          averagePercentage: percentage
+        });
+      } catch (error: any) {
+        console.error('Error generating default comments:', error);
+        res.status(500).json({ message: error.message || 'Failed to generate comments' });
       }
     });
 

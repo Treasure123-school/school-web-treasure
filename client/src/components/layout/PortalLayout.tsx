@@ -240,6 +240,8 @@ export default function PortalLayout({ children, userRole, userName, userInitial
               { href: `/portal/${userRole}/performance`, icon: Activity, label: 'Performance Analytics' },
             ]
           },
+          { name: 'Settings', href: `/portal/${userRole}/settings`, icon: Settings },
+          { name: 'Profile', href: `/portal/${userRole}/profile`, icon: User },
         ];
       case 'parent':
         return [
