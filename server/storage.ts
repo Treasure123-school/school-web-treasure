@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, sql, sql as dsql, inArray, isNull, gte, lte, or, like } from "drizzle-orm";
+import { eq, and, desc, asc, sql, sql as dsql, inArray, isNull, isNotNull, ne, gte, lte, or, like } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { getDatabase, getSchema, getPgClient, getPgPool, isPostgres, isSqlite } from "./db";
 import { calculateGrade, calculateWeightedScore, getGradingConfig, getOverallGrade } from "./grading-config";
@@ -4351,7 +4351,10 @@ export class DatabaseStorage implements IStorage {
         })
           .from(schema.adminProfiles)
           .innerJoin(schema.users, eq(schema.adminProfiles.userId, schema.users.id))
-          .where(sql`${schema.adminProfiles.signatureUrl} IS NOT NULL AND ${schema.adminProfiles.signatureUrl} != ''`)
+          .where(and(
+            isNotNull(schema.adminProfiles.signatureUrl),
+            ne(schema.adminProfiles.signatureUrl, '')
+          ))
           .orderBy(schema.users.roleId) // Super admin (1) first
           .limit(1);
         
@@ -4555,12 +4558,24 @@ export class DatabaseStorage implements IStorage {
       let principalSignatureUrl = reportCard[0].principalSignatureUrl;
       let principalSignedBy = reportCard[0].principalSignedBy;
       
+      console.log('[SIGNATURE-DEBUG] Initial state:', { 
+        hasStoredTeacherSig: !!teacherSignatureUrl, 
+        hasStoredPrincipalSig: !!principalSignatureUrl,
+        classId: reportCard[0].classId
+      });
+      
       // Get class info to fetch class teacher's signature
       const classInfo = await this.getClass(reportCard[0].classId);
+      console.log('[SIGNATURE-DEBUG] Class info:', { classTeacherId: classInfo?.classTeacherId });
       
       // If no teacher signature stored, fetch from class teacher's profile
       if (!teacherSignatureUrl && classInfo?.classTeacherId) {
         const teacherProfile = await this.getTeacherProfile(classInfo.classTeacherId);
+        console.log('[SIGNATURE-DEBUG] Teacher profile:', { 
+          hasProfile: !!teacherProfile, 
+          hasSignature: !!teacherProfile?.signatureUrl,
+          signatureLength: teacherProfile?.signatureUrl?.length || 0
+        });
         if (teacherProfile?.signatureUrl) {
           teacherSignatureUrl = teacherProfile.signatureUrl;
           // Get teacher's name
@@ -4581,11 +4596,17 @@ export class DatabaseStorage implements IStorage {
         })
           .from(schema.adminProfiles)
           .innerJoin(schema.users, eq(schema.adminProfiles.userId, schema.users.id))
-          .where(sql`${schema.adminProfiles.signatureUrl} IS NOT NULL AND ${schema.adminProfiles.signatureUrl} != ''`)
+          .where(and(
+            isNotNull(schema.adminProfiles.signatureUrl),
+            ne(schema.adminProfiles.signatureUrl, '')
+          ))
           .orderBy(schema.users.roleId) // Super admin (1) first
           .limit(1);
         
+        console.log('[SIGNATURE-DEBUG] Admins with signature found:', adminsWithSignature.length);
+        
         if (adminsWithSignature.length > 0) {
+          console.log('[SIGNATURE-DEBUG] Using admin signature from:', adminsWithSignature[0].firstName, adminsWithSignature[0].lastName);
           principalSignatureUrl = adminsWithSignature[0].signatureUrl;
           principalSignedBy = `${adminsWithSignature[0].firstName} ${adminsWithSignature[0].lastName}`;
         }
