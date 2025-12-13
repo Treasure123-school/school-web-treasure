@@ -4496,11 +4496,57 @@ export class DatabaseStorage implements IStorage {
         .where(eq(schema.reportCardItems.reportCardId, reportCardId))
         .orderBy(schema.subjects.name);
 
+      // Dynamically fetch signatures from profiles if not stored on report card
+      let teacherSignatureUrl = reportCard[0].teacherSignatureUrl;
+      let teacherSignedBy = reportCard[0].teacherSignedBy;
+      let principalSignatureUrl = reportCard[0].principalSignatureUrl;
+      let principalSignedBy = reportCard[0].principalSignedBy;
+      
+      // Get class info to fetch class teacher's signature
+      const classInfo = await this.getClass(reportCard[0].classId);
+      
+      // If no teacher signature stored, fetch from class teacher's profile
+      if (!teacherSignatureUrl && classInfo?.classTeacherId) {
+        const teacherProfile = await this.getTeacherProfile(classInfo.classTeacherId);
+        if (teacherProfile?.signatureUrl) {
+          teacherSignatureUrl = teacherProfile.signatureUrl;
+          // Get teacher's name
+          const teacherUser = await this.getUser(classInfo.classTeacherId);
+          teacherSignedBy = teacherUser ? `${teacherUser.firstName} ${teacherUser.lastName}` : null;
+        }
+      }
+      
+      // If no principal signature stored, fetch from an admin with signature
+      if (!principalSignatureUrl) {
+        // Get admins with signatures (preferably super admin first)
+        const adminsWithSignature = await db.select({
+          signatureUrl: schema.adminProfiles.signatureUrl,
+          userId: schema.adminProfiles.userId,
+          firstName: schema.users.firstName,
+          lastName: schema.users.lastName,
+          roleId: schema.users.roleId
+        })
+          .from(schema.adminProfiles)
+          .innerJoin(schema.users, eq(schema.adminProfiles.userId, schema.users.id))
+          .where(sql`${schema.adminProfiles.signatureUrl} IS NOT NULL AND ${schema.adminProfiles.signatureUrl} != ''`)
+          .orderBy(schema.users.roleId) // Super admin (1) first
+          .limit(1);
+        
+        if (adminsWithSignature.length > 0) {
+          principalSignatureUrl = adminsWithSignature[0].signatureUrl;
+          principalSignedBy = `${adminsWithSignature[0].firstName} ${adminsWithSignature[0].lastName}`;
+        }
+      }
+
       return { 
         ...reportCard[0], 
         isSSS: isSSS,
         academicSession: academicSession,
         department: isSSS ? reportCard[0].department : null,
+        teacherSignatureUrl,
+        teacherSignedBy,
+        principalSignatureUrl,
+        principalSignedBy,
         items 
       };
     } catch (error) {
