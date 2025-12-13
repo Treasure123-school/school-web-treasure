@@ -4314,7 +4314,60 @@ export class DatabaseStorage implements IStorage {
         .from(schema.reportCards)
         .where(eq(schema.reportCards.id, id))
         .limit(1);
-      return result[0];
+      
+      if (!result[0]) return undefined;
+      
+      const reportCard = result[0];
+      
+      // Dynamically fetch signatures from profiles if not stored on report card
+      let teacherSignatureUrl = reportCard.teacherSignatureUrl;
+      let teacherSignedBy = reportCard.teacherSignedBy;
+      let principalSignatureUrl = reportCard.principalSignatureUrl;
+      let principalSignedBy = reportCard.principalSignedBy;
+      
+      // Get class info to fetch class teacher's signature
+      const classInfo = await this.getClass(reportCard.classId);
+      
+      // If no teacher signature stored, fetch from class teacher's profile
+      if (!teacherSignatureUrl && classInfo?.classTeacherId) {
+        const teacherProfile = await this.getTeacherProfile(classInfo.classTeacherId);
+        if (teacherProfile?.signatureUrl) {
+          teacherSignatureUrl = teacherProfile.signatureUrl;
+          // Get teacher's name
+          const teacherUser = await this.getUser(classInfo.classTeacherId);
+          teacherSignedBy = teacherUser ? `${teacherUser.firstName} ${teacherUser.lastName}` : null;
+        }
+      }
+      
+      // If no principal signature stored, fetch from an admin with signature
+      if (!principalSignatureUrl) {
+        // Get admins with signatures (preferably super admin first)
+        const adminsWithSignature = await db.select({
+          signatureUrl: schema.adminProfiles.signatureUrl,
+          userId: schema.adminProfiles.userId,
+          firstName: schema.users.firstName,
+          lastName: schema.users.lastName,
+          roleId: schema.users.roleId
+        })
+          .from(schema.adminProfiles)
+          .innerJoin(schema.users, eq(schema.adminProfiles.userId, schema.users.id))
+          .where(sql`${schema.adminProfiles.signatureUrl} IS NOT NULL AND ${schema.adminProfiles.signatureUrl} != ''`)
+          .orderBy(schema.users.roleId) // Super admin (1) first
+          .limit(1);
+        
+        if (adminsWithSignature.length > 0) {
+          principalSignatureUrl = adminsWithSignature[0].signatureUrl;
+          principalSignedBy = `${adminsWithSignature[0].firstName} ${adminsWithSignature[0].lastName}`;
+        }
+      }
+      
+      return {
+        ...reportCard,
+        teacherSignatureUrl,
+        teacherSignedBy,
+        principalSignatureUrl,
+        principalSignedBy
+      } as ReportCard;
     } catch (error) {
       return undefined;
     }
