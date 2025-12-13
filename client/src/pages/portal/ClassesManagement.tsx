@@ -34,9 +34,11 @@ export default function ClassesManagement() {
   const [editingClass, setEditingClass] = useState<any>(null);
   const [classToDelete, setClassToDelete] = useState<any>(null);
 
-  const { register, handleSubmit, formState: { errors }, setValue, reset } = useForm<ClassForm>({
+  const { register, handleSubmit, formState: { errors }, setValue, reset, watch } = useForm<ClassForm>({
     resolver: zodResolver(classFormSchema),
   });
+
+  const watchClassTeacherId = watch('classTeacherId');
 
   // Fetch classes
   const { data: classes = [], isLoading: loadingClasses } = useQuery({
@@ -291,7 +293,7 @@ export default function ClassesManagement() {
 
               <div>
                 <Label htmlFor="classTeacherId">Class Teacher *</Label>
-                <Select onValueChange={(value) => setValue('classTeacherId', value)}>
+                <Select value={watchClassTeacherId || ''} onValueChange={(value) => setValue('classTeacherId', value)}>
                   <SelectTrigger data-testid="select-teacher">
                     <SelectValue placeholder="Select teacher" />
                   </SelectTrigger>
