@@ -1415,6 +1415,12 @@ export default function TeacherReportCards() {
                     principalRemarks: fullReportCard.principalRemarks,
                     status: fullReportCard.status,
                     generatedAt: fullReportCard.generatedAt,
+                    teacherSignatureUrl: fullReportCard.teacherSignatureUrl,
+                    teacherSignedAt: fullReportCard.teacherSignedAt,
+                    teacherSignedBy: fullReportCard.teacherSignedBy,
+                    principalSignatureUrl: fullReportCard.principalSignatureUrl,
+                    principalSignedAt: fullReportCard.principalSignedAt,
+                    principalSignedBy: fullReportCard.principalSignedBy,
                     classStatistics: {
                       highestScore: statistics?.classHighest || 0,
                       lowestScore: statistics?.classLowest || 0,

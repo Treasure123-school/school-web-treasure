@@ -738,17 +738,45 @@ export default function StudentReportCard() {
             <CardContent className="p-3 sm:p-4 pt-0">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="text-center">
-                  <div className="border-b-2 border-dashed border-muted-foreground/30 mb-2 h-12 flex items-end justify-center pb-1">
-                    <span className="text-lg font-serif italic text-primary/70">________________</span>
+                  <div className="border-b-2 border-dashed border-muted-foreground/30 mb-2 h-16 flex items-end justify-center pb-1">
+                    {reportCard.teacherSignatureUrl ? (
+                      <img 
+                        src={reportCard.teacherSignatureUrl} 
+                        alt="Class Teacher's Signature" 
+                        className="h-14 max-w-full object-contain"
+                        data-testid="img-teacher-signature"
+                      />
+                    ) : (
+                      <span className="text-lg font-serif italic text-muted-foreground/50">________________</span>
+                    )}
                   </div>
                   <p className="text-sm font-medium">Class Teacher's Signature</p>
+                  {reportCard.teacherSignedAt && (
+                    <p className="text-xs text-muted-foreground mt-1" data-testid="text-teacher-signed-date">
+                      Signed: {format(new Date(reportCard.teacherSignedAt), 'MMM d, yyyy')}
+                    </p>
+                  )}
                 </div>
                 
                 <div className="text-center">
-                  <div className="border-b-2 border-dashed border-muted-foreground/30 mb-2 h-12 flex items-end justify-center pb-1">
-                    <span className="text-lg font-serif italic text-primary/70">________________</span>
+                  <div className="border-b-2 border-dashed border-muted-foreground/30 mb-2 h-16 flex items-end justify-center pb-1">
+                    {reportCard.principalSignatureUrl ? (
+                      <img 
+                        src={reportCard.principalSignatureUrl} 
+                        alt="Principal's Signature" 
+                        className="h-14 max-w-full object-contain"
+                        data-testid="img-principal-signature"
+                      />
+                    ) : (
+                      <span className="text-lg font-serif italic text-muted-foreground/50">________________</span>
+                    )}
                   </div>
                   <p className="text-sm font-medium">Principal's Signature</p>
+                  {reportCard.principalSignedAt && (
+                    <p className="text-xs text-muted-foreground mt-1" data-testid="text-principal-signed-date">
+                      Signed: {format(new Date(reportCard.principalSignedAt), 'MMM d, yyyy')}
+                    </p>
+                  )}
                 </div>
               </div>
 
