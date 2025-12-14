@@ -4341,26 +4341,46 @@ export class DatabaseStorage implements IStorage {
       
       // If no principal signature stored, fetch from an admin with signature
       if (!principalSignatureUrl) {
-        // Get admins with signatures (preferably super admin first)
-        const adminsWithSignature = await db.select({
-          signatureUrl: schema.adminProfiles.signatureUrl,
-          userId: schema.adminProfiles.userId,
+        // First, check superAdminProfiles for signatures (super admins have higher authority)
+        const superAdminsWithSignature = await db.select({
+          signatureUrl: schema.superAdminProfiles.signatureUrl,
+          userId: schema.superAdminProfiles.userId,
           firstName: schema.users.firstName,
           lastName: schema.users.lastName,
           roleId: schema.users.roleId
         })
-          .from(schema.adminProfiles)
-          .innerJoin(schema.users, eq(schema.adminProfiles.userId, schema.users.id))
+          .from(schema.superAdminProfiles)
+          .innerJoin(schema.users, eq(schema.superAdminProfiles.userId, schema.users.id))
           .where(and(
-            isNotNull(schema.adminProfiles.signatureUrl),
-            ne(schema.adminProfiles.signatureUrl, '')
+            isNotNull(schema.superAdminProfiles.signatureUrl),
+            ne(schema.superAdminProfiles.signatureUrl, '')
           ))
-          .orderBy(schema.users.roleId) // Super admin (1) first
           .limit(1);
         
-        if (adminsWithSignature.length > 0) {
-          principalSignatureUrl = adminsWithSignature[0].signatureUrl;
-          principalSignedBy = `${adminsWithSignature[0].firstName} ${adminsWithSignature[0].lastName}`;
+        if (superAdminsWithSignature.length > 0) {
+          principalSignatureUrl = superAdminsWithSignature[0].signatureUrl;
+          principalSignedBy = `${superAdminsWithSignature[0].firstName} ${superAdminsWithSignature[0].lastName}`;
+        } else {
+          // Fallback: check regular adminProfiles for signatures
+          const adminsWithSignature = await db.select({
+            signatureUrl: schema.adminProfiles.signatureUrl,
+            userId: schema.adminProfiles.userId,
+            firstName: schema.users.firstName,
+            lastName: schema.users.lastName,
+            roleId: schema.users.roleId
+          })
+            .from(schema.adminProfiles)
+            .innerJoin(schema.users, eq(schema.adminProfiles.userId, schema.users.id))
+            .where(and(
+              isNotNull(schema.adminProfiles.signatureUrl),
+              ne(schema.adminProfiles.signatureUrl, '')
+            ))
+            .limit(1);
+          
+          if (adminsWithSignature.length > 0) {
+            principalSignatureUrl = adminsWithSignature[0].signatureUrl;
+            principalSignedBy = `${adminsWithSignature[0].firstName} ${adminsWithSignature[0].lastName}`;
+          }
         }
       }
       
@@ -4586,29 +4606,52 @@ export class DatabaseStorage implements IStorage {
       
       // If no principal signature stored, fetch from an admin with signature
       if (!principalSignatureUrl) {
-        // Get admins with signatures (preferably super admin first)
-        const adminsWithSignature = await db.select({
-          signatureUrl: schema.adminProfiles.signatureUrl,
-          userId: schema.adminProfiles.userId,
+        // First, check superAdminProfiles for signatures (super admins have higher authority)
+        const superAdminsWithSignature = await db.select({
+          signatureUrl: schema.superAdminProfiles.signatureUrl,
+          userId: schema.superAdminProfiles.userId,
           firstName: schema.users.firstName,
           lastName: schema.users.lastName,
           roleId: schema.users.roleId
         })
-          .from(schema.adminProfiles)
-          .innerJoin(schema.users, eq(schema.adminProfiles.userId, schema.users.id))
+          .from(schema.superAdminProfiles)
+          .innerJoin(schema.users, eq(schema.superAdminProfiles.userId, schema.users.id))
           .where(and(
-            isNotNull(schema.adminProfiles.signatureUrl),
-            ne(schema.adminProfiles.signatureUrl, '')
+            isNotNull(schema.superAdminProfiles.signatureUrl),
+            ne(schema.superAdminProfiles.signatureUrl, '')
           ))
-          .orderBy(schema.users.roleId) // Super admin (1) first
           .limit(1);
         
-        console.log('[SIGNATURE-DEBUG] Admins with signature found:', adminsWithSignature.length);
+        console.log('[SIGNATURE-DEBUG] Super admins with signature found:', superAdminsWithSignature.length);
         
-        if (adminsWithSignature.length > 0) {
-          console.log('[SIGNATURE-DEBUG] Using admin signature from:', adminsWithSignature[0].firstName, adminsWithSignature[0].lastName);
-          principalSignatureUrl = adminsWithSignature[0].signatureUrl;
-          principalSignedBy = `${adminsWithSignature[0].firstName} ${adminsWithSignature[0].lastName}`;
+        if (superAdminsWithSignature.length > 0) {
+          console.log('[SIGNATURE-DEBUG] Using super admin signature from:', superAdminsWithSignature[0].firstName, superAdminsWithSignature[0].lastName);
+          principalSignatureUrl = superAdminsWithSignature[0].signatureUrl;
+          principalSignedBy = `${superAdminsWithSignature[0].firstName} ${superAdminsWithSignature[0].lastName}`;
+        } else {
+          // Fallback: check regular adminProfiles for signatures
+          const adminsWithSignature = await db.select({
+            signatureUrl: schema.adminProfiles.signatureUrl,
+            userId: schema.adminProfiles.userId,
+            firstName: schema.users.firstName,
+            lastName: schema.users.lastName,
+            roleId: schema.users.roleId
+          })
+            .from(schema.adminProfiles)
+            .innerJoin(schema.users, eq(schema.adminProfiles.userId, schema.users.id))
+            .where(and(
+              isNotNull(schema.adminProfiles.signatureUrl),
+              ne(schema.adminProfiles.signatureUrl, '')
+            ))
+            .limit(1);
+          
+          console.log('[SIGNATURE-DEBUG] Admins with signature found:', adminsWithSignature.length);
+          
+          if (adminsWithSignature.length > 0) {
+            console.log('[SIGNATURE-DEBUG] Using admin signature from:', adminsWithSignature[0].firstName, adminsWithSignature[0].lastName);
+            principalSignatureUrl = adminsWithSignature[0].signatureUrl;
+            principalSignedBy = `${adminsWithSignature[0].firstName} ${adminsWithSignature[0].lastName}`;
+          }
         }
       }
 
