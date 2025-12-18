@@ -1495,11 +1495,20 @@ export default function TeacherReportCards() {
                     
                     updateRemarksMutation.mutate(payload);
                   }}
+                  onSaveSkills={async (skills: any) => {
+                    const response = await apiRequest('POST', `/api/reports/${fullReportCard.id}/skills`, skills);
+                    if (!response.ok) throw new Error('Failed to save skills');
+                    toast({ title: 'Skills saved successfully', variant: 'default' });
+                  }}
                   canEditTeacherRemarks={
                     fullReportCard.status === 'draft' && 
                     (isAdmin || classes.find((c: any) => c.id === Number(selectedClass))?.classTeacherId === user?.id)
                   }
                   canEditPrincipalRemarks={fullReportCard.status === 'draft' && user?.role?.toLowerCase() === 'admin'}
+                  canEditSkills={
+                    fullReportCard.status === 'draft' && 
+                    (isAdmin || classes.find((c: any) => c.id === Number(selectedClass))?.classTeacherId === user?.id)
+                  }
                   onGenerateDefaultComments={async () => {
                     const response = await apiRequest('GET', `/api/reports/${fullReportCard.id}/default-comments`);
                     if (!response.ok) throw new Error('Failed to generate comments');

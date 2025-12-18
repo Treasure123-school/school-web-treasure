@@ -8142,6 +8142,70 @@ export class DatabaseStorage implements IStorage {
       return { synced: 0, failed: 0, errors: [error.message] };
     }
   }
+
+  // Report Card Skills Methods
+  async getReportCardSkills(reportCardId: number): Promise<any | undefined> {
+    try {
+      const result = await db.select()
+        .from(schema.reportCardSkills)
+        .where(eq(schema.reportCardSkills.reportCardId, reportCardId))
+        .limit(1);
+      return result[0];
+    } catch (error: any) {
+      console.error('Error getting report card skills:', error);
+      return undefined;
+    }
+  }
+
+  async saveReportCardSkills(reportCardId: number, skills: any): Promise<any> {
+    try {
+      const existing = await this.getReportCardSkills(reportCardId);
+      
+      if (existing) {
+        const result = await db.update(schema.reportCardSkills)
+          .set({
+            punctuality: skills.punctuality || 0,
+            neatness: skills.neatness || 0,
+            attentiveness: skills.attentiveness || 0,
+            teamwork: skills.teamwork || 0,
+            leadership: skills.leadership || 0,
+            assignments: skills.assignments || 0,
+            classParticipation: skills.classParticipation || 0,
+            sports: skills.sports || 0,
+            handwriting: skills.handwriting || 0,
+            musicalSkills: skills.musicalSkills || 0,
+            creativity: skills.creativity || 0,
+            recordedBy: skills.recordedBy,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.reportCardSkills.reportCardId, reportCardId))
+          .returning();
+        return result[0];
+      } else {
+        const result = await db.insert(schema.reportCardSkills)
+          .values({
+            reportCardId,
+            punctuality: skills.punctuality || 0,
+            neatness: skills.neatness || 0,
+            attentiveness: skills.attentiveness || 0,
+            teamwork: skills.teamwork || 0,
+            leadership: skills.leadership || 0,
+            assignments: skills.assignments || 0,
+            classParticipation: skills.classParticipation || 0,
+            sports: skills.sports || 0,
+            handwriting: skills.handwriting || 0,
+            musicalSkills: skills.musicalSkills || 0,
+            creativity: skills.creativity || 0,
+            recordedBy: skills.recordedBy
+          })
+          .returning();
+        return result[0];
+      }
+    } catch (error: any) {
+      console.error('Error saving report card skills:', error);
+      throw error;
+    }
+  }
 }
 // Initialize storage - PostgreSQL database only
 function initializeStorageSync(): IStorage {

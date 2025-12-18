@@ -1378,6 +1378,7 @@ export default function AdminResultPublishing() {
                     testWeight={40}
                     examWeight={60}
                     canEditRemarks={false}
+                    canEditSkills={false}
                     isLoading={false}
                     hideActionButtons={true}
                   />
