@@ -232,10 +232,30 @@ export function ProfessionalReportCard({
   // Baseline snapshot of loaded skills - used to compute diff for save payload
   const initialSkillsRef = useRef<Record<string, number> | null>(null);
   const [skillsLoaded, setSkillsLoaded] = useState(false);
+  
+  // Track the current report card ID to detect when switching to a different student
+  const currentReportCardIdRef = useRef<number>(reportCard.id);
+  
+  // Track if we're in the middle of a save operation to prevent prop sync from overwriting local state
+  const isSavingRef = useRef(false);
 
-  // Sync localSkills when reportCard prop changes (e.g., when skills are loaded from DB)
-  // Only capture baseline when isFullReportReady is true (authoritative data has loaded)
+  // Sync localSkills when switching to a different report card OR when initial data loads
+  // Skip sync during active save operations to prevent flicker
   useEffect(() => {
+    const isNewReportCard = reportCard.id !== currentReportCardIdRef.current;
+    
+    // If switching to a different student, always sync and reset state
+    if (isNewReportCard) {
+      currentReportCardIdRef.current = reportCard.id;
+      initialSkillsRef.current = null;
+      setSkillsLoaded(false);
+    }
+    
+    // Skip sync if we're currently saving (prevents flicker from optimistic updates)
+    if (isSavingRef.current && !isNewReportCard) {
+      return;
+    }
+    
     const loadedSkills = {
       punctuality: reportCard.affectiveTraits?.punctuality || 0,
       neatness: reportCard.affectiveTraits?.neatness || 0,
@@ -249,6 +269,7 @@ export function ProfessionalReportCard({
       musicalSkills: reportCard.psychomotorSkills?.musicalSkills || 0,
       creativity: reportCard.psychomotorSkills?.creativity || 0
     };
+    
     setLocalSkills(loadedSkills);
     
     // Only capture baseline and enable saves when full report is ready
@@ -256,65 +277,80 @@ export function ProfessionalReportCard({
       initialSkillsRef.current = { ...loadedSkills };
       setSkillsLoaded(true);
     }
-  }, [reportCard.affectiveTraits, reportCard.psychomotorSkills, isFullReportReady]);
+  }, [reportCard.id, reportCard.affectiveTraits, reportCard.psychomotorSkills, isFullReportReady]);
   
   // Use explicit permissions if provided, otherwise fall back to canEditRemarks
   const canEditTeacher = canEditTeacherRemarks !== undefined ? canEditTeacherRemarks : canEditRemarks;
   const canEditPrincipal = canEditPrincipalRemarks !== undefined ? canEditPrincipalRemarks : canEditRemarks;
   
   const handleSkillChange = (key: string, value: number) => {
-    setLocalSkills(prev => {
-      const updated = { ...prev, [key]: value };
-      // Auto-save immediately when skill changes
-      if (onSaveSkills && initialSkillsRef.current && skillsLoaded && !isLoading) {
-        const baseline = initialSkillsRef.current[key] ?? 0;
-        // Only save if the value actually changed from baseline
-        if (value !== baseline) {
-          setIsSavingSkills(true);
-          onSaveSkills({ [key]: value })
-            .then(() => {
-              // Update baseline for this skill after successful save
-              initialSkillsRef.current![key] = value;
-            })
-            .catch((error) => {
-              console.error('Failed to save skill:', error);
-            })
-            .finally(() => {
-              setIsSavingSkills(false);
-            });
-        }
+    // Update local state immediately for responsive UI
+    setLocalSkills(prev => ({ ...prev, [key]: value }));
+    
+    // Auto-save to server
+    if (onSaveSkills && initialSkillsRef.current && skillsLoaded && !isLoading) {
+      const baseline = initialSkillsRef.current[key] ?? 0;
+      
+      // Only save if value actually changed from baseline
+      if (value !== baseline) {
+        // Set saving flag to prevent useEffect from overwriting local state
+        isSavingRef.current = true;
+        setIsSavingSkills(true);
+        
+        onSaveSkills({ [key]: value })
+          .then(() => {
+            // Update baseline after successful save
+            if (initialSkillsRef.current) {
+              initialSkillsRef.current[key] = value;
+            }
+          })
+          .catch((error) => {
+            console.error('Failed to save skill:', error);
+            // Revert local state on error
+            setLocalSkills(prev => ({ ...prev, [key]: baseline }));
+          })
+          .finally(() => {
+            // Clear saving flag after a short delay to allow React to settle
+            setTimeout(() => {
+              isSavingRef.current = false;
+            }, 100);
+            setIsSavingSkills(false);
+          });
       }
-      return updated;
-    });
+    }
   };
   
   const handleSaveSkills = async () => {
     // Block save if data not loaded or no callback
     if (!onSaveSkills || !initialSkillsRef.current || isLoading || !skillsLoaded) return;
-    setIsSavingSkills(true);
-    try {
-      // Build payload with only changed skills (different from baseline)
-      const skillsToSave: Record<string, number> = {};
-      Object.entries(localSkills).forEach(([key, value]) => {
-        const baseline = initialSkillsRef.current![key] ?? 0;
-        // Include skill if its value changed from baseline
-        if (value !== baseline) {
-          skillsToSave[key] = value;
-        }
-      });
-      
-      // If nothing changed, don't save
-      if (Object.keys(skillsToSave).length === 0) {
-        setIsSavingSkills(false);
-        return;
+    
+    // Build payload with only changed skills (different from baseline)
+    const skillsToSave: Record<string, number> = {};
+    Object.entries(localSkills).forEach(([key, value]) => {
+      const baseline = initialSkillsRef.current![key] ?? 0;
+      if (value !== baseline) {
+        skillsToSave[key] = value;
       }
-      
+    });
+    
+    // If nothing changed, don't save
+    if (Object.keys(skillsToSave).length === 0) {
+      return;
+    }
+    
+    isSavingRef.current = true;
+    setIsSavingSkills(true);
+    
+    try {
       await onSaveSkills(skillsToSave);
       // Update baseline after successful save
       initialSkillsRef.current = { ...localSkills };
     } catch (error) {
       console.error('Failed to save skills:', error);
     } finally {
+      setTimeout(() => {
+        isSavingRef.current = false;
+      }, 100);
       setIsSavingSkills(false);
     }
   };
