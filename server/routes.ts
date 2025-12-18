@@ -28,6 +28,7 @@ import { uploadFileToStorage, replaceFile, deleteFileFromStorage } from "./uploa
 import teacherAssignmentRoutes from "./teacher-assignment-routes";
 import { validateTeacherCanCreateExam, validateTeacherCanEnterScores, validateTeacherCanViewResults, getTeacherAssignments, validateExamTimeWindow, logExamAccess } from "./teacher-auth-middleware";
 import { getVisibleExamsForStudent, getVisibleExamsForParent, invalidateVisibilityCache, warmVisibilityCache } from "./exam-visibility";
+import { calculateClassTeacherPermissions, getClassTeacherPermissionDeniedMessage } from "@shared/class-teacher-permissions";
 import { SubjectAssignmentService } from "./services/subject-assignment-service";
 import { performanceCache, PerformanceCache } from "./performance-cache";
 import { enhancedCache, EnhancedCache } from "./enhanced-cache";
@@ -13231,10 +13232,12 @@ Treasure-Home School Administration
     });
 
     // Save/update skills for a report card
+    // AUTHORIZATION: Only the class teacher or admins can rate skills
     app.post('/api/reports/:reportCardId/skills', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
       try {
         const { reportCardId } = req.params;
         const userId = req.user!.id;
+        const roleId = req.user!.roleId;
         const skillsData = req.body;
 
         const reportCard = await storage.getReportCard(Number(reportCardId));
@@ -13242,14 +13245,22 @@ Treasure-Home School Administration
           return res.status(404).json({ message: 'Report card not found' });
         }
 
-        // Check permission: teacher creating report or admin
-        const isAdmin = [1, 2].includes(req.user!.roleId);
-        if (!isAdmin && reportCard.classId) {
-          const assignments = await storage.getTeacherAssignmentsForClass(userId, reportCard.classId);
-          const isAssignedToClass = assignments.length > 0;
-          if (!isAssignedToClass) {
-            return res.status(403).json({ message: 'You do not have permission to update skills for this report card' });
-          }
+        // Get the class to find the class teacher
+        const classInfo = reportCard.classId ? await storage.getClass(reportCard.classId) : null;
+        const classTeacherId = classInfo?.classTeacherId || null;
+
+        // Check class teacher permission
+        const permissions = calculateClassTeacherPermissions({
+          loggedInUserId: userId,
+          loggedInRoleId: roleId,
+          classTeacherId
+        });
+
+        if (!permissions.canRateSkills) {
+          return res.status(403).json({ 
+            message: getClassTeacherPermissionDeniedMessage('skills'),
+            isClassTeacher: false
+          });
         }
 
         const result = await storage.saveReportCardSkills(Number(reportCardId), { ...skillsData, recordedBy: userId });
