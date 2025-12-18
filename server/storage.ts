@@ -354,6 +354,8 @@ export interface IStorage {
   updateReportCardStatus(reportCardId: number, status: string, userId: string): Promise<ReportCard | undefined>;
   updateReportCardStatusOptimized(reportCardId: number, status: string, userId: string): Promise<{ reportCard: ReportCard; previousStatus: string } | undefined>;
   updateReportCardRemarks(reportCardId: number, teacherRemarks?: string, principalRemarks?: string): Promise<ReportCard | undefined>;
+  getReportCardSkills(reportCardId: number): Promise<any | undefined>;
+  saveReportCardSkills(reportCardId: number, skills: any): Promise<any>;
   getExamsWithSubjectsByClassAndTerm(classId: number, termId?: number): Promise<any[]>;
   getExamScoresForReportCard(studentId: string, subjectId: number, termId: number): Promise<{ testExams: any[]; mainExams: any[] }>;
   recalculateReportCard(reportCardId: number, gradingScale: string): Promise<ReportCard | undefined>;

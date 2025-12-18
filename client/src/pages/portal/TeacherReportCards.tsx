@@ -1506,7 +1506,7 @@ export default function TeacherReportCards() {
                   }
                   canEditPrincipalRemarks={fullReportCard.status === 'draft' && user?.role?.toLowerCase() === 'admin'}
                   canEditSkills={
-                    fullReportCard.status === 'draft' && 
+                    (fullReportCard.status === 'draft' || fullReportCard.status === 'teacher_signed') && 
                     (isAdmin || classes.find((c: any) => c.id === Number(selectedClass))?.classTeacherId === user?.id)
                   }
                   onGenerateDefaultComments={async () => {
