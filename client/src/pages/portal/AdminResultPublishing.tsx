@@ -1369,11 +1369,13 @@ export default function AdminResultPublishing() {
                         totalStudents: fullReportCard.classStatistics?.totalStudents || fullReportCard.totalStudentsInClass || 0
                       },
                       attendance: {
-                        timesSchoolOpened: 0,
-                        timesPresent: 0,
-                        timesAbsent: 0,
-                        attendancePercentage: 0
-                      }
+                        timesSchoolOpened: fullReportCard.attendance?.timesSchoolOpened || 0,
+                        timesPresent: fullReportCard.attendance?.timesPresent || 0,
+                        timesAbsent: fullReportCard.attendance?.timesAbsent || 0,
+                        attendancePercentage: fullReportCard.attendance?.attendancePercentage || 0
+                      },
+                      affectiveTraits: fullReportCard.affectiveTraits,
+                      psychomotorSkills: fullReportCard.psychomotorSkills
                     }}
                     testWeight={40}
                     examWeight={60}
@@ -1543,12 +1545,14 @@ export default function AdminResultPublishing() {
               teacherRemarks: fullReportCard.teacherRemarks,
               principalRemarks: fullReportCard.principalRemarks,
               attendance: {
-                timesSchoolOpened: 0,
-                timesPresent: 0,
-                timesAbsent: 0,
+                timesSchoolOpened: fullReportCard.attendance?.timesSchoolOpened || 0,
+                timesPresent: fullReportCard.attendance?.timesPresent || 0,
+                timesAbsent: fullReportCard.attendance?.timesAbsent || 0,
               },
               studentPhoto: fullReportCard.studentPhoto,
               dateIssued: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+              affectiveTraits: fullReportCard.affectiveTraits,
+              psychomotorSkills: fullReportCard.psychomotorSkills
             }}
             testWeight={40}
             examWeight={60}
