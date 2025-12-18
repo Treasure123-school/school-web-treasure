@@ -737,26 +737,31 @@ export function ProfessionalReportCard({
           
           <CollapsibleContent className="print:!block">
             <CardContent className="p-3 sm:p-4 pt-0">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-3">
                 {affectiveTraitLabels.map(({ key, label }) => (
                   canEditSkills ? (
-                    <div key={key} className="flex items-center justify-between py-2 border-b border-muted last:border-b-0">
-                      <span className="text-sm text-muted-foreground">{label}</span>
-                      <div className="flex gap-1">
-                        {[1, 2, 3, 4, 5].map((rating) => (
-                          <button
-                            key={rating}
-                            onClick={() => handleSkillChange(key, rating)}
-                            className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-medium transition-all ${
-                              localSkills[key as keyof typeof localSkills] === rating
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-muted text-muted-foreground/50 hover:bg-muted/80'
-                            }`}
-                            data-testid={`skill-${key}-${rating}`}
-                          >
-                            {rating}
-                          </button>
-                        ))}
+                    <div key={key} className="flex items-center justify-between gap-3 py-2 px-3 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
+                      <span className="text-sm font-medium text-foreground flex-shrink-0 min-w-[140px]">{label}</span>
+                      <div className="flex gap-2 items-center flex-wrap justify-end">
+                        {[1, 2, 3, 4, 5].map((rating) => {
+                          const isSelected = localSkills[key as keyof typeof localSkills] === rating;
+                          return (
+                            <button
+                              key={rating}
+                              onClick={() => handleSkillChange(key, rating)}
+                              type="button"
+                              className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-primary text-primary-foreground shadow-md scale-105'
+                                  : 'bg-background border-2 border-muted text-muted-foreground hover:border-primary/50 hover:bg-primary/5'
+                              }`}
+                              title={`Rate ${label} as ${rating}`}
+                              data-testid={`skill-${key}-${rating}`}
+                            >
+                              {rating}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   ) : (
@@ -764,9 +769,10 @@ export function ProfessionalReportCard({
                   )
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground mt-3 text-center">
-                Rating Scale: 5 = Excellent, 4 = Very Good, 3 = Good, 2 = Fair, 1 = Poor
-              </p>
+              <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                <p className="text-xs text-foreground font-semibold mb-1">Rating Scale:</p>
+                <p className="text-xs text-muted-foreground">1 = Poor | 2 = Fair | 3 = Good | 4 = Very Good | 5 = Excellent</p>
+              </div>
             </CardContent>
           </CollapsibleContent>
         </Card>
@@ -797,26 +803,31 @@ export function ProfessionalReportCard({
           
           <CollapsibleContent className="print:!block">
             <CardContent className="p-3 sm:p-4 pt-0">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-3">
                 {psychomotorLabels.map(({ key, label }) => (
                   canEditSkills ? (
-                    <div key={key} className="flex items-center justify-between py-2 border-b border-muted last:border-b-0">
-                      <span className="text-sm text-muted-foreground">{label}</span>
-                      <div className="flex gap-1">
-                        {[1, 2, 3, 4, 5].map((rating) => (
-                          <button
-                            key={rating}
-                            onClick={() => handleSkillChange(key, rating)}
-                            className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-medium transition-all ${
-                              localSkills[key as keyof typeof localSkills] === rating
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-muted text-muted-foreground/50 hover:bg-muted/80'
-                            }`}
-                            data-testid={`skill-${key}-${rating}`}
-                          >
-                            {rating}
-                          </button>
-                        ))}
+                    <div key={key} className="flex items-center justify-between gap-3 py-2 px-3 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
+                      <span className="text-sm font-medium text-foreground flex-shrink-0 min-w-[140px]">{label}</span>
+                      <div className="flex gap-2 items-center flex-wrap justify-end">
+                        {[1, 2, 3, 4, 5].map((rating) => {
+                          const isSelected = localSkills[key as keyof typeof localSkills] === rating;
+                          return (
+                            <button
+                              key={rating}
+                              onClick={() => handleSkillChange(key, rating)}
+                              type="button"
+                              className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-primary text-primary-foreground shadow-md scale-105'
+                                  : 'bg-background border-2 border-muted text-muted-foreground hover:border-primary/50 hover:bg-primary/5'
+                              }`}
+                              title={`Rate ${label} as ${rating}`}
+                              data-testid={`skill-${key}-${rating}`}
+                            >
+                              {rating}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   ) : (
@@ -836,9 +847,10 @@ export function ProfessionalReportCard({
                   Save Skills
                 </Button>
               )}
-              <p className="text-xs text-muted-foreground mt-3 text-center">
-                Rating Scale: 5 = Excellent, 4 = Very Good, 3 = Good, 2 = Fair, 1 = Poor
-              </p>
+              <div className="mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-md">
+                <p className="text-xs text-foreground font-semibold mb-1">Rating Scale:</p>
+                <p className="text-xs text-muted-foreground">1 = Poor | 2 = Fair | 3 = Good | 4 = Very Good | 5 = Excellent</p>
+              </div>
             </CardContent>
           </CollapsibleContent>
         </Card>
