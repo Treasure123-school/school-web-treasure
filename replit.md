@@ -29,6 +29,14 @@ The backend is an Express.js application built with Node.js and TypeScript, leve
   - Export options available on StudentReportCard, TeacherReportCards, and AdminResultPublishing pages
   - Uses html2canvas and jsPDF for high-quality rendering
   - Hidden template approach ensures exports use traditional format without affecting screen display
+- **Visible School Header on Report Cards**:
+  - Screen display now shows Nigeria-style school header with complete school details
+  - School Name: TREASURE HOME SCHOOL
+  - Address: Seriki-Soyinka, Ifo, Ogun State, Nigeria
+  - Contact: Tel: 080-1734-5676 | Email: info@treasurehomeschool.com
+  - Motto: "Honesty and Success"
+  - Dynamic term name and academic session display
+  - Consistent header across student, teacher, and admin report card views
 - **Report Card Comments Access Control**: Role-based permission system for comments:
   - Class Teacher's Comment: Only the assigned class teacher (or admins) can edit
   - Principal's Comment: Only admins can edit
