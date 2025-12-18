@@ -263,7 +263,29 @@ export function ProfessionalReportCard({
   const canEditPrincipal = canEditPrincipalRemarks !== undefined ? canEditPrincipalRemarks : canEditRemarks;
   
   const handleSkillChange = (key: string, value: number) => {
-    setLocalSkills(prev => ({ ...prev, [key]: value }));
+    setLocalSkills(prev => {
+      const updated = { ...prev, [key]: value };
+      // Auto-save immediately when skill changes
+      if (onSaveSkills && initialSkillsRef.current && skillsLoaded && !isLoading) {
+        const baseline = initialSkillsRef.current[key] ?? 0;
+        // Only save if the value actually changed from baseline
+        if (value !== baseline) {
+          setIsSavingSkills(true);
+          onSaveSkills({ [key]: value })
+            .then(() => {
+              // Update baseline for this skill after successful save
+              initialSkillsRef.current![key] = value;
+            })
+            .catch((error) => {
+              console.error('Failed to save skill:', error);
+            })
+            .finally(() => {
+              setIsSavingSkills(false);
+            });
+        }
+      }
+      return updated;
+    });
   };
   
   const handleSaveSkills = async () => {
@@ -805,9 +827,6 @@ export function ProfessionalReportCard({
                 values={canEditSkills ? (localSkills as unknown as Record<string, number>) : (psychomotorSkills as unknown as Record<string, number>)}
                 onRatingChange={handleSkillChange}
                 canEdit={canEditSkills}
-                onSave={handleSaveSkills}
-                isSaving={isSavingSkills}
-                isDataLoading={isLoading || !skillsLoaded}
                 bgColor="purple"
               />
             </CardContent>
