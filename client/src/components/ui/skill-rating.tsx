@@ -27,8 +27,12 @@ export function SkillRatingItem({
   skillKey
 }: SkillRatingItemProps) {
   if (!canEdit) {
-    const ratingText = value > 0 ? RATING_SCALE[value as keyof typeof RATING_SCALE] : '-';
-    const ratingColor = value >= 4 ? 'text-green-600' : value >= 3 ? 'text-blue-600' : value >= 2 ? 'text-yellow-600' : 'text-red-600';
+    const isRated = value > 0;
+    const ratingText = isRated ? RATING_SCALE[value as keyof typeof RATING_SCALE] : 'Not Rated';
+    const ratingColor = !isRated ? 'text-muted-foreground italic' : 
+                        value >= 4 ? 'text-green-600' : 
+                        value >= 3 ? 'text-blue-600' : 
+                        value >= 2 ? 'text-yellow-600' : 'text-red-600';
     
     return (
       <div className="flex items-center justify-between py-2 border-b border-muted last:border-b-0">
@@ -93,6 +97,7 @@ interface SkillsSectionProps {
   canEdit: boolean;
   onSave?: () => void;
   isSaving?: boolean;
+  isDataLoading?: boolean;
   bgColor?: string;
 }
 
@@ -105,6 +110,7 @@ export function SkillsSection({
   canEdit,
   onSave,
   isSaving = false,
+  isDataLoading = false,
   bgColor = 'purple'
 }: SkillsSectionProps) {
   return (
@@ -123,13 +129,13 @@ export function SkillsSection({
       {canEdit && onSave && (
         <Button
           onClick={onSave}
-          disabled={isSaving}
+          disabled={isSaving || isDataLoading}
           size="sm"
           className="mt-4 w-full"
           data-testid="button-save-skills"
         >
           {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-          Save Skills
+          {isDataLoading ? 'Loading...' : 'Save Skills'}
         </Button>
       )}
 

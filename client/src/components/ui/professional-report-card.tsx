@@ -145,6 +145,7 @@ interface ProfessionalReportCardProps {
   canEditSkills?: boolean;
   onGenerateDefaultComments?: () => Promise<{ teacherComment: string; principalComment: string }>;
   isLoading?: boolean;
+  isFullReportReady?: boolean;
   hideActionButtons?: boolean;
 }
 
@@ -201,6 +202,7 @@ export function ProfessionalReportCard({
   canEditSkills = false,
   onGenerateDefaultComments,
   isLoading = false,
+  isFullReportReady = false,
   hideActionButtons = false
 }: ProfessionalReportCardProps) {
   const [isSubjectsOpen, setIsSubjectsOpen] = useState(true);
@@ -226,10 +228,15 @@ export function ProfessionalReportCard({
     musicalSkills: reportCard.psychomotorSkills?.musicalSkills || 0,
     creativity: reportCard.psychomotorSkills?.creativity || 0
   });
+  
+  // Baseline snapshot of loaded skills - used to compute diff for save payload
+  const initialSkillsRef = useRef<Record<string, number> | null>(null);
+  const [skillsLoaded, setSkillsLoaded] = useState(false);
 
   // Sync localSkills when reportCard prop changes (e.g., when skills are loaded from DB)
+  // Only capture baseline when isFullReportReady is true (authoritative data has loaded)
   useEffect(() => {
-    setLocalSkills({
+    const loadedSkills = {
       punctuality: reportCard.affectiveTraits?.punctuality || 0,
       neatness: reportCard.affectiveTraits?.neatness || 0,
       attentiveness: reportCard.affectiveTraits?.attentiveness || 0,
@@ -241,8 +248,15 @@ export function ProfessionalReportCard({
       handwriting: reportCard.psychomotorSkills?.handwriting || 0,
       musicalSkills: reportCard.psychomotorSkills?.musicalSkills || 0,
       creativity: reportCard.psychomotorSkills?.creativity || 0
-    });
-  }, [reportCard.affectiveTraits, reportCard.psychomotorSkills]);
+    };
+    setLocalSkills(loadedSkills);
+    
+    // Only capture baseline and enable saves when full report is ready
+    if (isFullReportReady) {
+      initialSkillsRef.current = { ...loadedSkills };
+      setSkillsLoaded(true);
+    }
+  }, [reportCard.affectiveTraits, reportCard.psychomotorSkills, isFullReportReady]);
   
   // Use explicit permissions if provided, otherwise fall back to canEditRemarks
   const canEditTeacher = canEditTeacherRemarks !== undefined ? canEditTeacherRemarks : canEditRemarks;
@@ -253,10 +267,29 @@ export function ProfessionalReportCard({
   };
   
   const handleSaveSkills = async () => {
-    if (!onSaveSkills) return;
+    // Block save if data not loaded or no callback
+    if (!onSaveSkills || !initialSkillsRef.current || isLoading || !skillsLoaded) return;
     setIsSavingSkills(true);
     try {
-      await onSaveSkills(localSkills);
+      // Build payload with only changed skills (different from baseline)
+      const skillsToSave: Record<string, number> = {};
+      Object.entries(localSkills).forEach(([key, value]) => {
+        const baseline = initialSkillsRef.current![key] ?? 0;
+        // Include skill if its value changed from baseline
+        if (value !== baseline) {
+          skillsToSave[key] = value;
+        }
+      });
+      
+      // If nothing changed, don't save
+      if (Object.keys(skillsToSave).length === 0) {
+        setIsSavingSkills(false);
+        return;
+      }
+      
+      await onSaveSkills(skillsToSave);
+      // Update baseline after successful save
+      initialSkillsRef.current = { ...localSkills };
     } catch (error) {
       console.error('Failed to save skills:', error);
     } finally {
@@ -730,7 +763,7 @@ export function ProfessionalReportCard({
                 title="Affective Skills"
                 icon={<Brain className="w-4 h-4" />}
                 items={affectiveTraitLabels}
-                values={canEditSkills ? (localSkills as Record<string, number>) : (affectiveTraits as Record<string, number>)}
+                values={canEditSkills ? (localSkills as unknown as Record<string, number>) : (affectiveTraits as unknown as Record<string, number>)}
                 onRatingChange={handleSkillChange}
                 canEdit={canEditSkills}
                 bgColor="blue"
@@ -769,11 +802,12 @@ export function ProfessionalReportCard({
                 title="Psychomotor Skills"
                 icon={<Activity className="w-4 h-4" />}
                 items={psychomotorLabels}
-                values={canEditSkills ? (localSkills as Record<string, number>) : (psychomotorSkills as Record<string, number>)}
+                values={canEditSkills ? (localSkills as unknown as Record<string, number>) : (psychomotorSkills as unknown as Record<string, number>)}
                 onRatingChange={handleSkillChange}
                 canEdit={canEditSkills}
                 onSave={handleSaveSkills}
                 isSaving={isSavingSkills}
+                isDataLoading={isLoading || !skillsLoaded}
                 bgColor="purple"
               />
             </CardContent>

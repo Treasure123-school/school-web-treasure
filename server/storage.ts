@@ -8182,19 +8182,27 @@ export class DatabaseStorage implements IStorage {
       const existing = await this.getReportCardSkills(reportCardId);
       
       if (existing) {
+        // Only update fields that are explicitly provided in the payload
+        // Use incoming value if provided (including 0 for intentional clears), otherwise keep existing
+        const mergeSkill = (key: string, existingVal: number) => {
+          const newVal = skills[key];
+          // If field is present in payload, use it (allows intentional 0s); otherwise keep existing
+          return (newVal !== undefined) ? newVal : (existingVal ?? 0);
+        };
+        
         const result = await db.update(schema.reportCardSkills)
           .set({
-            punctuality: skills.punctuality || 0,
-            neatness: skills.neatness || 0,
-            attentiveness: skills.attentiveness || 0,
-            teamwork: skills.teamwork || 0,
-            leadership: skills.leadership || 0,
-            assignments: skills.assignments || 0,
-            classParticipation: skills.classParticipation || 0,
-            sports: skills.sports || 0,
-            handwriting: skills.handwriting || 0,
-            musicalSkills: skills.musicalSkills || 0,
-            creativity: skills.creativity || 0,
+            punctuality: mergeSkill('punctuality', existing.punctuality),
+            neatness: mergeSkill('neatness', existing.neatness),
+            attentiveness: mergeSkill('attentiveness', existing.attentiveness),
+            teamwork: mergeSkill('teamwork', existing.teamwork),
+            leadership: mergeSkill('leadership', existing.leadership),
+            assignments: mergeSkill('assignments', existing.assignments),
+            classParticipation: mergeSkill('classParticipation', existing.classParticipation),
+            sports: mergeSkill('sports', existing.sports),
+            handwriting: mergeSkill('handwriting', existing.handwriting),
+            musicalSkills: mergeSkill('musicalSkills', existing.musicalSkills),
+            creativity: mergeSkill('creativity', existing.creativity),
             recordedBy: skills.recordedBy,
             updatedAt: new Date()
           })

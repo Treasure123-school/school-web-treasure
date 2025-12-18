@@ -284,7 +284,7 @@ export default function TeacherReportCards() {
     enabled: !!selectedClass && !!selectedTerm,
   });
 
-  const { data: fullReportCard, isLoading: loadingFullReport, refetch: refetchFullReport } = useQuery({
+  const { data: fullReportCard, isLoading: loadingFullReport, isFetching: fetchingFullReport, refetch: refetchFullReport } = useQuery({
     queryKey: ['/api/reports', selectedReportCard?.id, 'full'],
     queryFn: async () => {
       if (!selectedReportCard?.id) return null;
@@ -605,6 +605,79 @@ export default function TeacherReportCards() {
       toast({
         title: "Error",
         description: error.message || "Failed to update remarks",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Skills mutation with optimistic updates - merges with existing values
+  const saveSkillsMutation = useMutation({
+    mutationFn: async (data: { reportCardId: number; skills: any }) => {
+      const response = await apiRequest('POST', `/api/reports/${data.reportCardId}/skills`, data.skills);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to save skills');
+      }
+      return response.json();
+    },
+    onMutate: async ({ reportCardId, skills }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/reports', reportCardId, 'full'] });
+      
+      // Snapshot previous data
+      const previousFullReport = queryClient.getQueryData<any>(['/api/reports', reportCardId, 'full']);
+      
+      // Merge new skills with existing values
+      // Only update fields that are provided in the payload (allows 0s for clears)
+      const mergeSkill = (key: string, existingVal: number) => {
+        const newVal = skills[key];
+        return (newVal !== undefined) ? newVal : (existingVal ?? 0);
+      };
+      
+      queryClient.setQueryData(['/api/reports', reportCardId, 'full'], (old: any) => {
+        if (!old) return old;
+        
+        const existingAffective = old.affectiveTraits || {};
+        const existingPsychomotor = old.psychomotorSkills || {};
+        
+        return {
+          ...old,
+          affectiveTraits: {
+            punctuality: mergeSkill('punctuality', existingAffective.punctuality),
+            neatness: mergeSkill('neatness', existingAffective.neatness),
+            attentiveness: mergeSkill('attentiveness', existingAffective.attentiveness),
+            teamwork: mergeSkill('teamwork', existingAffective.teamwork),
+            leadership: mergeSkill('leadership', existingAffective.leadership),
+            assignments: mergeSkill('assignments', existingAffective.assignments),
+            classParticipation: mergeSkill('classParticipation', existingAffective.classParticipation)
+          },
+          psychomotorSkills: {
+            sports: mergeSkill('sports', existingPsychomotor.sports),
+            handwriting: mergeSkill('handwriting', existingPsychomotor.handwriting),
+            musicalSkills: mergeSkill('musicalSkills', existingPsychomotor.musicalSkills),
+            creativity: mergeSkill('creativity', existingPsychomotor.creativity)
+          }
+        };
+      });
+      
+      return { previousFullReport, reportCardId };
+    },
+    onSuccess: (_data, { reportCardId }) => {
+      toast({
+        title: "Success",
+        description: "Skills saved successfully",
+      });
+      // Refetch to ensure server data is synced
+      queryClient.invalidateQueries({ queryKey: ['/api/reports', reportCardId, 'full'] });
+    },
+    onError: (error: any, _variables, context) => {
+      // Rollback on error
+      if (context?.previousFullReport && context?.reportCardId) {
+        queryClient.setQueryData(['/api/reports', context.reportCardId, 'full'], context.previousFullReport);
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save skills",
         variant: "destructive",
       });
     },
@@ -1530,10 +1603,10 @@ export default function TeacherReportCards() {
                     updateRemarksMutation.mutate(payload);
                   }}
                   onSaveSkills={async (skills: any) => {
-                    const response = await apiRequest('POST', `/api/reports/${fullReportCard.id}/skills`, skills);
-                    if (!response.ok) throw new Error('Failed to save skills');
-                    toast({ title: 'Skills saved successfully', variant: 'default' });
-                    refetchFullReport();
+                    await saveSkillsMutation.mutateAsync({ 
+                      reportCardId: fullReportCard.id, 
+                      skills 
+                    });
                   }}
                   canEditTeacherRemarks={
                     fullReportCard.status === 'draft' && 
@@ -1550,6 +1623,7 @@ export default function TeacherReportCards() {
                     return await response.json();
                   }}
                   isLoading={updateRemarksMutation.isPending}
+                  isFullReportReady={!loadingFullReport && !fetchingFullReport && !!fullReportCard}
                   hideActionButtons={true}
                   />
                 </div>
