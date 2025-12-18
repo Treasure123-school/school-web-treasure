@@ -666,6 +666,31 @@ export const reportCardItems = pgTable("report_card_items", {
   reportCardItemsExamCreatedByIdx: index("report_card_items_exam_created_by_idx").on(table.examExamCreatedBy),
 }));
 
+// Report card skills table - Stores cognitive/affective and psychomotor skill ratings
+export const reportCardSkills = pgTable("report_card_skills", {
+  id: serial("id").primaryKey(),
+  reportCardId: integer("report_card_id").notNull().references(() => reportCards.id, { onDelete: 'cascade' }),
+  // Affective traits (1-5 scale)
+  punctuality: integer("punctuality"),
+  neatness: integer("neatness"),
+  attentiveness: integer("attentiveness"),
+  teamwork: integer("teamwork"),
+  leadership: integer("leadership"),
+  assignments: integer("assignments"),
+  classParticipation: integer("class_participation"),
+  // Psychomotor skills (1-5 scale)
+  sports: integer("sports"),
+  handwriting: integer("handwriting"),
+  musicalSkills: integer("musical_skills"),
+  creativity: integer("creativity"),
+  // Metadata
+  recordedBy: varchar("recorded_by", { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  reportCardSkillsReportCardIdx: index("report_card_skills_report_card_idx").on(table.reportCardId),
+}));
+
 // Study resources table
 export const studyResources = pgTable("study_resources", {
   id: serial("id").primaryKey(),
@@ -1066,6 +1091,8 @@ export type ReportCard = typeof reportCards.$inferSelect;
 export type InsertReportCard = typeof reportCards.$inferInsert;
 export type ReportCardItem = typeof reportCardItems.$inferSelect;
 export type InsertReportCardItem = typeof reportCardItems.$inferInsert;
+export type ReportCardSkills = typeof reportCardSkills.$inferSelect;
+export type InsertReportCardSkills = typeof reportCardSkills.$inferInsert;
 export type StudyResource = typeof studyResources.$inferSelect;
 export type InsertStudyResource = typeof studyResources.$inferInsert;
 export type TeacherProfile = typeof teacherProfiles.$inferSelect;
