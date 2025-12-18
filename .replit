@@ -43,7 +43,7 @@ args = "npx tsx verify-supabase-storage.ts"
 [deployment]
 deploymentTarget = "autoscale"
 build = ["npm", "run", "build"]
-run = ["npm", "run", "start"]
+run = ["node", "./dist/index.cjs"]
 
 [userenv]
 
