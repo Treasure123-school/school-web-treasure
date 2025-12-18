@@ -199,13 +199,21 @@ export const BaileysReportTemplate = forwardRef<HTMLDivElement, BaileysReportTem
 
   const RatingCell = ({ value }: { value: number | undefined }) => {
     return (
-      <div className="flex justify-center gap-0.5">
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '1px' }}>
         {[5, 4, 3, 2, 1].map((n) => (
           <div
             key={n}
-            className={`w-4 h-4 border border-gray-400 text-[9px] flex items-center justify-center ${
-              value && value >= n ? 'bg-gray-800 text-white' : 'bg-white'
-            }`}
+            style={{
+              width: '14px',
+              height: '14px',
+              border: '1px solid #6b7280',
+              fontSize: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: value && value >= n ? '#1f2937' : '#ffffff',
+              color: value && value >= n ? '#ffffff' : '#000000',
+            }}
           >
             {n}
           </div>
@@ -217,113 +225,120 @@ export const BaileysReportTemplate = forwardRef<HTMLDivElement, BaileysReportTem
   return (
     <div 
       ref={ref}
-      className="bg-white text-black p-6 font-sans text-[11px] leading-tight"
       style={{ 
         width: '210mm', 
         minHeight: '297mm',
         maxWidth: '210mm',
         margin: '0 auto',
-        boxSizing: 'border-box'
-      }}
+        boxSizing: 'border-box',
+        backgroundColor: '#ffffff',
+        color: '#000000',
+        padding: '8mm',
+        fontFamily: 'Arial, Helvetica, sans-serif',
+        fontSize: '10px',
+        lineHeight: '1.3',
+        WebkitPrintColorAdjust: 'exact',
+        printColorAdjust: 'exact',
+      } as React.CSSProperties}
     >
       {/* School Header */}
-      <div className="text-center border-b-2 border-gray-800 pb-3 mb-2">
-        <div className="flex items-center justify-center gap-4">
+      <div style={{ textAlign: 'center', borderBottom: '2px solid #1f2937', paddingBottom: '8px', marginBottom: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
           <img 
             src={logoPath} 
             alt="School Logo" 
-            className="h-16 w-16 object-contain"
+            style={{ height: '50px', width: '50px', objectFit: 'contain' }}
             crossOrigin="anonymous"
           />
           <div>
-            <h1 className="text-2xl font-bold tracking-wider text-gray-900" style={{ fontFamily: 'Times New Roman, serif' }}>
+            <h1 style={{ fontSize: '18px', fontWeight: 'bold', letterSpacing: '1px', color: '#111827', fontFamily: 'Times New Roman, serif', margin: 0 }}>
               {schoolName}
             </h1>
-            <p className="text-xs text-gray-700">{schoolAddress}</p>
-            <p className="text-xs text-gray-600">TEL: {schoolPhone}; Email: {schoolEmail}</p>
+            <p style={{ fontSize: '9px', color: '#374151', margin: '2px 0' }}>{schoolAddress}</p>
+            <p style={{ fontSize: '9px', color: '#4b5563', margin: 0 }}>TEL: {schoolPhone}; Email: {schoolEmail}</p>
           </div>
         </div>
-        <div className="mt-2 bg-gray-100 py-1 px-4 inline-block">
-          <span className="font-bold text-sm tracking-wide">
+        <div style={{ marginTop: '6px', backgroundColor: '#f3f4f6', padding: '4px 12px', display: 'inline-block' }}>
+          <span style={{ fontWeight: 'bold', fontSize: '11px', letterSpacing: '0.5px' }}>
             {reportCard.termName?.toUpperCase() || 'FIRST TERM'} STUDENT'S PERFORMANCE REPORT
           </span>
         </div>
       </div>
 
       {/* Student Information Row */}
-      <div className="grid grid-cols-2 gap-4 mb-3 text-[10px]">
-        <div className="space-y-1">
-          <div className="flex gap-2">
-            <span className="font-semibold min-w-[80px]">NAME:</span>
-            <span className="uppercase border-b border-gray-400 flex-1">{reportCard.studentName}</span>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '8px', fontSize: '9px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'baseline' }}>
+            <span style={{ fontWeight: 600, minWidth: '50px' }}>NAME:</span>
+            <span style={{ textTransform: 'uppercase', borderBottom: '1px solid #9ca3af', flex: 1, paddingBottom: '1px' }}>{reportCard.studentName}</span>
           </div>
-          <div className="flex gap-4">
-            <div className="flex gap-2 flex-1">
-              <span className="font-semibold">CLASS:</span>
-              <span className="border-b border-gray-400 flex-1">{reportCard.className}{reportCard.classArm ? ` ${reportCard.classArm}` : ''}</span>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ display: 'flex', gap: '4px', flex: 1, alignItems: 'baseline' }}>
+              <span style={{ fontWeight: 600 }}>CLASS:</span>
+              <span style={{ borderBottom: '1px solid #9ca3af', flex: 1, paddingBottom: '1px' }}>{reportCard.className}{reportCard.classArm ? ` ${reportCard.classArm}` : ''}</span>
             </div>
-            <div className="flex gap-2 flex-1">
-              <span className="font-semibold">SESSION:</span>
-              <span className="border-b border-gray-400 flex-1">{reportCard.academicSession || reportCard.termYear || '2024/2025'}</span>
+            <div style={{ display: 'flex', gap: '4px', flex: 1, alignItems: 'baseline' }}>
+              <span style={{ fontWeight: 600 }}>SESSION:</span>
+              <span style={{ borderBottom: '1px solid #9ca3af', flex: 1, paddingBottom: '1px' }}>{reportCard.academicSession || reportCard.termYear || '2024/2025'}</span>
             </div>
           </div>
-          <div className="flex gap-4">
-            <div className="flex gap-2 flex-1">
-              <span className="font-semibold">D.O.B:</span>
-              <span className="border-b border-gray-400 flex-1">{reportCard.dateOfBirth || '-'}</span>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ display: 'flex', gap: '4px', flex: 1, alignItems: 'baseline' }}>
+              <span style={{ fontWeight: 600 }}>D.O.B:</span>
+              <span style={{ borderBottom: '1px solid #9ca3af', flex: 1, paddingBottom: '1px' }}>{reportCard.dateOfBirth || '-'}</span>
             </div>
-            <div className="flex gap-2 flex-1">
-              <span className="font-semibold">AGE:</span>
-              <span className="border-b border-gray-400">{'-'}</span>
+            <div style={{ display: 'flex', gap: '4px', flex: 1, alignItems: 'baseline' }}>
+              <span style={{ fontWeight: 600 }}>AGE:</span>
+              <span style={{ borderBottom: '1px solid #9ca3af', flex: 1, paddingBottom: '1px' }}>{'-'}</span>
             </div>
           </div>
         </div>
-        <div className="space-y-1">
-          <div className="flex gap-4">
-            <div className="flex gap-2 flex-1">
-              <span className="font-semibold">GENDER:</span>
-              <span className="border-b border-gray-400 flex-1">{reportCard.gender || '-'}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ display: 'flex', gap: '4px', flex: 1, alignItems: 'baseline' }}>
+              <span style={{ fontWeight: 600 }}>GENDER:</span>
+              <span style={{ borderBottom: '1px solid #9ca3af', flex: 1, paddingBottom: '1px' }}>{reportCard.gender || '-'}</span>
             </div>
-            <div className="flex gap-2 flex-1">
-              <span className="font-semibold">ADMISSION NO:</span>
-              <span className="border-b border-gray-400 flex-1">{reportCard.admissionNumber}</span>
-            </div>
-          </div>
-          <div className="flex gap-4">
-            <div className="flex gap-2 flex-1">
-              <span className="font-semibold">HT:</span>
-              <span className="border-b border-gray-400">{reportCard.height || '-'} cm</span>
-            </div>
-            <div className="flex gap-2 flex-1">
-              <span className="font-semibold">WT:</span>
-              <span className="border-b border-gray-400">{reportCard.weight || '-'} kg</span>
+            <div style={{ display: 'flex', gap: '4px', flex: 1, alignItems: 'baseline' }}>
+              <span style={{ fontWeight: 600 }}>ADMISSION NO:</span>
+              <span style={{ borderBottom: '1px solid #9ca3af', flex: 1, paddingBottom: '1px' }}>{reportCard.admissionNumber}</span>
             </div>
           </div>
-          <div className="flex gap-2">
-            <span className="font-semibold">CLUB/SOCIETY:</span>
-            <span className="border-b border-gray-400 flex-1">{reportCard.club || '-'}</span>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ display: 'flex', gap: '4px', flex: 1, alignItems: 'baseline' }}>
+              <span style={{ fontWeight: 600 }}>HT:</span>
+              <span style={{ borderBottom: '1px solid #9ca3af', paddingBottom: '1px' }}>{reportCard.height || '-'} cm</span>
+            </div>
+            <div style={{ display: 'flex', gap: '4px', flex: 1, alignItems: 'baseline' }}>
+              <span style={{ fontWeight: 600 }}>WT:</span>
+              <span style={{ borderBottom: '1px solid #9ca3af', paddingBottom: '1px' }}>{reportCard.weight || '-'} kg</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '4px', alignItems: 'baseline' }}>
+            <span style={{ fontWeight: 600 }}>CLUB/SOCIETY:</span>
+            <span style={{ borderBottom: '1px solid #9ca3af', flex: 1, paddingBottom: '1px' }}>{reportCard.club || '-'}</span>
           </div>
         </div>
       </div>
 
       {/* Main Content Grid */}
-      <div className="flex gap-3">
+      <div style={{ display: 'flex', gap: '8px' }}>
         {/* Left Column - Cognitive Domain */}
-        <div className="flex-1">
-          <div className="border border-gray-800">
-            <div className="bg-gray-200 text-center py-1 font-bold border-b border-gray-800 text-[10px]">
+        <div style={{ flex: 1 }}>
+          <div style={{ border: '1px solid #1f2937' }}>
+            <div style={{ backgroundColor: '#e5e7eb', textAlign: 'center', padding: '3px', fontWeight: 'bold', borderBottom: '1px solid #1f2937', fontSize: '9px' }}>
               COGNITIVE DOMAIN
             </div>
-            <table className="w-full border-collapse text-[9px]">
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8px' }}>
               <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-400 p-1 text-left font-semibold">SUBJECTS</th>
-                  <th className="border border-gray-400 p-1 text-center font-semibold w-8">C.A</th>
-                  <th className="border border-gray-400 p-1 text-center font-semibold w-8">EXAM</th>
-                  <th className="border border-gray-400 p-1 text-center font-semibold w-8">TOTAL</th>
-                  <th className="border border-gray-400 p-1 text-center font-semibold w-8">GRADE</th>
-                  <th className="border border-gray-400 p-1 text-center font-semibold w-8">POS</th>
-                  <th className="border border-gray-400 p-1 text-center font-semibold">REMARKS</th>
+                <tr style={{ backgroundColor: '#f3f4f6' }}>
+                  <th style={{ border: '1px solid #9ca3af', padding: '3px', textAlign: 'left', fontWeight: 600 }}>SUBJECTS</th>
+                  <th style={{ border: '1px solid #9ca3af', padding: '3px', textAlign: 'center', fontWeight: 600, width: '28px' }}>C.A</th>
+                  <th style={{ border: '1px solid #9ca3af', padding: '3px', textAlign: 'center', fontWeight: 600, width: '28px' }}>EXAM</th>
+                  <th style={{ border: '1px solid #9ca3af', padding: '3px', textAlign: 'center', fontWeight: 600, width: '32px' }}>TOTAL</th>
+                  <th style={{ border: '1px solid #9ca3af', padding: '3px', textAlign: 'center', fontWeight: 600, width: '32px' }}>GRADE</th>
+                  <th style={{ border: '1px solid #9ca3af', padding: '3px', textAlign: 'center', fontWeight: 600, width: '28px' }}>POS</th>
+                  <th style={{ border: '1px solid #9ca3af', padding: '3px', textAlign: 'center', fontWeight: 600 }}>REMARKS</th>
                 </tr>
               </thead>
               <tbody>
@@ -332,14 +347,14 @@ export const BaileysReportTemplate = forwardRef<HTMLDivElement, BaileysReportTem
                   const examScore = subject.examScore ?? subject.examWeightedScore ?? 0;
                   const total = subject.obtainedMarks || (Number(testScore) + Number(examScore));
                   return (
-                    <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="border border-gray-400 p-1 font-medium uppercase">{subject.subjectName}</td>
-                      <td className="border border-gray-400 p-1 text-center">{testScore}</td>
-                      <td className="border border-gray-400 p-1 text-center">{examScore}</td>
-                      <td className="border border-gray-400 p-1 text-center font-semibold">{total}</td>
-                      <td className="border border-gray-400 p-1 text-center font-semibold">{subject.grade || '-'}</td>
-                      <td className="border border-gray-400 p-1 text-center">{subject.subjectPosition || '-'}</td>
-                      <td className="border border-gray-400 p-1 text-center text-[8px]">{subject.remarks || getRemarkFromGrade(subject.grade)}</td>
+                    <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f9fafb' }}>
+                      <td style={{ border: '1px solid #9ca3af', padding: '3px', fontWeight: 500, textTransform: 'uppercase' }}>{subject.subjectName}</td>
+                      <td style={{ border: '1px solid #9ca3af', padding: '3px', textAlign: 'center' }}>{testScore}</td>
+                      <td style={{ border: '1px solid #9ca3af', padding: '3px', textAlign: 'center' }}>{examScore}</td>
+                      <td style={{ border: '1px solid #9ca3af', padding: '3px', textAlign: 'center', fontWeight: 600 }}>{total}</td>
+                      <td style={{ border: '1px solid #9ca3af', padding: '3px', textAlign: 'center', fontWeight: 600 }}>{subject.grade || '-'}</td>
+                      <td style={{ border: '1px solid #9ca3af', padding: '3px', textAlign: 'center' }}>{subject.subjectPosition || '-'}</td>
+                      <td style={{ border: '1px solid #9ca3af', padding: '3px', textAlign: 'center', fontSize: '7px' }}>{subject.remarks || getRemarkFromGrade(subject.grade)}</td>
                     </tr>
                   );
                 })}
@@ -348,102 +363,102 @@ export const BaileysReportTemplate = forwardRef<HTMLDivElement, BaileysReportTem
           </div>
 
           {/* Performance Summary */}
-          <div className="border border-gray-800 mt-2">
-            <div className="bg-gray-200 text-center py-1 font-bold border-b border-gray-800 text-[10px]">
+          <div style={{ border: '1px solid #1f2937', marginTop: '6px' }}>
+            <div style={{ backgroundColor: '#e5e7eb', textAlign: 'center', padding: '3px', fontWeight: 'bold', borderBottom: '1px solid #1f2937', fontSize: '9px' }}>
               PERFORMANCE SUMMARY
             </div>
-            <div className="p-2 text-[10px] grid grid-cols-2 gap-1">
-              <div className="flex justify-between">
+            <div style={{ padding: '6px', fontSize: '9px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Total Obtained:</span>
-                <span className="font-bold">{totalObtained}</span>
+                <span style={{ fontWeight: 'bold' }}>{totalObtained}</span>
               </div>
-              <div className="flex justify-between">
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>%AGE:</span>
-                <span className="font-bold">{avgPercentage}%</span>
+                <span style={{ fontWeight: 'bold' }}>{avgPercentage}%</span>
               </div>
-              <div className="flex justify-between">
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Total Obtainable:</span>
-                <span className="font-bold">{totalMax}</span>
+                <span style={{ fontWeight: 'bold' }}>{totalMax}</span>
               </div>
-              <div className="flex justify-between">
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>GRADE:</span>
-                <span className="font-bold text-lg">{overallGrade}</span>
+                <span style={{ fontWeight: 'bold', fontSize: '14px' }}>{overallGrade}</span>
               </div>
             </div>
-            <div className="border-t border-gray-400 p-2 text-center">
-              <span className="font-bold text-sm">{getRemarkFromGrade(overallGrade)}</span>
+            <div style={{ borderTop: '1px solid #9ca3af', padding: '4px', textAlign: 'center' }}>
+              <span style={{ fontWeight: 'bold', fontSize: '10px' }}>{getRemarkFromGrade(overallGrade)}</span>
             </div>
           </div>
 
           {/* Grade Scale */}
-          <div className="border border-gray-800 mt-2">
-            <div className="bg-gray-200 text-center py-1 font-bold border-b border-gray-800 text-[9px]">
+          <div style={{ border: '1px solid #1f2937', marginTop: '6px' }}>
+            <div style={{ backgroundColor: '#e5e7eb', textAlign: 'center', padding: '3px', fontWeight: 'bold', borderBottom: '1px solid #1f2937', fontSize: '8px' }}>
               GRADE SCALE
             </div>
-            <div className="p-1 text-[8px] text-center">
+            <div style={{ padding: '4px', fontSize: '7px', textAlign: 'center' }}>
               70-100%=A(EXCELLENT) 60-69%=B(VERY GOOD) 50-59%=C(GOOD) 40-49%=D(PASS) 30-39%=E(FAIR) 0-29%=F(WEAK)
             </div>
           </div>
         </div>
 
         {/* Right Column */}
-        <div className="w-[180px]">
+        <div style={{ width: '170px', flexShrink: 0 }}>
           {/* Student Photo Placeholder */}
-          <div className="border border-gray-800 h-24 mb-2 flex items-center justify-center bg-gray-50">
+          <div style={{ border: '1px solid #1f2937', height: '70px', marginBottom: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb' }}>
             {reportCard.studentPhoto ? (
               <img 
                 src={reportCard.studentPhoto} 
                 alt={reportCard.studentName}
-                className="h-full w-full object-cover"
+                style={{ height: '100%', width: '100%', objectFit: 'cover' }}
                 crossOrigin="anonymous"
               />
             ) : (
-              <span className="text-gray-400 text-xs">Photo</span>
+              <span style={{ color: '#9ca3af', fontSize: '9px' }}>Photo</span>
             )}
           </div>
 
           {/* Attendance Summary */}
-          <div className="border border-gray-800 mb-2">
-            <div className="bg-gray-200 text-center py-1 font-bold border-b border-gray-800 text-[9px]">
+          <div style={{ border: '1px solid #1f2937', marginBottom: '6px' }}>
+            <div style={{ backgroundColor: '#e5e7eb', textAlign: 'center', padding: '3px', fontWeight: 'bold', borderBottom: '1px solid #1f2937', fontSize: '8px' }}>
               ATTENDANCE SUMMARY
             </div>
-            <div className="text-[9px]">
-              <div className="flex justify-between p-1 border-b border-gray-300">
+            <div style={{ fontSize: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px', borderBottom: '1px solid #d1d5db' }}>
                 <span>No of Times School Opened</span>
-                <span className="font-bold">{attendance.timesSchoolOpened}</span>
+                <span style={{ fontWeight: 'bold' }}>{attendance.timesSchoolOpened}</span>
               </div>
-              <div className="flex justify-between p-1 border-b border-gray-300">
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px', borderBottom: '1px solid #d1d5db' }}>
                 <span>No of Times Present</span>
-                <span className="font-bold">{attendance.timesPresent}</span>
+                <span style={{ fontWeight: 'bold' }}>{attendance.timesPresent}</span>
               </div>
-              <div className="flex justify-between p-1 border-b border-gray-300">
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px', borderBottom: '1px solid #d1d5db' }}>
                 <span>No of Times Absent</span>
-                <span className="font-bold">{attendance.timesAbsent}</span>
+                <span style={{ fontWeight: 'bold' }}>{attendance.timesAbsent}</span>
               </div>
-              <div className="flex justify-between p-1">
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px' }}>
                 <span>Attendance %</span>
-                <span className="font-bold">{attendance.attendancePercentage || (attendance.timesSchoolOpened > 0 ? Math.round((attendance.timesPresent / attendance.timesSchoolOpened) * 100) : 0)}%</span>
+                <span style={{ fontWeight: 'bold' }}>{attendance.attendancePercentage || (attendance.timesSchoolOpened > 0 ? Math.round((attendance.timesPresent / attendance.timesSchoolOpened) * 100) : 0)}%</span>
               </div>
             </div>
           </div>
 
           {/* Affective Domain */}
-          <div className="border border-gray-800 mb-2">
-            <div className="bg-gray-200 text-center py-1 font-bold border-b border-gray-800 text-[9px]">
+          <div style={{ border: '1px solid #1f2937', marginBottom: '6px' }}>
+            <div style={{ backgroundColor: '#e5e7eb', textAlign: 'center', padding: '3px', fontWeight: 'bold', borderBottom: '1px solid #1f2937', fontSize: '8px' }}>
               AFFECTIVE DOMAIN
             </div>
-            <table className="w-full text-[8px]">
+            <table style={{ width: '100%', fontSize: '7px', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th className="border-b border-gray-300 p-0.5 text-left"></th>
-                  <th className="border-b border-gray-300 p-0.5 text-center" colSpan={5}>5 4 3 2 1</th>
+                  <th style={{ borderBottom: '1px solid #d1d5db', padding: '2px', textAlign: 'left' }}></th>
+                  <th style={{ borderBottom: '1px solid #d1d5db', padding: '2px', textAlign: 'center' }}>5 4 3 2 1</th>
                 </tr>
               </thead>
               <tbody>
                 {affectiveLabels.map(({ key, label }) => (
                   <tr key={key}>
-                    <td className="p-0.5 border-b border-gray-200">{label}</td>
-                    <td className="p-0.5 border-b border-gray-200">
+                    <td style={{ padding: '2px', borderBottom: '1px solid #e5e7eb', fontSize: '7px' }}>{label}</td>
+                    <td style={{ padding: '2px', borderBottom: '1px solid #e5e7eb' }}>
                       <RatingCell value={affectiveTraits[key as keyof AffectiveTraits]} />
                     </td>
                   </tr>
@@ -453,22 +468,22 @@ export const BaileysReportTemplate = forwardRef<HTMLDivElement, BaileysReportTem
           </div>
 
           {/* Psychomotor Domain */}
-          <div className="border border-gray-800 mb-2">
-            <div className="bg-gray-200 text-center py-1 font-bold border-b border-gray-800 text-[9px]">
+          <div style={{ border: '1px solid #1f2937', marginBottom: '6px' }}>
+            <div style={{ backgroundColor: '#e5e7eb', textAlign: 'center', padding: '3px', fontWeight: 'bold', borderBottom: '1px solid #1f2937', fontSize: '8px' }}>
               PSYCHOMOTOR DOMAIN
             </div>
-            <table className="w-full text-[8px]">
+            <table style={{ width: '100%', fontSize: '7px', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th className="border-b border-gray-300 p-0.5 text-left"></th>
-                  <th className="border-b border-gray-300 p-0.5 text-center" colSpan={5}>5 4 3 2 1</th>
+                  <th style={{ borderBottom: '1px solid #d1d5db', padding: '2px', textAlign: 'left' }}></th>
+                  <th style={{ borderBottom: '1px solid #d1d5db', padding: '2px', textAlign: 'center' }}>5 4 3 2 1</th>
                 </tr>
               </thead>
               <tbody>
                 {psychomotorLabels.map(({ key, label }) => (
                   <tr key={key}>
-                    <td className="p-0.5 border-b border-gray-200">{label}</td>
-                    <td className="p-0.5 border-b border-gray-200">
+                    <td style={{ padding: '2px', borderBottom: '1px solid #e5e7eb', fontSize: '7px' }}>{label}</td>
+                    <td style={{ padding: '2px', borderBottom: '1px solid #e5e7eb' }}>
                       <RatingCell value={psychomotorSkills[key as keyof PsychomotorSkills]} />
                     </td>
                   </tr>
@@ -478,8 +493,8 @@ export const BaileysReportTemplate = forwardRef<HTMLDivElement, BaileysReportTem
           </div>
 
           {/* Rating Indices */}
-          <div className="border border-gray-800 mb-2 text-[8px] p-1">
-            <div className="font-bold text-center border-b border-gray-300 pb-1 mb-1">Rating Indices</div>
+          <div style={{ border: '1px solid #1f2937', marginBottom: '6px', fontSize: '6px', padding: '4px' }}>
+            <div style={{ fontWeight: 'bold', textAlign: 'center', borderBottom: '1px solid #d1d5db', paddingBottom: '2px', marginBottom: '2px' }}>Rating Indices</div>
             <div>5 - Maintains an Excellent degree of Observable traits.</div>
             <div>4 - Maintains a High level of Observable traits.</div>
             <div>3 - Acceptable level of Observable traits.</div>
@@ -488,35 +503,35 @@ export const BaileysReportTemplate = forwardRef<HTMLDivElement, BaileysReportTem
           </div>
 
           {/* Grade Analysis */}
-          <div className="border border-gray-800">
-            <div className="bg-gray-200 text-center py-1 font-bold border-b border-gray-800 text-[9px]">
+          <div style={{ border: '1px solid #1f2937' }}>
+            <div style={{ backgroundColor: '#e5e7eb', textAlign: 'center', padding: '3px', fontWeight: 'bold', borderBottom: '1px solid #1f2937', fontSize: '8px' }}>
               GRADE ANALYSIS
             </div>
-            <table className="w-full text-[9px]">
+            <table style={{ width: '100%', fontSize: '8px', borderCollapse: 'collapse' }}>
               <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-300 p-0.5">GRADE</th>
-                  <th className="border border-gray-300 p-0.5">A</th>
-                  <th className="border border-gray-300 p-0.5">B</th>
-                  <th className="border border-gray-300 p-0.5">C</th>
-                  <th className="border border-gray-300 p-0.5">D</th>
-                  <th className="border border-gray-300 p-0.5">E</th>
-                  <th className="border border-gray-300 p-0.5">F</th>
+                <tr style={{ backgroundColor: '#f3f4f6' }}>
+                  <th style={{ border: '1px solid #d1d5db', padding: '2px' }}>GRADE</th>
+                  <th style={{ border: '1px solid #d1d5db', padding: '2px' }}>A</th>
+                  <th style={{ border: '1px solid #d1d5db', padding: '2px' }}>B</th>
+                  <th style={{ border: '1px solid #d1d5db', padding: '2px' }}>C</th>
+                  <th style={{ border: '1px solid #d1d5db', padding: '2px' }}>D</th>
+                  <th style={{ border: '1px solid #d1d5db', padding: '2px' }}>E</th>
+                  <th style={{ border: '1px solid #d1d5db', padding: '2px' }}>F</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td className="border border-gray-300 p-0.5 text-center font-semibold">No.</td>
-                  <td className="border border-gray-300 p-0.5 text-center">{gradeCounts.A}</td>
-                  <td className="border border-gray-300 p-0.5 text-center">{gradeCounts.B}</td>
-                  <td className="border border-gray-300 p-0.5 text-center">{gradeCounts.C}</td>
-                  <td className="border border-gray-300 p-0.5 text-center">{gradeCounts.D}</td>
-                  <td className="border border-gray-300 p-0.5 text-center">{gradeCounts.E}</td>
-                  <td className="border border-gray-300 p-0.5 text-center">{gradeCounts.F}</td>
+                  <td style={{ border: '1px solid #d1d5db', padding: '2px', textAlign: 'center', fontWeight: 600 }}>No.</td>
+                  <td style={{ border: '1px solid #d1d5db', padding: '2px', textAlign: 'center' }}>{gradeCounts.A}</td>
+                  <td style={{ border: '1px solid #d1d5db', padding: '2px', textAlign: 'center' }}>{gradeCounts.B}</td>
+                  <td style={{ border: '1px solid #d1d5db', padding: '2px', textAlign: 'center' }}>{gradeCounts.C}</td>
+                  <td style={{ border: '1px solid #d1d5db', padding: '2px', textAlign: 'center' }}>{gradeCounts.D}</td>
+                  <td style={{ border: '1px solid #d1d5db', padding: '2px', textAlign: 'center' }}>{gradeCounts.E}</td>
+                  <td style={{ border: '1px solid #d1d5db', padding: '2px', textAlign: 'center' }}>{gradeCounts.F}</td>
                 </tr>
               </tbody>
             </table>
-            <div className="text-center py-1 border-t border-gray-300 font-semibold">
+            <div style={{ textAlign: 'center', padding: '3px', borderTop: '1px solid #d1d5db', fontWeight: 600, fontSize: '8px' }}>
               TOTAL SUBJECTS OFFERED: {subjects.length}
             </div>
           </div>
@@ -524,74 +539,74 @@ export const BaileysReportTemplate = forwardRef<HTMLDivElement, BaileysReportTem
       </div>
 
       {/* Bottom Section - Remarks and Signatures */}
-      <div className="mt-3 space-y-2">
+      <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
         {/* Teacher's Remark */}
-        <div className="border border-gray-800">
-          <div className="flex">
-            <div className="bg-gray-200 p-1 font-bold text-[10px] w-24 border-r border-gray-800">Teacher's Remark:</div>
-            <div className="p-1 flex-1 min-h-[24px] text-[10px] italic">
+        <div style={{ border: '1px solid #1f2937' }}>
+          <div style={{ display: 'flex' }}>
+            <div style={{ backgroundColor: '#e5e7eb', padding: '4px', fontWeight: 'bold', fontSize: '9px', width: '80px', borderRight: '1px solid #1f2937', flexShrink: 0 }}>Teacher's Remark:</div>
+            <div style={{ padding: '4px', flex: 1, minHeight: '20px', fontSize: '9px', fontStyle: 'italic' }}>
               {reportCard.teacherRemarks || 'A bright, diligent and studious student. Always inquisitive and ready to learn.'}
             </div>
           </div>
         </div>
 
         {/* Teacher's Signature */}
-        <div className="flex gap-4 text-[10px]">
-          <div className="flex gap-2 flex-1">
-            <span className="font-semibold">Teacher's Name:</span>
-            <span className="border-b border-gray-400 flex-1 uppercase">{reportCard.teacherName || ''}</span>
+        <div style={{ display: 'flex', gap: '12px', fontSize: '9px', alignItems: 'baseline' }}>
+          <div style={{ display: 'flex', gap: '4px', flex: 1 }}>
+            <span style={{ fontWeight: 600 }}>Teacher's Name:</span>
+            <span style={{ borderBottom: '1px solid #9ca3af', flex: 1, textTransform: 'uppercase' }}>{reportCard.teacherName || ''}</span>
           </div>
-          <div className="flex gap-2 w-32">
-            <span className="font-semibold">Sign:</span>
-            <span className="border-b border-gray-400 flex-1"></span>
+          <div style={{ display: 'flex', gap: '4px', width: '100px' }}>
+            <span style={{ fontWeight: 600 }}>Sign:</span>
+            <span style={{ borderBottom: '1px solid #9ca3af', flex: 1 }}></span>
           </div>
         </div>
 
         {/* Principal's Remark */}
-        <div className="border border-gray-800">
-          <div className="flex">
-            <div className="bg-gray-200 p-1 font-bold text-[10px] w-24 border-r border-gray-800">Principal's Remark:</div>
-            <div className="p-1 flex-1 min-h-[24px] text-[10px] italic">
+        <div style={{ border: '1px solid #1f2937' }}>
+          <div style={{ display: 'flex' }}>
+            <div style={{ backgroundColor: '#e5e7eb', padding: '4px', fontWeight: 'bold', fontSize: '9px', width: '80px', borderRight: '1px solid #1f2937', flexShrink: 0 }}>Principal's Remark:</div>
+            <div style={{ padding: '4px', flex: 1, minHeight: '20px', fontSize: '9px', fontStyle: 'italic' }}>
               {reportCard.principalRemarks || 'An outstanding result!! You should keep it up'}
             </div>
           </div>
         </div>
 
         {/* Principal's Signature */}
-        <div className="flex gap-4 text-[10px]">
-          <div className="flex gap-2 flex-1">
-            <span className="font-semibold">Principal's Name:</span>
-            <span className="border-b border-gray-400 flex-1 uppercase">{reportCard.principalName || ''}</span>
+        <div style={{ display: 'flex', gap: '12px', fontSize: '9px', alignItems: 'baseline' }}>
+          <div style={{ display: 'flex', gap: '4px', flex: 1 }}>
+            <span style={{ fontWeight: 600 }}>Principal's Name:</span>
+            <span style={{ borderBottom: '1px solid #9ca3af', flex: 1, textTransform: 'uppercase' }}>{reportCard.principalName || ''}</span>
           </div>
-          <div className="flex gap-2 w-32">
-            <span className="font-semibold">Sign:</span>
-            <span className="border-b border-gray-400 flex-1"></span>
+          <div style={{ display: 'flex', gap: '4px', width: '100px' }}>
+            <span style={{ fontWeight: 600 }}>Sign:</span>
+            <span style={{ borderBottom: '1px solid #9ca3af', flex: 1 }}></span>
           </div>
         </div>
 
         {/* Next Term and Date */}
-        <div className="flex justify-between text-[10px] border-t border-gray-400 pt-2 mt-2">
-          <div className="flex gap-2">
-            <span className="font-semibold">Next Term Begins:</span>
-            <span className="border-b border-gray-400 min-w-[100px]">{reportCard.nextTermBegins || ''}</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', borderTop: '1px solid #9ca3af', paddingTop: '6px', marginTop: '4px' }}>
+          <div style={{ display: 'flex', gap: '4px', alignItems: 'baseline' }}>
+            <span style={{ fontWeight: 600 }}>Next Term Begins:</span>
+            <span style={{ borderBottom: '1px solid #9ca3af', minWidth: '80px' }}>{reportCard.nextTermBegins || ''}</span>
           </div>
-          <div className="flex gap-2">
-            <span className="font-semibold">Date:</span>
-            <span className="border-b border-gray-400 min-w-[100px]">{reportCard.dateIssued || new Date().toLocaleDateString()}</span>
+          <div style={{ display: 'flex', gap: '4px', alignItems: 'baseline' }}>
+            <span style={{ fontWeight: 600 }}>Date:</span>
+            <span style={{ borderBottom: '1px solid #9ca3af', minWidth: '80px' }}>{reportCard.dateIssued || new Date().toLocaleDateString()}</span>
           </div>
         </div>
 
         {/* Position Summary */}
-        <div className="text-center border border-gray-800 py-2 bg-gray-50 mt-2">
-          <span className="font-bold text-sm">
+        <div style={{ textAlign: 'center', border: '1px solid #1f2937', padding: '6px', backgroundColor: '#f9fafb', marginTop: '4px' }}>
+          <span style={{ fontWeight: 'bold', fontSize: '11px' }}>
             CLASS POSITION: {formatPosition(reportCard.position)} out of {reportCard.totalStudentsInClass} Students
           </span>
         </div>
 
         {/* Footer */}
-        <div className="text-center text-[8px] text-gray-500 mt-2 pt-2 border-t border-gray-300">
-          <p className="italic">"{schoolMotto}"</p>
-          <p>{schoolName} - {schoolAddress}</p>
+        <div style={{ textAlign: 'center', fontSize: '7px', color: '#6b7280', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #d1d5db' }}>
+          <p style={{ fontStyle: 'italic', margin: 0 }}>"{schoolMotto}"</p>
+          <p style={{ margin: '2px 0 0 0' }}>{schoolName} - {schoolAddress}</p>
         </div>
       </div>
     </div>
