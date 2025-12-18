@@ -40,6 +40,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { SkillsSection } from '@/components/ui/skill-rating';
 
 interface SubjectScore {
   id: number;
@@ -147,7 +148,7 @@ interface ProfessionalReportCardProps {
   hideActionButtons?: boolean;
 }
 
-const RATING_LABELS = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+// Ratings are now in skill-rating.tsx component
 
 const getGradeColor = (grade: string) => {
   if (!grade) return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
@@ -186,35 +187,6 @@ const formatPosition = (pos: number): string => {
   return `${pos}${getPositionSuffix(pos)}`;
 };
 
-const RatingDisplay = ({ value, label }: { value: number; label: string }) => {
-  const ratingText = value > 0 ? RATING_LABELS[value] : '-';
-  const ratingColor = value >= 4 ? 'text-green-600' : value >= 3 ? 'text-blue-600' : value >= 2 ? 'text-yellow-600' : 'text-red-600';
-  
-  return (
-    <div className="flex items-center justify-between py-2 border-b border-muted last:border-b-0">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <div className="flex items-center gap-2">
-        <div className="flex gap-0.5">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <div
-              key={star}
-              className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-medium
-                ${star <= value 
-                  ? 'bg-primary text-primary-foreground' 
-                  : 'bg-muted text-muted-foreground/50'}
-              `}
-            >
-              {star}
-            </div>
-          ))}
-        </div>
-        <span className={`text-xs font-medium min-w-[60px] text-right ${ratingColor}`}>
-          {ratingText}
-        </span>
-      </div>
-    </div>
-  );
-};
 
 export function ProfessionalReportCard({
   reportCard,
@@ -754,42 +726,15 @@ export function ProfessionalReportCard({
           
           <CollapsibleContent className="print:!block">
             <CardContent className="p-3 sm:p-4 pt-0">
-              <div className="space-y-3">
-                {affectiveTraitLabels.map(({ key, label }) => (
-                  canEditSkills ? (
-                    <div key={key} className="flex items-center justify-between gap-3 py-2 px-3 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
-                      <span className="text-sm font-medium text-foreground flex-shrink-0 min-w-[140px]">{label}</span>
-                      <div className="flex gap-2 items-center flex-wrap justify-end">
-                        {[1, 2, 3, 4, 5].map((rating) => {
-                          const isSelected = localSkills[key as keyof typeof localSkills] === rating;
-                          return (
-                            <button
-                              key={rating}
-                              onClick={() => handleSkillChange(key, rating)}
-                              type="button"
-                              className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold transition-all cursor-pointer ${
-                                isSelected
-                                  ? 'bg-primary text-primary-foreground shadow-md scale-105'
-                                  : 'bg-background border-2 border-muted text-muted-foreground hover:border-primary/50 hover:bg-primary/5'
-                              }`}
-                              title={`Rate ${label} as ${rating}`}
-                              data-testid={`skill-${key}-${rating}`}
-                            >
-                              {rating}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : (
-                    <RatingDisplay key={key} value={affectiveTraits[key]} label={label} />
-                  )
-                ))}
-              </div>
-              <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
-                <p className="text-xs text-foreground font-semibold mb-1">Rating Scale:</p>
-                <p className="text-xs text-muted-foreground">1 = Poor | 2 = Fair | 3 = Good | 4 = Very Good | 5 = Excellent</p>
-              </div>
+              <SkillsSection
+                title="Affective Skills"
+                icon={<Brain className="w-4 h-4" />}
+                items={affectiveTraitLabels}
+                values={canEditSkills ? (localSkills as Record<string, number>) : (affectiveTraits as Record<string, number>)}
+                onRatingChange={handleSkillChange}
+                canEdit={canEditSkills}
+                bgColor="blue"
+              />
             </CardContent>
           </CollapsibleContent>
         </Card>
@@ -820,54 +765,17 @@ export function ProfessionalReportCard({
           
           <CollapsibleContent className="print:!block">
             <CardContent className="p-3 sm:p-4 pt-0">
-              <div className="space-y-3">
-                {psychomotorLabels.map(({ key, label }) => (
-                  canEditSkills ? (
-                    <div key={key} className="flex items-center justify-between gap-3 py-2 px-3 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
-                      <span className="text-sm font-medium text-foreground flex-shrink-0 min-w-[140px]">{label}</span>
-                      <div className="flex gap-2 items-center flex-wrap justify-end">
-                        {[1, 2, 3, 4, 5].map((rating) => {
-                          const isSelected = localSkills[key as keyof typeof localSkills] === rating;
-                          return (
-                            <button
-                              key={rating}
-                              onClick={() => handleSkillChange(key, rating)}
-                              type="button"
-                              className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold transition-all cursor-pointer ${
-                                isSelected
-                                  ? 'bg-primary text-primary-foreground shadow-md scale-105'
-                                  : 'bg-background border-2 border-muted text-muted-foreground hover:border-primary/50 hover:bg-primary/5'
-                              }`}
-                              title={`Rate ${label} as ${rating}`}
-                              data-testid={`skill-${key}-${rating}`}
-                            >
-                              {rating}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : (
-                    <RatingDisplay key={key} value={psychomotorSkills[key]} label={label} />
-                  )
-                ))}
-              </div>
-              {canEditSkills && (
-                <Button
-                  onClick={handleSaveSkills}
-                  disabled={isSavingSkills}
-                  size="sm"
-                  className="mt-4 w-full"
-                  data-testid="button-save-skills"
-                >
-                  {isSavingSkills ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                  Save Skills
-                </Button>
-              )}
-              <div className="mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-md">
-                <p className="text-xs text-foreground font-semibold mb-1">Rating Scale:</p>
-                <p className="text-xs text-muted-foreground">1 = Poor | 2 = Fair | 3 = Good | 4 = Very Good | 5 = Excellent</p>
-              </div>
+              <SkillsSection
+                title="Psychomotor Skills"
+                icon={<Activity className="w-4 h-4" />}
+                items={psychomotorLabels}
+                values={canEditSkills ? (localSkills as Record<string, number>) : (psychomotorSkills as Record<string, number>)}
+                onRatingChange={handleSkillChange}
+                canEdit={canEditSkills}
+                onSave={handleSaveSkills}
+                isSaving={isSavingSkills}
+                bgColor="purple"
+              />
             </CardContent>
           </CollapsibleContent>
         </Card>
