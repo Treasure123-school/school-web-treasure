@@ -3,6 +3,8 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import html2canvas from 'html2canvas';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
+import { BaileysReportTemplate } from '@/components/ui/baileys-report-template';
+import { exportToPDF, exportToImage, printElement } from '@/lib/report-export-utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -147,24 +149,18 @@ export default function TeacherReportCards() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const reportCardRef = useRef<HTMLDivElement>(null);
+  const baileysTemplateRef = useRef<HTMLDivElement>(null);
 
   const handleDownloadAsImage = async () => {
-    if (!reportCardRef.current || !selectedReportCard) return;
+    if (!baileysTemplateRef.current || !selectedReportCard) return;
     
     setIsDownloading(true);
     try {
-      const canvas = await html2canvas(reportCardRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff'
-      });
-      
-      const link = document.createElement('a');
       const studentName = (fullReportCard as { studentName?: string })?.studentName || 'student';
-      link.download = `report-card-${studentName.replace(/\s+/g, '-')}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
+      await exportToImage(baileysTemplateRef.current, {
+        filename: `report-card-${studentName.replace(/\s+/g, '-')}`,
+        scale: 2,
+      });
       
       toast({ title: "Success", description: "Report card downloaded as image" });
     } catch (error) {
@@ -172,6 +168,33 @@ export default function TeacherReportCards() {
     } finally {
       setIsDownloading(false);
     }
+  };
+
+  const handleDownloadAsPDF = async () => {
+    if (!baileysTemplateRef.current || !selectedReportCard) return;
+    
+    setIsDownloading(true);
+    try {
+      const studentName = (fullReportCard as { studentName?: string })?.studentName || 'student';
+      await exportToPDF(baileysTemplateRef.current, {
+        filename: `report-card-${studentName.replace(/\s+/g, '-')}`,
+        scale: 2,
+      });
+      
+      toast({ title: "Success", description: "Report card PDF downloaded" });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to download PDF", variant: "destructive" });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handlePrintReport = () => {
+    if (!baileysTemplateRef.current) {
+      window.print();
+      return;
+    }
+    printElement(baileysTemplateRef.current);
   };
   const [sortField, setSortField] = useState<SortField>('position');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -1317,22 +1340,35 @@ export default function TeacherReportCards() {
                     <Button 
                       variant="outline" 
                       size="icon"
-                      onClick={() => window.print()}
+                      onClick={handlePrintReport}
                       aria-label="Print report card"
                       data-testid="button-print"
                     >
                       <Printer className="w-4 h-4" />
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      size="icon"
-                      onClick={handleDownloadAsImage}
-                      disabled={isDownloading}
-                      aria-label="Download report card as image"
-                      data-testid="button-download"
-                    >
-                      {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="icon"
+                          disabled={isDownloading}
+                          aria-label="Export report card"
+                          data-testid="button-download"
+                        >
+                          {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={handleDownloadAsPDF} data-testid="menu-export-pdf">
+                          <FileText className="w-4 h-4 mr-2" />
+                          Export as PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleDownloadAsImage} data-testid="menu-export-image">
+                          <Download className="w-4 h-4 mr-2" />
+                          Export as Image
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     {/* Refresh Scores */}
                     <Button
                       variant="outline"
@@ -1584,6 +1620,49 @@ export default function TeacherReportCards() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Hidden Bailey's Style Template for Export/Print */}
+      {fullReportCard && isViewDialogOpen && (
+        <div className="fixed left-[-9999px] top-0 z-[-1]">
+          <BaileysReportTemplate
+            ref={baileysTemplateRef}
+            reportCard={{
+              studentName: fullReportCard.studentName,
+              admissionNumber: fullReportCard.studentUsername || fullReportCard.admissionNumber || 'N/A',
+              className: fullReportCard.className,
+              classArm: fullReportCard.classArm,
+              department: fullReportCard.department,
+              isSSS: fullReportCard.isSSS,
+              termName: fullReportCard.termName,
+              academicSession: fullReportCard.academicSession || fullReportCard.sessionYear || '2024/2025',
+              averagePercentage: fullReportCard.averagePercentage || 0,
+              overallGrade: fullReportCard.overallGrade || '-',
+              position: fullReportCard.position || 0,
+              totalStudentsInClass: fullReportCard.totalStudentsInClass || 0,
+              items: (fullReportCard.items || []).map((item: any) => ({
+                subjectName: item.subjectName,
+                testScore: item.testScore ?? item.testWeightedScore ?? null,
+                examScore: item.examScore ?? item.examWeightedScore ?? null,
+                obtainedMarks: item.obtainedMarks ?? item.totalScore ?? 0,
+                grade: item.grade || '-',
+                remarks: item.remarks || item.teacherRemarks || '',
+                subjectPosition: item.subjectPosition || null,
+              })),
+              teacherRemarks: fullReportCard.teacherRemarks,
+              principalRemarks: fullReportCard.principalRemarks,
+              attendance: {
+                timesSchoolOpened: 0,
+                timesPresent: 0,
+                timesAbsent: 0,
+              },
+              studentPhoto: fullReportCard.studentPhoto,
+              dateIssued: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+            }}
+            testWeight={testWeight}
+            examWeight={examWeight}
+          />
+        </div>
+      )}
     </div>
   );
 }

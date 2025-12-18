@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import logoPath from '@assets/logo.png';
+import logoPath from '@assets/school-logo.png';
 
 interface SubjectScore {
   subjectName: string;
