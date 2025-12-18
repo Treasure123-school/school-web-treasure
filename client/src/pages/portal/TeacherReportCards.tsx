@@ -98,6 +98,23 @@ interface ReportCardItem {
   canEditRemarks?: boolean;
 }
 
+interface AffectiveTraits {
+  punctuality: number;
+  neatness: number;
+  attentiveness: number;
+  teamwork: number;
+  leadership: number;
+  assignments: number;
+  classParticipation: number;
+}
+
+interface PsychomotorSkills {
+  sports: number;
+  handwriting: number;
+  musicalSkills: number;
+  creativity: number;
+}
+
 interface ReportCard {
   id: number;
   studentId: string;
@@ -120,6 +137,8 @@ interface ReportCard {
   principalRemarks: string | null;
   generatedAt: string;
   items: ReportCardItem[];
+  affectiveTraits?: AffectiveTraits;
+  psychomotorSkills?: PsychomotorSkills;
 }
 
 type SortField = 'position' | 'studentName' | 'averagePercentage' | 'overallGrade' | 'status';
@@ -1468,6 +1487,21 @@ export default function TeacherReportCards() {
                       timesPresent: 0,
                       timesAbsent: 0,
                       attendancePercentage: 0
+                    },
+                    affectiveTraits: fullReportCard.affectiveTraits || {
+                      punctuality: 0,
+                      neatness: 0,
+                      attentiveness: 0,
+                      teamwork: 0,
+                      leadership: 0,
+                      assignments: 0,
+                      classParticipation: 0
+                    },
+                    psychomotorSkills: fullReportCard.psychomotorSkills || {
+                      sports: 0,
+                      handwriting: 0,
+                      musicalSkills: 0,
+                      creativity: 0
                     }
                   }}
                   testWeight={testWeight}
@@ -1499,6 +1533,7 @@ export default function TeacherReportCards() {
                     const response = await apiRequest('POST', `/api/reports/${fullReportCard.id}/skills`, skills);
                     if (!response.ok) throw new Error('Failed to save skills');
                     toast({ title: 'Skills saved successfully', variant: 'default' });
+                    refetchFullReport();
                   }}
                   canEditTeacherRemarks={
                     fullReportCard.status === 'draft' && 
@@ -1666,6 +1701,21 @@ export default function TeacherReportCards() {
               },
               studentPhoto: fullReportCard.studentPhoto,
               dateIssued: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+              affectiveTraits: fullReportCard.affectiveTraits || {
+                punctuality: 0,
+                neatness: 0,
+                attentiveness: 0,
+                teamwork: 0,
+                leadership: 0,
+                assignments: 0,
+                classParticipation: 0
+              },
+              psychomotorSkills: fullReportCard.psychomotorSkills || {
+                sports: 0,
+                handwriting: 0,
+                musicalSkills: 0,
+                creativity: 0
+              }
             }}
             testWeight={testWeight}
             examWeight={examWeight}
