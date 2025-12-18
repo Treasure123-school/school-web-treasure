@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -254,6 +254,23 @@ export function ProfessionalReportCard({
     musicalSkills: reportCard.psychomotorSkills?.musicalSkills || 0,
     creativity: reportCard.psychomotorSkills?.creativity || 0
   });
+
+  // Sync localSkills when reportCard prop changes (e.g., when skills are loaded from DB)
+  useEffect(() => {
+    setLocalSkills({
+      punctuality: reportCard.affectiveTraits?.punctuality || 0,
+      neatness: reportCard.affectiveTraits?.neatness || 0,
+      attentiveness: reportCard.affectiveTraits?.attentiveness || 0,
+      teamwork: reportCard.affectiveTraits?.teamwork || 0,
+      leadership: reportCard.affectiveTraits?.leadership || 0,
+      assignments: reportCard.affectiveTraits?.assignments || 0,
+      classParticipation: reportCard.affectiveTraits?.classParticipation || 0,
+      sports: reportCard.psychomotorSkills?.sports || 0,
+      handwriting: reportCard.psychomotorSkills?.handwriting || 0,
+      musicalSkills: reportCard.psychomotorSkills?.musicalSkills || 0,
+      creativity: reportCard.psychomotorSkills?.creativity || 0
+    });
+  }, [reportCard.affectiveTraits, reportCard.psychomotorSkills]);
   
   // Use explicit permissions if provided, otherwise fall back to canEditRemarks
   const canEditTeacher = canEditTeacherRemarks !== undefined ? canEditTeacherRemarks : canEditRemarks;

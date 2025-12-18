@@ -9426,6 +9426,9 @@ Treasure-Home School Administration
             .where(eq(schema.reportCardItems.reportCardId, dbReportCard.id))
             .orderBy(schema.subjects.name);
 
+          // Fetch skills from database
+          const savedSkills = await storage.getReportCardSkills(dbReportCard.id);
+
           // Get class statistics for this term (highest, lowest, average scores)
           const classReportCards = await db.select({
             id: schema.reportCards.id,
@@ -9563,19 +9566,19 @@ Treasure-Home School Administration
               attendancePercentage: 0
             },
             affectiveTraits: {
-              punctuality: 0,
-              neatness: 0,
-              attentiveness: 0,
-              teamwork: 0,
-              leadership: 0,
-              assignments: 0,
-              classParticipation: 0
+              punctuality: savedSkills?.punctuality || 0,
+              neatness: savedSkills?.neatness || 0,
+              attentiveness: savedSkills?.attentiveness || 0,
+              teamwork: savedSkills?.teamwork || 0,
+              leadership: savedSkills?.leadership || 0,
+              assignments: savedSkills?.assignments || 0,
+              classParticipation: savedSkills?.classParticipation || 0
             },
             psychomotorSkills: {
-              sports: 0,
-              handwriting: 0,
-              musicalSkills: 0,
-              creativity: 0
+              sports: savedSkills?.sports || 0,
+              handwriting: savedSkills?.handwriting || 0,
+              musicalSkills: savedSkills?.musicalSkills || 0,
+              creativity: savedSkills?.creativity || 0
             },
             summary: {
               percentage: dbReportCard.averagePercentage ?? Math.round((totalObtained / totalMax) * 100),

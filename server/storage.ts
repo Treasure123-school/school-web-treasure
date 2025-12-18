@@ -4657,6 +4657,9 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
+      // Load skills from database
+      const skills = await this.getReportCardSkills(reportCardId);
+
       return { 
         ...reportCard[0], 
         isSSS: isSSS,
@@ -4666,7 +4669,22 @@ export class DatabaseStorage implements IStorage {
         teacherSignedBy,
         principalSignatureUrl,
         principalSignedBy,
-        items 
+        items,
+        affectiveTraits: {
+          punctuality: skills?.punctuality || 0,
+          neatness: skills?.neatness || 0,
+          attentiveness: skills?.attentiveness || 0,
+          teamwork: skills?.teamwork || 0,
+          leadership: skills?.leadership || 0,
+          assignments: skills?.assignments || 0,
+          classParticipation: skills?.classParticipation || 0
+        },
+        psychomotorSkills: {
+          sports: skills?.sports || 0,
+          handwriting: skills?.handwriting || 0,
+          musicalSkills: skills?.musicalSkills || 0,
+          creativity: skills?.creativity || 0
+        }
       };
     } catch (error) {
       console.error('Error getting report card with items:', error);
