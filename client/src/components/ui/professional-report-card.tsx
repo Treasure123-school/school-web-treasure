@@ -137,9 +137,11 @@ interface ProfessionalReportCardProps {
   examWeight: number;
   onEditSubject?: (item: SubjectScore) => void;
   onSaveRemarks?: (teacherRemarks: string, principalRemarks: string) => void;
+  onSaveSkills?: (skills: any) => Promise<void>;
   canEditRemarks?: boolean;
   canEditTeacherRemarks?: boolean;
   canEditPrincipalRemarks?: boolean;
+  canEditSkills?: boolean;
   onGenerateDefaultComments?: () => Promise<{ teacherComment: string; principalComment: string }>;
   isLoading?: boolean;
   hideActionButtons?: boolean;
@@ -220,9 +222,11 @@ export function ProfessionalReportCard({
   examWeight,
   onEditSubject,
   onSaveRemarks,
+  onSaveSkills,
   canEditRemarks = false,
   canEditTeacherRemarks,
   canEditPrincipalRemarks,
+  canEditSkills = false,
   onGenerateDefaultComments,
   isLoading = false,
   hideActionButtons = false
@@ -232,14 +236,44 @@ export function ProfessionalReportCard({
   const [isPsychomotorOpen, setIsPsychomotorOpen] = useState(true);
   const [isAttendanceOpen, setIsAttendanceOpen] = useState(true);
   const [isGeneratingComments, setIsGeneratingComments] = useState(false);
+  const [isSavingSkills, setIsSavingSkills] = useState(false);
   const [localRemarks, setLocalRemarks] = useState({
     teacher: reportCard.teacherRemarks || '',
     principal: reportCard.principalRemarks || ''
+  });
+  const [localSkills, setLocalSkills] = useState({
+    punctuality: reportCard.affectiveTraits?.punctuality || 0,
+    neatness: reportCard.affectiveTraits?.neatness || 0,
+    attentiveness: reportCard.affectiveTraits?.attentiveness || 0,
+    teamwork: reportCard.affectiveTraits?.teamwork || 0,
+    leadership: reportCard.affectiveTraits?.leadership || 0,
+    assignments: reportCard.affectiveTraits?.assignments || 0,
+    classParticipation: reportCard.affectiveTraits?.classParticipation || 0,
+    sports: reportCard.psychomotorSkills?.sports || 0,
+    handwriting: reportCard.psychomotorSkills?.handwriting || 0,
+    musicalSkills: reportCard.psychomotorSkills?.musicalSkills || 0,
+    creativity: reportCard.psychomotorSkills?.creativity || 0
   });
   
   // Use explicit permissions if provided, otherwise fall back to canEditRemarks
   const canEditTeacher = canEditTeacherRemarks !== undefined ? canEditTeacherRemarks : canEditRemarks;
   const canEditPrincipal = canEditPrincipalRemarks !== undefined ? canEditPrincipalRemarks : canEditRemarks;
+  
+  const handleSkillChange = (key: string, value: number) => {
+    setLocalSkills(prev => ({ ...prev, [key]: value }));
+  };
+  
+  const handleSaveSkills = async () => {
+    if (!onSaveSkills) return;
+    setIsSavingSkills(true);
+    try {
+      await onSaveSkills(localSkills);
+    } catch (error) {
+      console.error('Failed to save skills:', error);
+    } finally {
+      setIsSavingSkills(false);
+    }
+  };
 
   const handleGenerateComments = async () => {
     if (!onGenerateDefaultComments) return;
@@ -705,7 +739,29 @@ export function ProfessionalReportCard({
             <CardContent className="p-3 sm:p-4 pt-0">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {affectiveTraitLabels.map(({ key, label }) => (
-                  <RatingDisplay key={key} value={affectiveTraits[key]} label={label} />
+                  canEditSkills ? (
+                    <div key={key} className="flex items-center justify-between py-2 border-b border-muted last:border-b-0">
+                      <span className="text-sm text-muted-foreground">{label}</span>
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map((rating) => (
+                          <button
+                            key={rating}
+                            onClick={() => handleSkillChange(key, rating)}
+                            className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-medium transition-all ${
+                              localSkills[key as keyof typeof localSkills] === rating
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted text-muted-foreground/50 hover:bg-muted/80'
+                            }`}
+                            data-testid={`skill-${key}-${rating}`}
+                          >
+                            {rating}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <RatingDisplay key={key} value={affectiveTraits[key]} label={label} />
+                  )
                 ))}
               </div>
               <p className="text-xs text-muted-foreground mt-3 text-center">
@@ -743,9 +799,43 @@ export function ProfessionalReportCard({
             <CardContent className="p-3 sm:p-4 pt-0">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {psychomotorLabels.map(({ key, label }) => (
-                  <RatingDisplay key={key} value={psychomotorSkills[key]} label={label} />
+                  canEditSkills ? (
+                    <div key={key} className="flex items-center justify-between py-2 border-b border-muted last:border-b-0">
+                      <span className="text-sm text-muted-foreground">{label}</span>
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map((rating) => (
+                          <button
+                            key={rating}
+                            onClick={() => handleSkillChange(key, rating)}
+                            className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-medium transition-all ${
+                              localSkills[key as keyof typeof localSkills] === rating
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted text-muted-foreground/50 hover:bg-muted/80'
+                            }`}
+                            data-testid={`skill-${key}-${rating}`}
+                          >
+                            {rating}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <RatingDisplay key={key} value={psychomotorSkills[key]} label={label} />
+                  )
                 ))}
               </div>
+              {canEditSkills && (
+                <Button
+                  onClick={handleSaveSkills}
+                  disabled={isSavingSkills}
+                  size="sm"
+                  className="mt-4 w-full"
+                  data-testid="button-save-skills"
+                >
+                  {isSavingSkills ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                  Save Skills
+                </Button>
+              )}
               <p className="text-xs text-muted-foreground mt-3 text-center">
                 Rating Scale: 5 = Excellent, 4 = Very Good, 3 = Good, 2 = Fair, 1 = Poor
               </p>

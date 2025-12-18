@@ -13209,6 +13209,56 @@ Treasure-Home School Administration
     });
     // ==================== END SETTINGS API ROUTES ====================
 
+    // ==================== REPORT CARD SKILLS API ROUTES ====================
+    
+    // Get skills for a report card
+    app.get('/api/reports/:reportCardId/skills', authenticateUser, async (req: Request, res: Response) => {
+      try {
+        const { reportCardId } = req.params;
+        const reportCard = await storage.getReportCard(Number(reportCardId));
+        if (!reportCard) {
+          return res.status(404).json({ message: 'Report card not found' });
+        }
+        const skills = await storage.getReportCardSkills(Number(reportCardId));
+        res.json(skills || {});
+      } catch (error: any) {
+        console.error('Error getting skills:', error);
+        res.status(500).json({ message: error.message || 'Failed to get skills' });
+      }
+    });
+
+    // Save/update skills for a report card
+    app.post('/api/reports/:reportCardId/skills', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { reportCardId } = req.params;
+        const userId = req.user!.id;
+        const skillsData = req.body;
+
+        const reportCard = await storage.getReportCard(Number(reportCardId));
+        if (!reportCard) {
+          return res.status(404).json({ message: 'Report card not found' });
+        }
+
+        // Check permission: teacher creating report or admin
+        const isAdmin = [1, 2].includes(req.user!.roleId);
+        if (!isAdmin && reportCard.classId) {
+          const assignments = await storage.getTeacherAssignmentsForClass(userId, reportCard.classId);
+          const isAssignedToClass = assignments.length > 0;
+          if (!isAssignedToClass) {
+            return res.status(403).json({ message: 'You do not have permission to update skills for this report card' });
+          }
+        }
+
+        const result = await storage.saveReportCardSkills(Number(reportCardId), { ...skillsData, recordedBy: userId });
+        res.json(result);
+      } catch (error: any) {
+        console.error('Error saving skills:', error);
+        res.status(500).json({ message: error.message || 'Failed to save skills' });
+      }
+    });
+
+    // ==================== END REPORT CARD SKILLS API ROUTES ====================
+
     // ==================== END MODULE 1 ROUTES ====================
 
     // Catch-all for non-API routes - redirect to frontend (PRODUCTION ONLY)
