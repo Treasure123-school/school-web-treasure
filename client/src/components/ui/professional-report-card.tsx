@@ -327,10 +327,14 @@ export function ProfessionalReportCard({
       <div className="hidden print:block mb-6">
         <div className="text-center border-b-2 border-primary pb-4">
           <h1 className="text-2xl font-bold text-primary">TREASURE HOME SCHOOL</h1>
-          <p className="text-sm text-muted-foreground">Seriki-Soyinka, Ifo, Ogun State</p>
-          <p className="text-xs italic mt-1">Motto: Honesty and Success</p>
+          <p className="text-sm font-medium">Seriki-Soyinka, Ifo, Ogun State, Nigeria</p>
+          <p className="text-xs text-muted-foreground">Tel: 080-1734-5676 | Email: info@treasurehomeschool.com</p>
+          <p className="text-xs italic mt-2">Motto: Honesty and Success</p>
         </div>
         <h2 className="text-center text-lg font-semibold mt-4 mb-2">STUDENT ACADEMIC REPORT</h2>
+        <p className="text-center text-xs text-muted-foreground mb-4">
+          Session: {reportCard.academicSession || '2024/2025'} | Term: {reportCard.termName}
+        </p>
       </div>
 
       {/* Action Buttons - Screen only, hidden when parent provides action bar */}
