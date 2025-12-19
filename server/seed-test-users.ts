@@ -136,10 +136,8 @@ export async function seedTestUsers() {
           .limit(1);
 
         if (existingStudent.length === 0) {
-          // Generate admission number
-          const year = new Date().getFullYear();
-          const randomNum = Math.floor(100000 + Math.random() * 900000);
-          const admissionNumber = `THS/${year}/${randomNum}`;
+          // Generate admission number in format THS-STU-xxx (using username)
+          const admissionNumber = `THS-STU-${userData.username.toUpperCase()}`;
 
           await db.insert(schema.students).values({
             id: userId,

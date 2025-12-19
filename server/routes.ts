@@ -28,6 +28,7 @@ import { uploadFileToStorage, replaceFile, deleteFileFromStorage } from "./uploa
 import teacherAssignmentRoutes from "./teacher-assignment-routes";
 import { validateTeacherCanCreateExam, validateTeacherCanEnterScores, validateTeacherCanViewResults, getTeacherAssignments, validateExamTimeWindow, logExamAccess } from "./teacher-auth-middleware";
 import { getVisibleExamsForStudent, getVisibleExamsForParent, invalidateVisibilityCache, warmVisibilityCache } from "./exam-visibility";
+import { calculateClassTeacherPermissions, getClassTeacherPermissionDeniedMessage } from "@shared/class-teacher-permissions";
 import { SubjectAssignmentService } from "./services/subject-assignment-service";
 import { performanceCache, PerformanceCache } from "./performance-cache";
 import { enhancedCache, EnhancedCache } from "./enhanced-cache";
@@ -9426,6 +9427,9 @@ Treasure-Home School Administration
             .where(eq(schema.reportCardItems.reportCardId, dbReportCard.id))
             .orderBy(schema.subjects.name);
 
+          // Fetch skills from database
+          const savedSkills = await storage.getReportCardSkills(dbReportCard.id);
+
           // Get class statistics for this term (highest, lowest, average scores)
           const classReportCards = await db.select({
             id: schema.reportCards.id,
@@ -9563,19 +9567,19 @@ Treasure-Home School Administration
               attendancePercentage: 0
             },
             affectiveTraits: {
-              punctuality: 0,
-              neatness: 0,
-              attentiveness: 0,
-              teamwork: 0,
-              leadership: 0,
-              assignments: 0,
-              classParticipation: 0
+              punctuality: savedSkills?.punctuality || 0,
+              neatness: savedSkills?.neatness || 0,
+              attentiveness: savedSkills?.attentiveness || 0,
+              teamwork: savedSkills?.teamwork || 0,
+              leadership: savedSkills?.leadership || 0,
+              assignments: savedSkills?.assignments || 0,
+              classParticipation: savedSkills?.classParticipation || 0
             },
             psychomotorSkills: {
-              sports: 0,
-              handwriting: 0,
-              musicalSkills: 0,
-              creativity: 0
+              sports: savedSkills?.sports || 0,
+              handwriting: savedSkills?.handwriting || 0,
+              musicalSkills: savedSkills?.musicalSkills || 0,
+              creativity: savedSkills?.creativity || 0
             },
             summary: {
               percentage: dbReportCard.averagePercentage ?? Math.round((totalObtained / totalMax) * 100),
@@ -13208,6 +13212,66 @@ Treasure-Home School Administration
       }
     });
     // ==================== END SETTINGS API ROUTES ====================
+
+    // ==================== REPORT CARD SKILLS API ROUTES ====================
+    
+    // Get skills for a report card
+    app.get('/api/reports/:reportCardId/skills', authenticateUser, async (req: Request, res: Response) => {
+      try {
+        const { reportCardId } = req.params;
+        const reportCard = await storage.getReportCard(Number(reportCardId));
+        if (!reportCard) {
+          return res.status(404).json({ message: 'Report card not found' });
+        }
+        const skills = await storage.getReportCardSkills(Number(reportCardId));
+        res.json(skills || {});
+      } catch (error: any) {
+        console.error('Error getting skills:', error);
+        res.status(500).json({ message: error.message || 'Failed to get skills' });
+      }
+    });
+
+    // Save/update skills for a report card
+    // AUTHORIZATION: Only the class teacher or admins can rate skills
+    app.post('/api/reports/:reportCardId/skills', authenticateUser, authorizeRoles(ROLES.TEACHER, ROLES.ADMIN, ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
+      try {
+        const { reportCardId } = req.params;
+        const userId = req.user!.id;
+        const roleId = req.user!.roleId;
+        const skillsData = req.body;
+
+        const reportCard = await storage.getReportCard(Number(reportCardId));
+        if (!reportCard) {
+          return res.status(404).json({ message: 'Report card not found' });
+        }
+
+        // Get the class to find the class teacher
+        const classInfo = reportCard.classId ? await storage.getClass(reportCard.classId) : null;
+        const classTeacherId = classInfo?.classTeacherId || null;
+
+        // Check class teacher permission
+        const permissions = calculateClassTeacherPermissions({
+          loggedInUserId: userId,
+          loggedInRoleId: roleId,
+          classTeacherId
+        });
+
+        if (!permissions.canRateSkills) {
+          return res.status(403).json({ 
+            message: getClassTeacherPermissionDeniedMessage('skills'),
+            isClassTeacher: false
+          });
+        }
+
+        const result = await storage.saveReportCardSkills(Number(reportCardId), { ...skillsData, recordedBy: userId });
+        res.json(result);
+      } catch (error: any) {
+        console.error('Error saving skills:', error);
+        res.status(500).json({ message: error.message || 'Failed to save skills' });
+      }
+    });
+
+    // ==================== END REPORT CARD SKILLS API ROUTES ====================
 
     // ==================== END MODULE 1 ROUTES ====================
 

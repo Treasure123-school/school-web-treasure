@@ -643,6 +643,31 @@ export const reportCardItems = sqliteTable("report_card_items", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
+// Report card skills table - Stores cognitive/affective and psychomotor skill ratings
+export const reportCardSkills = sqliteTable("report_card_skills", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  reportCardId: integer("report_card_id").notNull().references(() => reportCards.id, { onDelete: 'cascade' }),
+  // Affective traits (1-5 scale)
+  punctuality: integer("punctuality"),
+  neatness: integer("neatness"),
+  attentiveness: integer("attentiveness"),
+  teamwork: integer("teamwork"),
+  leadership: integer("leadership"),
+  assignments: integer("assignments"),
+  classParticipation: integer("class_participation"),
+  // Psychomotor skills (1-5 scale)
+  sports: integer("sports"),
+  handwriting: integer("handwriting"),
+  musicalSkills: integer("musical_skills"),
+  creativity: integer("creativity"),
+  // Metadata
+  recordedBy: text("recorded_by").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  reportCardSkillsReportCardIdx: index("report_card_skills_report_card_idx").on(table.reportCardId),
+}));
+
 // Study resources table
 export const studyResources = sqliteTable("study_resources", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -1041,6 +1066,7 @@ export const insertHomePageContentSchema = createInsertSchema(homePageContent).o
 export const insertContactMessageSchema = createInsertSchema(contactMessages).omit({ id: true, createdAt: true });
 export const insertReportCommentTemplateSchema = createInsertSchema(reportCommentTemplates).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertReportCardSchema = createInsertSchema(reportCards).omit({ id: true, createdAt: true });
+export const insertReportCardSkillsSchema = createInsertSchema(reportCardSkills).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertReportCardItemSchema = createInsertSchema(reportCardItems).omit({ id: true, createdAt: true });
 export const insertStudyResourceSchema = createInsertSchema(studyResources).omit({ id: true, createdAt: true, downloads: true });
 export const insertPerformanceEventSchema = createInsertSchema(performanceEvents).omit({ id: true, createdAt: true });
@@ -1308,6 +1334,8 @@ export type InsertContactMessage = z.infer<typeof insertContactMessageSchema>;
 export type InsertReportCommentTemplate = z.infer<typeof insertReportCommentTemplateSchema>;
 export type InsertReportCard = z.infer<typeof insertReportCardSchema>;
 export type InsertReportCardItem = z.infer<typeof insertReportCardItemSchema>;
+export type ReportCardSkills = typeof reportCardSkills.$inferSelect;
+export type InsertReportCardSkills = z.infer<typeof insertReportCardSkillsSchema>;
 export type InsertStudyResource = z.infer<typeof insertStudyResourceSchema>;
 export type InsertPerformanceEvent = z.infer<typeof insertPerformanceEventSchema>;
 export type InsertTeacherClassAssignment = z.infer<typeof insertTeacherClassAssignmentSchema>;

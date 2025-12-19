@@ -3,6 +3,8 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import html2canvas from 'html2canvas';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
+import { BaileysReportTemplate } from '@/components/ui/baileys-report-template';
+import { exportToPDF, exportToImage, printElement } from '@/lib/report-export-utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -96,6 +98,23 @@ interface ReportCardItem {
   canEditRemarks?: boolean;
 }
 
+interface AffectiveTraits {
+  punctuality: number;
+  neatness: number;
+  attentiveness: number;
+  teamwork: number;
+  leadership: number;
+  assignments: number;
+  classParticipation: number;
+}
+
+interface PsychomotorSkills {
+  sports: number;
+  handwriting: number;
+  musicalSkills: number;
+  creativity: number;
+}
+
 interface ReportCard {
   id: number;
   studentId: string;
@@ -118,6 +137,8 @@ interface ReportCard {
   principalRemarks: string | null;
   generatedAt: string;
   items: ReportCardItem[];
+  affectiveTraits?: AffectiveTraits;
+  psychomotorSkills?: PsychomotorSkills;
 }
 
 type SortField = 'position' | 'studentName' | 'averagePercentage' | 'overallGrade' | 'status';
@@ -147,24 +168,18 @@ export default function TeacherReportCards() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const reportCardRef = useRef<HTMLDivElement>(null);
+  const baileysTemplateRef = useRef<HTMLDivElement>(null);
 
   const handleDownloadAsImage = async () => {
-    if (!reportCardRef.current || !selectedReportCard) return;
+    if (!baileysTemplateRef.current || !selectedReportCard) return;
     
     setIsDownloading(true);
     try {
-      const canvas = await html2canvas(reportCardRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff'
-      });
-      
-      const link = document.createElement('a');
       const studentName = (fullReportCard as { studentName?: string })?.studentName || 'student';
-      link.download = `report-card-${studentName.replace(/\s+/g, '-')}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
+      await exportToImage(baileysTemplateRef.current, {
+        filename: `report-card-${studentName.replace(/\s+/g, '-')}`,
+        scale: 2,
+      });
       
       toast({ title: "Success", description: "Report card downloaded as image" });
     } catch (error) {
@@ -172,6 +187,33 @@ export default function TeacherReportCards() {
     } finally {
       setIsDownloading(false);
     }
+  };
+
+  const handleDownloadAsPDF = async () => {
+    if (!baileysTemplateRef.current || !selectedReportCard) return;
+    
+    setIsDownloading(true);
+    try {
+      const studentName = (fullReportCard as { studentName?: string })?.studentName || 'student';
+      await exportToPDF(baileysTemplateRef.current, {
+        filename: `report-card-${studentName.replace(/\s+/g, '-')}`,
+        scale: 2,
+      });
+      
+      toast({ title: "Success", description: "Report card PDF downloaded" });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to download PDF", variant: "destructive" });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handlePrintReport = () => {
+    if (!baileysTemplateRef.current) {
+      window.print();
+      return;
+    }
+    printElement(baileysTemplateRef.current);
   };
   const [sortField, setSortField] = useState<SortField>('position');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -242,7 +284,7 @@ export default function TeacherReportCards() {
     enabled: !!selectedClass && !!selectedTerm,
   });
 
-  const { data: fullReportCard, isLoading: loadingFullReport, refetch: refetchFullReport } = useQuery({
+  const { data: fullReportCard, isLoading: loadingFullReport, isFetching: fetchingFullReport, refetch: refetchFullReport } = useQuery({
     queryKey: ['/api/reports', selectedReportCard?.id, 'full'],
     queryFn: async () => {
       if (!selectedReportCard?.id) return null;
@@ -563,6 +605,79 @@ export default function TeacherReportCards() {
       toast({
         title: "Error",
         description: error.message || "Failed to update remarks",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Skills mutation with optimistic updates - merges with existing values
+  const saveSkillsMutation = useMutation({
+    mutationFn: async (data: { reportCardId: number; skills: any }) => {
+      const response = await apiRequest('POST', `/api/reports/${data.reportCardId}/skills`, data.skills);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to save skills');
+      }
+      return response.json();
+    },
+    onMutate: async ({ reportCardId, skills }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/reports', reportCardId, 'full'] });
+      
+      // Snapshot previous data
+      const previousFullReport = queryClient.getQueryData<any>(['/api/reports', reportCardId, 'full']);
+      
+      // Merge new skills with existing values
+      // Only update fields that are provided in the payload (allows 0s for clears)
+      const mergeSkill = (key: string, existingVal: number) => {
+        const newVal = skills[key];
+        return (newVal !== undefined) ? newVal : (existingVal ?? 0);
+      };
+      
+      queryClient.setQueryData(['/api/reports', reportCardId, 'full'], (old: any) => {
+        if (!old) return old;
+        
+        const existingAffective = old.affectiveTraits || {};
+        const existingPsychomotor = old.psychomotorSkills || {};
+        
+        return {
+          ...old,
+          affectiveTraits: {
+            punctuality: mergeSkill('punctuality', existingAffective.punctuality),
+            neatness: mergeSkill('neatness', existingAffective.neatness),
+            attentiveness: mergeSkill('attentiveness', existingAffective.attentiveness),
+            teamwork: mergeSkill('teamwork', existingAffective.teamwork),
+            leadership: mergeSkill('leadership', existingAffective.leadership),
+            assignments: mergeSkill('assignments', existingAffective.assignments),
+            classParticipation: mergeSkill('classParticipation', existingAffective.classParticipation)
+          },
+          psychomotorSkills: {
+            sports: mergeSkill('sports', existingPsychomotor.sports),
+            handwriting: mergeSkill('handwriting', existingPsychomotor.handwriting),
+            musicalSkills: mergeSkill('musicalSkills', existingPsychomotor.musicalSkills),
+            creativity: mergeSkill('creativity', existingPsychomotor.creativity)
+          }
+        };
+      });
+      
+      return { previousFullReport, reportCardId };
+    },
+    onSuccess: (_data, { reportCardId }) => {
+      toast({
+        title: "Success",
+        description: "Skills saved successfully",
+      });
+      // Refetch to ensure server data is synced
+      queryClient.invalidateQueries({ queryKey: ['/api/reports', reportCardId, 'full'] });
+    },
+    onError: (error: any, _variables, context) => {
+      // Rollback on error
+      if (context?.previousFullReport && context?.reportCardId) {
+        queryClient.setQueryData(['/api/reports', context.reportCardId, 'full'], context.previousFullReport);
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save skills",
         variant: "destructive",
       });
     },
@@ -1317,22 +1432,35 @@ export default function TeacherReportCards() {
                     <Button 
                       variant="outline" 
                       size="icon"
-                      onClick={() => window.print()}
+                      onClick={handlePrintReport}
                       aria-label="Print report card"
                       data-testid="button-print"
                     >
                       <Printer className="w-4 h-4" />
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      size="icon"
-                      onClick={handleDownloadAsImage}
-                      disabled={isDownloading}
-                      aria-label="Download report card as image"
-                      data-testid="button-download"
-                    >
-                      {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="icon"
+                          disabled={isDownloading}
+                          aria-label="Export report card"
+                          data-testid="button-download"
+                        >
+                          {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={handleDownloadAsPDF} data-testid="menu-export-pdf">
+                          <FileText className="w-4 h-4 mr-2" />
+                          Export as PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleDownloadAsImage} data-testid="menu-export-image">
+                          <Download className="w-4 h-4 mr-2" />
+                          Export as Image
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     {/* Refresh Scores */}
                     <Button
                       variant="outline"
@@ -1432,6 +1560,21 @@ export default function TeacherReportCards() {
                       timesPresent: 0,
                       timesAbsent: 0,
                       attendancePercentage: 0
+                    },
+                    affectiveTraits: fullReportCard.affectiveTraits || {
+                      punctuality: 0,
+                      neatness: 0,
+                      attentiveness: 0,
+                      teamwork: 0,
+                      leadership: 0,
+                      assignments: 0,
+                      classParticipation: 0
+                    },
+                    psychomotorSkills: fullReportCard.psychomotorSkills || {
+                      sports: 0,
+                      handwriting: 0,
+                      musicalSkills: 0,
+                      creativity: 0
                     }
                   }}
                   testWeight={testWeight}
@@ -1459,17 +1602,28 @@ export default function TeacherReportCards() {
                     
                     updateRemarksMutation.mutate(payload);
                   }}
+                  onSaveSkills={async (skills: any) => {
+                    await saveSkillsMutation.mutateAsync({ 
+                      reportCardId: fullReportCard.id, 
+                      skills 
+                    });
+                  }}
                   canEditTeacherRemarks={
                     fullReportCard.status === 'draft' && 
                     (isAdmin || classes.find((c: any) => c.id === Number(selectedClass))?.classTeacherId === user?.id)
                   }
                   canEditPrincipalRemarks={fullReportCard.status === 'draft' && user?.role?.toLowerCase() === 'admin'}
+                  canEditSkills={
+                    (fullReportCard.status === 'draft' || fullReportCard.status === 'teacher_signed') && 
+                    (isAdmin || classes.find((c: any) => c.id === Number(selectedClass))?.classTeacherId === user?.id)
+                  }
                   onGenerateDefaultComments={async () => {
                     const response = await apiRequest('GET', `/api/reports/${fullReportCard.id}/default-comments`);
                     if (!response.ok) throw new Error('Failed to generate comments');
                     return await response.json();
                   }}
                   isLoading={updateRemarksMutation.isPending}
+                  isFullReportReady={!loadingFullReport && !fetchingFullReport && !!fullReportCard}
                   hideActionButtons={true}
                   />
                 </div>
@@ -1584,6 +1738,64 @@ export default function TeacherReportCards() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Hidden Bailey's Style Template for Export/Print */}
+      {fullReportCard && isViewDialogOpen && (
+        <div className="fixed left-[-9999px] top-0 z-[-1]">
+          <BaileysReportTemplate
+            ref={baileysTemplateRef}
+            reportCard={{
+              studentName: fullReportCard.studentName,
+              admissionNumber: fullReportCard.studentUsername || fullReportCard.admissionNumber || 'N/A',
+              className: fullReportCard.className,
+              classArm: fullReportCard.classArm,
+              department: fullReportCard.department,
+              isSSS: fullReportCard.isSSS,
+              termName: fullReportCard.termName,
+              academicSession: fullReportCard.academicSession || fullReportCard.sessionYear || '2024/2025',
+              averagePercentage: fullReportCard.averagePercentage || 0,
+              overallGrade: fullReportCard.overallGrade || '-',
+              position: fullReportCard.position || 0,
+              totalStudentsInClass: fullReportCard.totalStudentsInClass || 0,
+              items: (fullReportCard.items || []).map((item: any) => ({
+                subjectName: item.subjectName,
+                testScore: item.testScore ?? item.testWeightedScore ?? null,
+                examScore: item.examScore ?? item.examWeightedScore ?? null,
+                obtainedMarks: item.obtainedMarks ?? item.totalScore ?? 0,
+                grade: item.grade || '-',
+                remarks: item.remarks || item.teacherRemarks || '',
+                subjectPosition: item.subjectPosition || null,
+              })),
+              teacherRemarks: fullReportCard.teacherRemarks,
+              principalRemarks: fullReportCard.principalRemarks,
+              attendance: {
+                timesSchoolOpened: 0,
+                timesPresent: 0,
+                timesAbsent: 0,
+              },
+              studentPhoto: fullReportCard.studentPhoto,
+              dateIssued: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+              affectiveTraits: fullReportCard.affectiveTraits || {
+                punctuality: 0,
+                neatness: 0,
+                attentiveness: 0,
+                teamwork: 0,
+                leadership: 0,
+                assignments: 0,
+                classParticipation: 0
+              },
+              psychomotorSkills: fullReportCard.psychomotorSkills || {
+                sports: 0,
+                handwriting: 0,
+                musicalSkills: 0,
+                creativity: 0
+              }
+            }}
+            testWeight={testWeight}
+            examWeight={examWeight}
+          />
+        </div>
+      )}
     </div>
   );
 }

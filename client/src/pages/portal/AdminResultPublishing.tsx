@@ -3,6 +3,8 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import html2canvas from 'html2canvas';
+import { BaileysReportTemplate } from '@/components/ui/baileys-report-template';
+import { exportToPDF, exportToImage, printElement } from '@/lib/report-export-utils';
 
 const STATUS_BADGE_TRANSITION = "transition-all duration-300 ease-in-out";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -80,23 +82,17 @@ export default function AdminResultPublishing() {
   const [rejectReason, setRejectReason] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
   const reportCardRef = useRef<HTMLDivElement>(null);
+  const baileysTemplateRef = useRef<HTMLDivElement>(null);
 
   const handleDownloadAsImage = async () => {
-    if (!reportCardRef.current || !viewingReportCard) return;
+    if (!baileysTemplateRef.current || !viewingReportCard) return;
     
     setIsDownloading(true);
     try {
-      const canvas = await html2canvas(reportCardRef.current, {
+      await exportToImage(baileysTemplateRef.current, {
+        filename: `report-card-${viewingReportCard.studentName?.replace(/\s+/g, '-')}`,
         scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff'
       });
-      
-      const link = document.createElement('a');
-      link.download = `report-card-${viewingReportCard.studentName?.replace(/\s+/g, '-')}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
       
       toast({ title: "Success", description: "Report card downloaded as image" });
     } catch (error) {
@@ -104,6 +100,32 @@ export default function AdminResultPublishing() {
     } finally {
       setIsDownloading(false);
     }
+  };
+
+  const handleDownloadAsPDF = async () => {
+    if (!baileysTemplateRef.current || !viewingReportCard) return;
+    
+    setIsDownloading(true);
+    try {
+      await exportToPDF(baileysTemplateRef.current, {
+        filename: `report-card-${viewingReportCard.studentName?.replace(/\s+/g, '-')}`,
+        scale: 2,
+      });
+      
+      toast({ title: "Success", description: "Report card PDF downloaded" });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to download PDF", variant: "destructive" });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handlePrintReport = () => {
+    if (!baileysTemplateRef.current) {
+      window.print();
+      return;
+    }
+    printElement(baileysTemplateRef.current);
   };
 
   const { data: classes = [] } = useQuery({
@@ -1232,22 +1254,35 @@ export default function AdminResultPublishing() {
                     <Button 
                       variant="outline" 
                       size="icon"
-                      onClick={() => window.print()}
+                      onClick={handlePrintReport}
                       aria-label="Print report card"
                       data-testid="button-print"
                     >
                       <Printer className="w-4 h-4" />
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      size="icon"
-                      onClick={handleDownloadAsImage}
-                      disabled={isDownloading}
-                      aria-label="Download report card as image"
-                      data-testid="button-download"
-                    >
-                      {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="icon"
+                          disabled={isDownloading}
+                          aria-label="Export report card"
+                          data-testid="button-download"
+                        >
+                          {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={handleDownloadAsPDF} data-testid="menu-export-pdf">
+                          <FileText className="w-4 h-4 mr-2" />
+                          Export as PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleDownloadAsImage} data-testid="menu-export-image">
+                          <Download className="w-4 h-4 mr-2" />
+                          Export as Image
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     {fullReportCard.status === 'finalized' && (
                       <>
                         <Button 
@@ -1334,15 +1369,18 @@ export default function AdminResultPublishing() {
                         totalStudents: fullReportCard.classStatistics?.totalStudents || fullReportCard.totalStudentsInClass || 0
                       },
                       attendance: {
-                        timesSchoolOpened: 0,
-                        timesPresent: 0,
-                        timesAbsent: 0,
-                        attendancePercentage: 0
-                      }
+                        timesSchoolOpened: fullReportCard.attendance?.timesSchoolOpened || 0,
+                        timesPresent: fullReportCard.attendance?.timesPresent || 0,
+                        timesAbsent: fullReportCard.attendance?.timesAbsent || 0,
+                        attendancePercentage: fullReportCard.attendance?.attendancePercentage || 0
+                      },
+                      affectiveTraits: fullReportCard.affectiveTraits,
+                      psychomotorSkills: fullReportCard.psychomotorSkills
                     }}
                     testWeight={40}
                     examWeight={60}
                     canEditRemarks={false}
+                    canEditSkills={false}
                     isLoading={false}
                     hideActionButtons={true}
                   />
@@ -1476,6 +1514,51 @@ export default function AdminResultPublishing() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Hidden Bailey's Style Template for Export/Print */}
+      {fullReportCard && isViewDialogOpen && (
+        <div className="fixed left-[-9999px] top-0 z-[-1]">
+          <BaileysReportTemplate
+            ref={baileysTemplateRef}
+            reportCard={{
+              studentName: fullReportCard.studentName,
+              admissionNumber: fullReportCard.studentUsername || fullReportCard.admissionNumber || 'N/A',
+              className: fullReportCard.className,
+              classArm: fullReportCard.classArm,
+              department: fullReportCard.department,
+              isSSS: fullReportCard.isSSS,
+              termName: fullReportCard.termName,
+              academicSession: fullReportCard.academicSession || fullReportCard.sessionYear || '2024/2025',
+              averagePercentage: fullReportCard.averagePercentage || 0,
+              overallGrade: fullReportCard.overallGrade || '-',
+              position: fullReportCard.position || 0,
+              totalStudentsInClass: fullReportCard.totalStudentsInClass || 0,
+              items: (fullReportCard.items || []).map((item: any) => ({
+                subjectName: item.subjectName,
+                testScore: item.testScore ?? item.testWeightedScore ?? null,
+                examScore: item.examScore ?? item.examWeightedScore ?? null,
+                obtainedMarks: item.obtainedMarks ?? item.totalScore ?? 0,
+                grade: item.grade || '-',
+                remarks: item.remarks || item.teacherRemarks || '',
+                subjectPosition: item.subjectPosition || null,
+              })),
+              teacherRemarks: fullReportCard.teacherRemarks,
+              principalRemarks: fullReportCard.principalRemarks,
+              attendance: {
+                timesSchoolOpened: fullReportCard.attendance?.timesSchoolOpened || 0,
+                timesPresent: fullReportCard.attendance?.timesPresent || 0,
+                timesAbsent: fullReportCard.attendance?.timesAbsent || 0,
+              },
+              studentPhoto: fullReportCard.studentPhoto,
+              dateIssued: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+              affectiveTraits: fullReportCard.affectiveTraits,
+              psychomotorSkills: fullReportCard.psychomotorSkills
+            }}
+            testWeight={40}
+            examWeight={60}
+          />
+        </div>
+      )}
     </div>
   );
 }

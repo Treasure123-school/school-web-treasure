@@ -187,8 +187,8 @@ export async function commitCSVImport(
         mustChangePassword: true
       }).returning();
 
-      // Generate admission number if not provided
-      const admissionNumber = item.data.admissionNo || `THS/${year}/${String(successCount + 1).padStart(4, '0')}`;
+      // Generate admission number if not provided - use THS-STU format with username
+      const admissionNumber = item.data.admissionNo || `THS-STU-${studentUsername.toUpperCase()}`;
 
       // Create student record
       await db.insert(students).values({

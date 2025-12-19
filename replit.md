@@ -21,6 +21,22 @@ The backend is an Express.js application built with Node.js and TypeScript, leve
 - **Database Schema**: Over 40 tables covering academic and administrative functions.
 - **Exam System**: Features reliable submission, instant auto-scoring for MCQs, anti-cheat measures, auto-submission, and real-time progress saving. Exam creation is teacher-centric with strong validation.
 - **Report Card System**: Comprehensive auto-generation and score management with weighted scoring (40% test, 60% exam), teacher-specific editing permissions, auto-recalculation, max score handling, and status workflow (Draft → Finalized → Published). Includes a Role-Based Approval Workflow where teachers finalize and admins publish. Features a professional, print-ready component with detailed student info, subject performance, traits, attendance, class statistics, and editable remarks.
+- **Bailey's Style Traditional Report Card Export**:
+  - Traditional academic report card format specifically for PDF/print/image exports
+  - Maintains modern UI for on-screen viewing while providing classic print format
+  - A4 paper-optimized layout with Treasure-Home School branding
+  - Features: school logo header, student photo section, bordered data tables, affective traits ratings, psychomotor skills assessment, attendance summary, and signature areas
+  - Export options available on StudentReportCard, TeacherReportCards, and AdminResultPublishing pages
+  - Uses html2canvas and jsPDF for high-quality rendering
+  - Hidden template approach ensures exports use traditional format without affecting screen display
+- **Visible School Header on Report Cards**:
+  - Screen display now shows Nigeria-style school header with complete school details
+  - School Name: TREASURE HOME SCHOOL
+  - Address: Seriki-Soyinka, Ifo, Ogun State, Nigeria
+  - Contact: Tel: 080-1734-5676 | Email: info@treasurehomeschool.com
+  - Motto: "Honesty and Success"
+  - Dynamic term name and academic session display
+  - Consistent header across student, teacher, and admin report card views
 - **Report Card Comments Access Control**: Role-based permission system for comments:
   - Class Teacher's Comment: Only the assigned class teacher (or admins) can edit
   - Principal's Comment: Only admins can edit

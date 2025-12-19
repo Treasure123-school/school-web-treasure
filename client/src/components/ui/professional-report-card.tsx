@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { SkillsSection } from '@/components/ui/skill-rating';
 
 interface SubjectScore {
   id: number;
@@ -137,15 +138,18 @@ interface ProfessionalReportCardProps {
   examWeight: number;
   onEditSubject?: (item: SubjectScore) => void;
   onSaveRemarks?: (teacherRemarks: string, principalRemarks: string) => void;
+  onSaveSkills?: (skills: any) => Promise<void>;
   canEditRemarks?: boolean;
   canEditTeacherRemarks?: boolean;
   canEditPrincipalRemarks?: boolean;
+  canEditSkills?: boolean;
   onGenerateDefaultComments?: () => Promise<{ teacherComment: string; principalComment: string }>;
   isLoading?: boolean;
+  isFullReportReady?: boolean;
   hideActionButtons?: boolean;
 }
 
-const RATING_LABELS = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+// Ratings are now in skill-rating.tsx component
 
 const getGradeColor = (grade: string) => {
   if (!grade) return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
@@ -184,35 +188,6 @@ const formatPosition = (pos: number): string => {
   return `${pos}${getPositionSuffix(pos)}`;
 };
 
-const RatingDisplay = ({ value, label }: { value: number; label: string }) => {
-  const ratingText = value > 0 ? RATING_LABELS[value] : '-';
-  const ratingColor = value >= 4 ? 'text-green-600' : value >= 3 ? 'text-blue-600' : value >= 2 ? 'text-yellow-600' : 'text-red-600';
-  
-  return (
-    <div className="flex items-center justify-between py-2 border-b border-muted last:border-b-0">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <div className="flex items-center gap-2">
-        <div className="flex gap-0.5">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <div
-              key={star}
-              className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-medium
-                ${star <= value 
-                  ? 'bg-primary text-primary-foreground' 
-                  : 'bg-muted text-muted-foreground/50'}
-              `}
-            >
-              {star}
-            </div>
-          ))}
-        </div>
-        <span className={`text-xs font-medium min-w-[60px] text-right ${ratingColor}`}>
-          {ratingText}
-        </span>
-      </div>
-    </div>
-  );
-};
 
 export function ProfessionalReportCard({
   reportCard,
@@ -220,11 +195,14 @@ export function ProfessionalReportCard({
   examWeight,
   onEditSubject,
   onSaveRemarks,
+  onSaveSkills,
   canEditRemarks = false,
   canEditTeacherRemarks,
   canEditPrincipalRemarks,
+  canEditSkills = false,
   onGenerateDefaultComments,
   isLoading = false,
+  isFullReportReady = false,
   hideActionButtons = false
 }: ProfessionalReportCardProps) {
   const [isSubjectsOpen, setIsSubjectsOpen] = useState(true);
@@ -232,14 +210,150 @@ export function ProfessionalReportCard({
   const [isPsychomotorOpen, setIsPsychomotorOpen] = useState(true);
   const [isAttendanceOpen, setIsAttendanceOpen] = useState(true);
   const [isGeneratingComments, setIsGeneratingComments] = useState(false);
+  const [isSavingSkills, setIsSavingSkills] = useState(false);
   const [localRemarks, setLocalRemarks] = useState({
     teacher: reportCard.teacherRemarks || '',
     principal: reportCard.principalRemarks || ''
   });
+  const [localSkills, setLocalSkills] = useState({
+    punctuality: reportCard.affectiveTraits?.punctuality || 0,
+    neatness: reportCard.affectiveTraits?.neatness || 0,
+    attentiveness: reportCard.affectiveTraits?.attentiveness || 0,
+    teamwork: reportCard.affectiveTraits?.teamwork || 0,
+    leadership: reportCard.affectiveTraits?.leadership || 0,
+    assignments: reportCard.affectiveTraits?.assignments || 0,
+    classParticipation: reportCard.affectiveTraits?.classParticipation || 0,
+    sports: reportCard.psychomotorSkills?.sports || 0,
+    handwriting: reportCard.psychomotorSkills?.handwriting || 0,
+    musicalSkills: reportCard.psychomotorSkills?.musicalSkills || 0,
+    creativity: reportCard.psychomotorSkills?.creativity || 0
+  });
+  
+  // Baseline snapshot of loaded skills - used to compute diff for save payload
+  const initialSkillsRef = useRef<Record<string, number> | null>(null);
+  const [skillsLoaded, setSkillsLoaded] = useState(false);
+  
+  // Track the current report card ID to detect when switching to a different student
+  const currentReportCardIdRef = useRef<number>(reportCard.id);
+  
+  // Track if we're in the middle of a save operation to prevent prop sync from overwriting local state
+  const isSavingRef = useRef(false);
+
+  // Sync localSkills when switching to a different report card OR when initial data loads
+  // Skip sync during active save operations to prevent flicker
+  useEffect(() => {
+    const isNewReportCard = reportCard.id !== currentReportCardIdRef.current;
+    
+    // If switching to a different student, always sync and reset state
+    if (isNewReportCard) {
+      currentReportCardIdRef.current = reportCard.id;
+      initialSkillsRef.current = null;
+      setSkillsLoaded(false);
+    }
+    
+    // Skip sync if we're currently saving (prevents flicker from optimistic updates)
+    if (isSavingRef.current && !isNewReportCard) {
+      return;
+    }
+    
+    const loadedSkills = {
+      punctuality: reportCard.affectiveTraits?.punctuality || 0,
+      neatness: reportCard.affectiveTraits?.neatness || 0,
+      attentiveness: reportCard.affectiveTraits?.attentiveness || 0,
+      teamwork: reportCard.affectiveTraits?.teamwork || 0,
+      leadership: reportCard.affectiveTraits?.leadership || 0,
+      assignments: reportCard.affectiveTraits?.assignments || 0,
+      classParticipation: reportCard.affectiveTraits?.classParticipation || 0,
+      sports: reportCard.psychomotorSkills?.sports || 0,
+      handwriting: reportCard.psychomotorSkills?.handwriting || 0,
+      musicalSkills: reportCard.psychomotorSkills?.musicalSkills || 0,
+      creativity: reportCard.psychomotorSkills?.creativity || 0
+    };
+    
+    setLocalSkills(loadedSkills);
+    
+    // Only capture baseline and enable saves when full report is ready
+    if (isFullReportReady) {
+      initialSkillsRef.current = { ...loadedSkills };
+      setSkillsLoaded(true);
+    }
+  }, [reportCard.id, reportCard.affectiveTraits, reportCard.psychomotorSkills, isFullReportReady]);
   
   // Use explicit permissions if provided, otherwise fall back to canEditRemarks
   const canEditTeacher = canEditTeacherRemarks !== undefined ? canEditTeacherRemarks : canEditRemarks;
   const canEditPrincipal = canEditPrincipalRemarks !== undefined ? canEditPrincipalRemarks : canEditRemarks;
+  
+  const handleSkillChange = (key: string, value: number) => {
+    // Update local state immediately for responsive UI
+    setLocalSkills(prev => ({ ...prev, [key]: value }));
+    
+    // Auto-save to server
+    if (onSaveSkills && initialSkillsRef.current && skillsLoaded && !isLoading) {
+      const baseline = initialSkillsRef.current[key] ?? 0;
+      
+      // Only save if value actually changed from baseline
+      if (value !== baseline) {
+        // Set saving flag to prevent useEffect from overwriting local state
+        isSavingRef.current = true;
+        setIsSavingSkills(true);
+        
+        onSaveSkills({ [key]: value })
+          .then(() => {
+            // Update baseline after successful save
+            if (initialSkillsRef.current) {
+              initialSkillsRef.current[key] = value;
+            }
+          })
+          .catch((error) => {
+            console.error('Failed to save skill:', error);
+            // Revert local state on error
+            setLocalSkills(prev => ({ ...prev, [key]: baseline }));
+          })
+          .finally(() => {
+            // Clear saving flag after a short delay to allow React to settle
+            setTimeout(() => {
+              isSavingRef.current = false;
+            }, 100);
+            setIsSavingSkills(false);
+          });
+      }
+    }
+  };
+  
+  const handleSaveSkills = async () => {
+    // Block save if data not loaded or no callback
+    if (!onSaveSkills || !initialSkillsRef.current || isLoading || !skillsLoaded) return;
+    
+    // Build payload with only changed skills (different from baseline)
+    const skillsToSave: Record<string, number> = {};
+    Object.entries(localSkills).forEach(([key, value]) => {
+      const baseline = initialSkillsRef.current![key] ?? 0;
+      if (value !== baseline) {
+        skillsToSave[key] = value;
+      }
+    });
+    
+    // If nothing changed, don't save
+    if (Object.keys(skillsToSave).length === 0) {
+      return;
+    }
+    
+    isSavingRef.current = true;
+    setIsSavingSkills(true);
+    
+    try {
+      await onSaveSkills(skillsToSave);
+      // Update baseline after successful save
+      initialSkillsRef.current = { ...localSkills };
+    } catch (error) {
+      console.error('Failed to save skills:', error);
+    } finally {
+      setTimeout(() => {
+        isSavingRef.current = false;
+      }, 100);
+      setIsSavingSkills(false);
+    }
+  };
 
   const handleGenerateComments = async () => {
     if (!onGenerateDefaultComments) return;
@@ -323,14 +437,31 @@ export function ProfessionalReportCard({
 
   return (
     <div ref={printRef} className="w-full bg-background print:bg-white">
+      {/* School Header - Visible on screen */}
+      <div className="mb-4 p-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-md border print:hidden">
+        <div className="text-center">
+          <h1 className="text-xl sm:text-2xl font-bold text-primary">TREASURE HOME SCHOOL</h1>
+          <p className="text-sm font-medium">Seriki-Soyinka, Ifo, Ogun State, Nigeria</p>
+          <p className="text-xs text-muted-foreground mt-1">Tel: 080-1734-5676 | Email: info@treasurehomeschool.com</p>
+          <p className="text-xs italic mt-2">Motto: "Honesty and Success"</p>
+          <Separator className="my-3" />
+          <h2 className="text-lg font-semibold">{reportCard.termName?.toUpperCase() || 'FIRST TERM'} STUDENT'S PERFORMANCE REPORT</h2>
+          <p className="text-xs text-muted-foreground">Session: {reportCard.academicSession || '2024/2025'}</p>
+        </div>
+      </div>
+
       {/* Print Header - Hidden on screen, shown only when printing */}
       <div className="hidden print:block mb-6">
         <div className="text-center border-b-2 border-primary pb-4">
           <h1 className="text-2xl font-bold text-primary">TREASURE HOME SCHOOL</h1>
-          <p className="text-sm text-muted-foreground">Seriki-Soyinka, Ifo, Ogun State</p>
-          <p className="text-xs italic mt-1">Motto: Honesty and Success</p>
+          <p className="text-sm font-medium">Seriki-Soyinka, Ifo, Ogun State, Nigeria</p>
+          <p className="text-xs text-muted-foreground">Tel: 080-1734-5676 | Email: info@treasurehomeschool.com</p>
+          <p className="text-xs italic mt-2">Motto: "Honesty and Success"</p>
         </div>
-        <h2 className="text-center text-lg font-semibold mt-4 mb-2">STUDENT ACADEMIC REPORT</h2>
+        <h2 className="text-center text-lg font-semibold mt-4 mb-2">{reportCard.termName?.toUpperCase() || 'FIRST TERM'} STUDENT'S PERFORMANCE REPORT</h2>
+        <p className="text-center text-xs text-muted-foreground mb-4">
+          Session: {reportCard.academicSession || '2024/2025'}
+        </p>
       </div>
 
       {/* Action Buttons - Screen only, hidden when parent provides action bar */}
@@ -686,14 +817,15 @@ export function ProfessionalReportCard({
           
           <CollapsibleContent className="print:!block">
             <CardContent className="p-3 sm:p-4 pt-0">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {affectiveTraitLabels.map(({ key, label }) => (
-                  <RatingDisplay key={key} value={affectiveTraits[key]} label={label} />
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground mt-3 text-center">
-                Rating Scale: 5 = Excellent, 4 = Very Good, 3 = Good, 2 = Fair, 1 = Poor
-              </p>
+              <SkillsSection
+                title="Affective Skills"
+                icon={<Brain className="w-4 h-4" />}
+                items={affectiveTraitLabels}
+                values={canEditSkills ? (localSkills as unknown as Record<string, number>) : (affectiveTraits as unknown as Record<string, number>)}
+                onRatingChange={handleSkillChange}
+                canEdit={canEditSkills}
+                bgColor="blue"
+              />
             </CardContent>
           </CollapsibleContent>
         </Card>
@@ -724,14 +856,15 @@ export function ProfessionalReportCard({
           
           <CollapsibleContent className="print:!block">
             <CardContent className="p-3 sm:p-4 pt-0">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {psychomotorLabels.map(({ key, label }) => (
-                  <RatingDisplay key={key} value={psychomotorSkills[key]} label={label} />
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground mt-3 text-center">
-                Rating Scale: 5 = Excellent, 4 = Very Good, 3 = Good, 2 = Fair, 1 = Poor
-              </p>
+              <SkillsSection
+                title="Psychomotor Skills"
+                icon={<Activity className="w-4 h-4" />}
+                items={psychomotorLabels}
+                values={canEditSkills ? (localSkills as unknown as Record<string, number>) : (psychomotorSkills as unknown as Record<string, number>)}
+                onRatingChange={handleSkillChange}
+                canEdit={canEditSkills}
+                bgColor="purple"
+              />
             </CardContent>
           </CollapsibleContent>
         </Card>

@@ -354,6 +354,8 @@ export interface IStorage {
   updateReportCardStatus(reportCardId: number, status: string, userId: string): Promise<ReportCard | undefined>;
   updateReportCardStatusOptimized(reportCardId: number, status: string, userId: string): Promise<{ reportCard: ReportCard; previousStatus: string } | undefined>;
   updateReportCardRemarks(reportCardId: number, teacherRemarks?: string, principalRemarks?: string): Promise<ReportCard | undefined>;
+  getReportCardSkills(reportCardId: number): Promise<any | undefined>;
+  saveReportCardSkills(reportCardId: number, skills: any): Promise<any>;
   getExamsWithSubjectsByClassAndTerm(classId: number, termId?: number): Promise<any[]>;
   getExamScoresForReportCard(studentId: string, subjectId: number, termId: number): Promise<{ testExams: any[]; mainExams: any[] }>;
   recalculateReportCard(reportCardId: number, gradingScale: string): Promise<ReportCard | undefined>;
@@ -4655,6 +4657,9 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
+      // Load skills from database
+      const skills = await this.getReportCardSkills(reportCardId);
+
       return { 
         ...reportCard[0], 
         isSSS: isSSS,
@@ -4664,7 +4669,22 @@ export class DatabaseStorage implements IStorage {
         teacherSignedBy,
         principalSignatureUrl,
         principalSignedBy,
-        items 
+        items,
+        affectiveTraits: {
+          punctuality: skills?.punctuality || 0,
+          neatness: skills?.neatness || 0,
+          attentiveness: skills?.attentiveness || 0,
+          teamwork: skills?.teamwork || 0,
+          leadership: skills?.leadership || 0,
+          assignments: skills?.assignments || 0,
+          classParticipation: skills?.classParticipation || 0
+        },
+        psychomotorSkills: {
+          sports: skills?.sports || 0,
+          handwriting: skills?.handwriting || 0,
+          musicalSkills: skills?.musicalSkills || 0,
+          creativity: skills?.creativity || 0
+        }
       };
     } catch (error) {
       console.error('Error getting report card with items:', error);
@@ -8140,6 +8160,78 @@ export class DatabaseStorage implements IStorage {
     } catch (error: any) {
       console.error('[SYNC-EXAM-RESULTS] Error:', error);
       return { synced: 0, failed: 0, errors: [error.message] };
+    }
+  }
+
+  // Report Card Skills Methods
+  async getReportCardSkills(reportCardId: number): Promise<any | undefined> {
+    try {
+      const result = await db.select()
+        .from(schema.reportCardSkills)
+        .where(eq(schema.reportCardSkills.reportCardId, reportCardId))
+        .limit(1);
+      return result[0];
+    } catch (error: any) {
+      console.error('Error getting report card skills:', error);
+      return undefined;
+    }
+  }
+
+  async saveReportCardSkills(reportCardId: number, skills: any): Promise<any> {
+    try {
+      const existing = await this.getReportCardSkills(reportCardId);
+      
+      if (existing) {
+        // Only update fields that are explicitly provided in the payload
+        // Use incoming value if provided (including 0 for intentional clears), otherwise keep existing
+        const mergeSkill = (key: string, existingVal: number) => {
+          const newVal = skills[key];
+          // If field is present in payload, use it (allows intentional 0s); otherwise keep existing
+          return (newVal !== undefined) ? newVal : (existingVal ?? 0);
+        };
+        
+        const result = await db.update(schema.reportCardSkills)
+          .set({
+            punctuality: mergeSkill('punctuality', existing.punctuality),
+            neatness: mergeSkill('neatness', existing.neatness),
+            attentiveness: mergeSkill('attentiveness', existing.attentiveness),
+            teamwork: mergeSkill('teamwork', existing.teamwork),
+            leadership: mergeSkill('leadership', existing.leadership),
+            assignments: mergeSkill('assignments', existing.assignments),
+            classParticipation: mergeSkill('classParticipation', existing.classParticipation),
+            sports: mergeSkill('sports', existing.sports),
+            handwriting: mergeSkill('handwriting', existing.handwriting),
+            musicalSkills: mergeSkill('musicalSkills', existing.musicalSkills),
+            creativity: mergeSkill('creativity', existing.creativity),
+            recordedBy: skills.recordedBy,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.reportCardSkills.reportCardId, reportCardId))
+          .returning();
+        return result[0];
+      } else {
+        const result = await db.insert(schema.reportCardSkills)
+          .values({
+            reportCardId,
+            punctuality: skills.punctuality || 0,
+            neatness: skills.neatness || 0,
+            attentiveness: skills.attentiveness || 0,
+            teamwork: skills.teamwork || 0,
+            leadership: skills.leadership || 0,
+            assignments: skills.assignments || 0,
+            classParticipation: skills.classParticipation || 0,
+            sports: skills.sports || 0,
+            handwriting: skills.handwriting || 0,
+            musicalSkills: skills.musicalSkills || 0,
+            creativity: skills.creativity || 0,
+            recordedBy: skills.recordedBy
+          })
+          .returning();
+        return result[0];
+      }
+    } catch (error: any) {
+      console.error('Error saving report card skills:', error);
+      throw error;
     }
   }
 }

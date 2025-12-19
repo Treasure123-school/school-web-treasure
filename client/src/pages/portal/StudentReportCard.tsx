@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
+import { BaileysReportTemplate } from '@/components/ui/baileys-report-template';
+import { exportToPDF, exportToImage, printElement } from '@/lib/report-export-utils';
 import { 
   Download, 
   FileText, 
@@ -25,7 +27,10 @@ import {
   Activity,
   Pen,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Image,
+  Printer,
+  Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import {
@@ -33,6 +38,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const RATING_LABELS = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
 
@@ -111,6 +122,8 @@ export default function StudentReportCard() {
   const [isAffectiveOpen, setIsAffectiveOpen] = useState(true);
   const [isPsychomotorOpen, setIsPsychomotorOpen] = useState(true);
   const [isAttendanceOpen, setIsAttendanceOpen] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+  const printTemplateRef = useRef<HTMLDivElement>(null);
 
   const { data: terms = [] } = useQuery({
     queryKey: ['/api/terms'],
@@ -147,7 +160,7 @@ export default function StudentReportCard() {
   });
 
   const handleExportPDF = async () => {
-    if (!user?.id || !selectedTerm) {
+    if (!user?.id || !selectedTerm || !reportCard) {
       toast({
         title: "Error",
         description: "Please select a term first",
@@ -155,46 +168,97 @@ export default function StudentReportCard() {
       });
       return;
     }
+    
+    if (!printTemplateRef.current) {
+      toast({
+        title: "Error",
+        description: "Report template not ready",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsExporting(true);
     try {
       toast({
         title: "Export Started",
         description: "Generating PDF report card...",
       });
 
-      const response = await fetch(`/api/report-card/${user.id}/${selectedTerm}/pdf`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
+      await exportToPDF(printTemplateRef.current, {
+        filename: `report-card-${user.firstName}-${user.lastName}-${reportCard.termName || selectedTerm}`,
+        scale: 2,
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate PDF');
-      }
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `report-card-${user.firstName}-${user.lastName}-${selectedTerm}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
 
       toast({
         title: "Export Complete",
         description: "Report card PDF has been downloaded.",
       });
     } catch (error) {
+      console.error('PDF export error:', error);
       toast({
         title: "Export Failed",
         description: "Failed to generate PDF report card",
         variant: "destructive",
       });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportImage = async () => {
+    if (!user?.id || !selectedTerm || !reportCard) {
+      toast({
+        title: "Error",
+        description: "Please select a term first",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!printTemplateRef.current) {
+      toast({
+        title: "Error",
+        description: "Report template not ready",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsExporting(true);
+    try {
+      toast({
+        title: "Export Started",
+        description: "Generating image...",
+      });
+
+      await exportToImage(printTemplateRef.current, {
+        filename: `report-card-${user.firstName}-${user.lastName}-${reportCard.termName || selectedTerm}`,
+        scale: 2,
+      });
+
+      toast({
+        title: "Export Complete",
+        description: "Report card image has been downloaded.",
+      });
+    } catch (error) {
+      console.error('Image export error:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to generate image",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
     }
   };
 
   const handlePrint = () => {
-    window.print();
+    if (!printTemplateRef.current) {
+      window.print();
+      return;
+    }
+    printElement(printTemplateRef.current);
   };
 
   if (!user) {
@@ -276,14 +340,32 @@ export default function StudentReportCard() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={handlePrint} data-testid="button-print">
-            <FileText className="w-4 h-4 mr-2" />
+          <Button variant="outline" onClick={handlePrint} disabled={isExporting || !reportCard} data-testid="button-print">
+            <Printer className="w-4 h-4 mr-2" />
             Print
           </Button>
-          <Button onClick={handleExportPDF} data-testid="button-export-pdf">
-            <Download className="w-4 h-4 mr-2" />
-            Export PDF
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button disabled={isExporting || !reportCard} data-testid="button-export">
+                {isExporting ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                {isExporting ? 'Exporting...' : 'Export'}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportPDF} data-testid="menu-export-pdf">
+                <FileText className="w-4 h-4 mr-2" />
+                Export as PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportImage} data-testid="menu-export-image">
+                <Image className="w-4 h-4 mr-2" />
+                Export as Image
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -319,14 +401,31 @@ export default function StudentReportCard() {
         </Card>
       ) : (
         <>
+          {/* School Header - Visible on screen */}
+          <Card className="mb-4 print:shadow-none print:border-2 bg-gradient-to-r from-primary/5 to-primary/10">
+            <CardContent className="p-4">
+              <div className="text-center">
+                <h1 className="text-xl sm:text-2xl font-bold text-primary">TREASURE HOME SCHOOL</h1>
+                <p className="text-sm font-medium">Seriki-Soyinka, Ifo, Ogun State, Nigeria</p>
+                <p className="text-xs text-muted-foreground mt-1">Tel: 080-1734-5676 | Email: info@treasurehomeschool.com</p>
+                <p className="text-xs italic mt-2">Motto: "Honesty and Success"</p>
+                <Separator className="my-3" />
+                <h2 className="text-lg font-semibold">{reportCard.termName?.toUpperCase() || 'FIRST TERM'} STUDENT'S PERFORMANCE REPORT</h2>
+                <p className="text-xs text-muted-foreground">Session: {reportCard.academicSession || '2024/2025'}</p>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Print Header */}
           <div className="hidden print:block mb-6">
             <div className="text-center border-b-2 border-primary pb-4">
               <h1 className="text-2xl font-bold">TREASURE HOME SCHOOL</h1>
-              <p className="text-sm text-muted-foreground">Seriki-Soyinka, Ifo, Ogun State</p>
-              <p className="text-xs italic mt-1">Motto: Honesty and Success</p>
+              <p className="text-sm font-medium">Seriki-Soyinka, Ifo, Ogun State, Nigeria</p>
+              <p className="text-xs text-muted-foreground">Tel: 080-1734-5676 | Email: info@treasurehomeschool.com</p>
+              <p className="text-xs italic mt-2">Motto: "Honesty and Success"</p>
             </div>
-            <h2 className="text-center text-lg font-semibold mt-4 mb-2">STUDENT ACADEMIC REPORT</h2>
+            <h2 className="text-center text-lg font-semibold mt-4 mb-2">{reportCard.termName?.toUpperCase() || 'FIRST TERM'} STUDENT'S PERFORMANCE REPORT</h2>
+            <p className="text-center text-xs text-muted-foreground mb-4">Session: {reportCard.academicSession || '2024/2025'}</p>
           </div>
 
           {/* Section 1: Student Information */}
@@ -806,6 +905,47 @@ export default function StudentReportCard() {
             <p className="italic mt-1">This is a computer-generated report card.</p>
           </div>
         </>
+      )}
+
+      {/* Hidden Bailey's Style Template for Export/Print */}
+      {reportCard && (
+        <div className="fixed left-[-9999px] top-0 z-[-1]">
+          <BaileysReportTemplate
+            ref={printTemplateRef}
+            reportCard={{
+              studentName: reportCard.studentName || `${user?.firstName} ${user?.lastName}`,
+              admissionNumber: reportCard.admissionNumber || studentDetails?.admissionNumber || 'N/A',
+              className: reportCard.className || studentDetails?.className || 'N/A',
+              classArm: reportCard.classArm,
+              department: reportCard.department,
+              isSSS: reportCard.isSSS,
+              termName: reportCard.termName || reportCard.term?.name || 'N/A',
+              academicSession: reportCard.academicSession || reportCard.termYear || '2024/2025',
+              averagePercentage: reportCard.averagePercentage || reportCard.summary?.averagePercentage || 0,
+              overallGrade: reportCard.overallGrade || '-',
+              position: reportCard.position || reportCard.classRank || 0,
+              totalStudentsInClass: reportCard.totalStudentsInClass || reportCard.totalStudents || 0,
+              items: subjects.map((s: any) => ({
+                subjectName: s.subjectName,
+                testScore: s.testScore ?? s.testWeightedScore ?? null,
+                examScore: s.examScore ?? s.examWeightedScore ?? null,
+                obtainedMarks: s.obtainedMarks ?? s.totalScore ?? 0,
+                grade: s.grade || '-',
+                remarks: s.remarks || s.teacherRemarks || getRemarkFromGrade(s.grade),
+                subjectPosition: s.subjectPosition || null,
+              })),
+              teacherRemarks: reportCard.teacherRemarks || reportCard.teacherComment,
+              principalRemarks: reportCard.principalRemarks || reportCard.principalComment,
+              attendance: attendance,
+              affectiveTraits: affectiveTraits,
+              psychomotorSkills: psychomotorSkills,
+              studentPhoto: reportCard.studentPhoto,
+              dateIssued: format(new Date(), 'dd-MMM-yyyy'),
+            }}
+            testWeight={40}
+            examWeight={60}
+          />
+        </div>
       )}
     </div>
   );
