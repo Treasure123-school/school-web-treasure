@@ -3,9 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trash2, Upload, Edit, Save, X, Image as ImageIcon } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -14,36 +14,66 @@ import { getApiUrl } from '@/config/api';
 import { useAuth } from '@/lib/auth';
 import type { HomePageContent } from '@shared/schema';
 
+// Define sections with their content types
+const SECTIONS = {
+  hero: {
+    label: 'Hero Section',
+    icon: '🎯',
+    types: ['hero_image'],
+    description: 'Main banner images on the homepage'
+  },
+  gallery: {
+    label: 'Gallery Preview',
+    icon: '🖼️',
+    types: ['gallery_preview_1', 'gallery_preview_2', 'gallery_preview_3'],
+    description: 'Preview images shown on homepage gallery carousel'
+  },
+  about: {
+    label: 'About Section',
+    icon: '📖',
+    types: ['about_section'],
+    description: 'Images for the about page'
+  },
+  featured: {
+    label: 'Featured Content',
+    icon: '⭐',
+    types: ['featured_content'],
+    description: 'Featured/highlighted content images'
+  }
+};
+
 export default function HomepageManagement() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [activeSection, setActiveSection] = useState('hero');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [editingItem, setEditingItem] = useState<HomePageContent | null>(null);
   const [showUploadForm, setShowUploadForm] = useState(false);
 
-  // Form state for new uploads
   const [newContent, setNewContent] = useState({
-    contentType: '',
+    contentType: SECTIONS.hero.types[0],
     altText: '',
     caption: '',
     displayOrder: 0
   });
 
-  // Fetch home page content
+  // Fetch all home page content
   const { data: homePageContent = [], isLoading } = useQuery<HomePageContent[]>({
     queryKey: ['/api/homepage-content'],
     refetchOnWindowFocus: false,
     retry: 1,
   });
 
+  // Filter content by active section
+  const sectionTypes = SECTIONS[activeSection as keyof typeof SECTIONS].types;
+  const sectionContent = homePageContent.filter(item => sectionTypes.includes(item.contentType));
+
   // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: async ({ file, data }: { file: File; data: any }) => {
       const token = localStorage.getItem('token');
-      
-      if (!token) {
-        throw new Error('Authentication required. Please log in again.');
-      }
+      if (!token) throw new Error('Authentication required');
+
       const formData = new FormData();
       formData.append('homePageImage', file);
       formData.append('contentType', data.contentType);
@@ -54,41 +84,25 @@ export default function HomepageManagement() {
       const response = await fetch(getApiUrl('/api/upload/homepage'), {
         method: 'POST',
         body: formData,
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
         credentials: 'include'
       });
 
       if (!response.ok) {
-        let errorMessage = 'Upload failed';
-        try {
-          const error = await response.json();
-          errorMessage = error.message || errorMessage;
-        } catch {
-          errorMessage = response.statusText || errorMessage;
-        }
-        throw new Error(errorMessage);
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || 'Upload failed');
       }
-      const result = await response.json();
-      return result;
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/homepage-content'] });
-      toast({
-        title: "Success",
-        description: "Home page image uploaded successfully",
-      });
+      toast({ title: "Success", description: "Image uploaded successfully" });
       setUploadFile(null);
-      setNewContent({ contentType: '', altText: '', caption: '', displayOrder: 0 });
+      setNewContent({ contentType: sectionTypes[0], altText: '', caption: '', displayOrder: 0 });
       setShowUploadForm(false);
     },
     onError: (error: Error) => {
-      toast({
-        title: "Upload failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -96,62 +110,28 @@ export default function HomepageManagement() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<HomePageContent> }) => {
       const token = localStorage.getItem('token');
-      
-      if (!token) {
-        throw new Error('Authentication required. Please log in again.');
-      }
+      if (!token) throw new Error('Authentication required');
+
       const response = await fetch(getApiUrl(`/api/homepage-content/${id}`), {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(data),
         credentials: 'include'
       });
 
       if (!response.ok) {
-        let errorMessage = 'Update failed';
-        try {
-          const error = await response.json();
-          errorMessage = error.message || errorMessage;
-        } catch {
-          errorMessage = response.statusText || errorMessage;
-        }
-        throw new Error(errorMessage);
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || 'Update failed');
       }
       return response.json();
     },
-    onMutate: async ({ id, data }) => {
-      await queryClient.cancelQueries({ queryKey: ['/api/homepage-content'] });
-      const previousContent = queryClient.getQueryData(['/api/homepage-content']);
-      
-      queryClient.setQueryData(['/api/homepage-content'], (old: any) => {
-        if (!old) return old;
-        return old.map((item: any) => 
-          item.id === id ? { ...item, ...data } : item
-        );
-      });
-      
-      return { previousContent };
-    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/homepage-content'] });
-      toast({
-        title: "Success",
-        description: "Home page content updated successfully",
-      });
+      toast({ title: "Success", description: "Content updated successfully" });
       setEditingItem(null);
     },
-    onError: (error: Error, variables, context: any) => {
-      if (context?.previousContent) {
-        queryClient.setQueryData(['/api/homepage-content'], context.previousContent);
-      }
-      toast({
-        title: "Update failed",
-        description: error.message,
-        variant: "destructive",
-      });
+    onError: (error: Error) => {
+      toast({ title: "Update failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -159,78 +139,38 @@ export default function HomepageManagement() {
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       const token = localStorage.getItem('token');
-      
-      if (!token) {
-        throw new Error('Authentication required. Please log in again.');
-      }
+      if (!token) throw new Error('Authentication required');
+
       const response = await fetch(getApiUrl(`/api/homepage-content/${id}`), {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
         credentials: 'include'
       });
 
       if (!response.ok) {
-        let errorMessage = 'Delete failed';
-        try {
-          const error = await response.json();
-          errorMessage = error.message || errorMessage;
-        } catch {
-          errorMessage = response.statusText || errorMessage;
-        }
-        throw new Error(errorMessage);
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || 'Delete failed');
       }
-      return response.json();
-    },
-    onMutate: async (id: number) => {
-      await queryClient.cancelQueries({ queryKey: ['/api/homepage-content'] });
-      const previousContent = queryClient.getQueryData(['/api/homepage-content']);
-      
-      queryClient.setQueryData(['/api/homepage-content'], (old: any) => {
-        if (!old) return old;
-        return old.filter((item: any) => item.id !== id);
-      });
-      
-      return { previousContent };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/homepage-content'] });
-      toast({
-        title: "Success",
-        description: "Home page content deleted successfully",
-      });
+      toast({ title: "Success", description: "Content deleted successfully" });
     },
-    onError: (error: Error, id: number, context: any) => {
-      if (context?.previousContent) {
-        queryClient.setQueryData(['/api/homepage-content'], context.previousContent);
-      }
-      toast({
-        title: "Delete failed",
-        description: error.message,
-        variant: "destructive",
-      });
+    onError: (error: Error) => {
+      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
     },
   });
 
   const handleUpload = () => {
     if (!uploadFile || !newContent.contentType) {
-      toast({
-        title: "Validation Error",
-        description: "Please select a file and content type",
-        variant: "destructive",
-      });
+      toast({ title: "Validation Error", description: "Please select a file and content type", variant: "destructive" });
       return;
     }
-    uploadMutation.mutate({
-      file: uploadFile,
-      data: newContent
-    });
+    uploadMutation.mutate({ file: uploadFile, data: newContent });
   };
 
   const handleUpdate = (item: HomePageContent) => {
     if (!editingItem) return;
-    
     updateMutation.mutate({
       id: item.id,
       data: {
@@ -242,282 +182,214 @@ export default function HomepageManagement() {
     });
   };
 
-  const handleDelete = (id: number) => {
-    if (confirm('Are you sure you want to delete this home page content?')) {
-      deleteMutation.mutate(id);
-    }
-  };
+  if (!user) return <div>Loading...</div>;
 
-  const contentTypes = [
-    { value: 'hero_image', label: 'Hero Image' },
-    { value: 'gallery_preview_1', label: 'Gallery Preview 1' },
-    { value: 'gallery_preview_2', label: 'Gallery Preview 2' },
-    { value: 'gallery_preview_3', label: 'Gallery Preview 3' },
-    { value: 'about_section', label: 'About Section' },
-    { value: 'featured_content', label: 'Featured Content' }
-  ];
+  const currentSection = SECTIONS[activeSection as keyof typeof SECTIONS];
 
-  if (!user) {
-    return <div>Loading...</div>;
-  }
   return (
-    <>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white" data-testid="text-page-title">Home Page Management</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">Manage images and content for the school website homepage</p>
-          </div>
-          <Button
-            onClick={() => setShowUploadForm(!showUploadForm)}
-            className="bg-primary text-primary-foreground"
-            data-testid="button-add-content"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Add Content
-          </Button>
-        </div>
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-foreground" data-testid="text-page-title">Website Images & Content</h1>
+        <p className="text-muted-foreground mt-2">Manage images for different sections of the school website</p>
+      </div>
 
-        {/* Upload Form */}
-        {showUploadForm && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ImageIcon className="h-5 w-5" />
-                Upload New Home Page Content
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="contentType">Content Type</Label>
-                  <Select
-                    value={newContent.contentType}
-                    onValueChange={(value) => setNewContent(prev => ({ ...prev, contentType: value }))}
-                  >
-                    <SelectTrigger data-testid="select-content-type">
-                      <SelectValue placeholder="Select content type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {contentTypes.map(type => (
-                        <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+      {/* Tabs for Different Sections */}
+      <Tabs value={activeSection} onValueChange={setActiveSection}>
+        <TabsList className="grid w-full grid-cols-4">
+          {Object.entries(SECTIONS).map(([key, section]) => (
+            <TabsTrigger key={key} value={key} data-testid={`tab-${key}`}>
+              <span className="mr-2">{section.icon}</span>
+              {section.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-                <div className="space-y-2">
-                  <Label htmlFor="displayOrder">Display Order</Label>
-                  <Input
-                    id="displayOrder"
-                    type="number"
-                    value={newContent.displayOrder}
-                    onChange={(e) => setNewContent(prev => ({ ...prev, displayOrder: parseInt(e.target.value) || 0 }))}
-                    data-testid="input-display-order"
-                  />
-                </div>
-              </div>
+        {/* Content for each section */}
+        {Object.entries(SECTIONS).map(([sectionKey, section]) => (
+          <TabsContent key={sectionKey} value={sectionKey} className="space-y-4">
+            {/* Section Description */}
+            <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+              <CardContent className="pt-6">
+                <p className="text-sm text-foreground">{section.description}</p>
+                <p className="text-xs text-muted-foreground mt-2">Allowed types: {section.types.join(', ')}</p>
+              </CardContent>
+            </Card>
 
-              <div className="space-y-2">
-                <Label htmlFor="file">Image File</Label>
-                <Input
-                  id="file"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                  data-testid="input-image-file"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="altText">Alt Text</Label>
-                <Input
-                  id="altText"
-                  value={newContent.altText}
-                  onChange={(e) => setNewContent(prev => ({ ...prev, altText: e.target.value }))}
-                  placeholder="Descriptive text for accessibility"
-                  data-testid="input-alt-text"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="caption">Caption (Optional)</Label>
-                <Textarea
-                  id="caption"
-                  value={newContent.caption}
-                  onChange={(e) => setNewContent(prev => ({ ...prev, caption: e.target.value }))}
-                  placeholder="Optional caption for the image"
-                  data-testid="textarea-caption"
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleUpload}
-                  disabled={uploadMutation.isPending || !uploadFile || !newContent.contentType}
-                  data-testid="button-upload"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  {uploadMutation.isPending ? 'Uploading...' : 'Upload'}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowUploadForm(false);
-                    setUploadFile(null);
-                    setNewContent({ contentType: '', altText: '', caption: '', displayOrder: 0 });
-                  }}
-                  data-testid="button-cancel-upload"
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Cancel
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Content List */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Current Home Page Content</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="text-center py-8">Loading home page content...</div>
-            ) : homePageContent.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No home page content found. Upload some images to get started.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {homePageContent.map((item) => (
-                  <div key={item.id} className="border rounded-lg p-4 flex items-center gap-4" data-testid={`content-item-${item.id}`}>
-                    {/* Image Preview */}
-                    <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center overflow-hidden">
-                      {item.imageUrl ? (
-                        <img
-                          src={item.imageUrl}
-                          alt={item.altText || 'Home page content'}
-                          className="w-full h-full object-cover"
-                          data-testid={`img-preview-${item.id}`}
-                          onError={(e) => {
-                            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMjEgMTlWNWMwLTEuMS0uOS0yLTItMkg1Yy0xLjEgMC0yIC45LTIgMnYxNGMwIDEuMS45IDIgMiAyaDE0YzEuMSAwIDItLjkgMi0yem0tMTAtN2wtNC01djE0aDJsNC00IDQgNGgyVjZsLTgtOHoiIGZpbGw9IiM5Y2E' +
-                              'zYWYiLz48L3N2Zz4=';
-                          }}
-                        />
-                      ) : (
-                        <ImageIcon className="h-8 w-8 text-gray-400" />
-                      )}
+            {/* Upload Form */}
+            {showUploadForm && activeSection === sectionKey && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Upload className="h-5 w-5" />
+                    Upload New Image
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="imageType">Image Type</Label>
+                      <select
+                        id="imageType"
+                        value={newContent.contentType}
+                        onChange={(e) => setNewContent(prev => ({ ...prev, contentType: e.target.value }))}
+                        className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground"
+                        data-testid="select-image-type"
+                      >
+                        {section.types.map(type => (
+                          <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>
+                        ))}
+                      </select>
                     </div>
-
-                    {/* Content Details */}
-                    <div className="flex-1">
-                      {editingItem?.id === item.id ? (
-                        <div className="space-y-2">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            <Input
-                              value={editingItem.altText || ''}
-                              onChange={(e) => setEditingItem(prev => prev ? { ...prev, altText: e.target.value } : null)}
-                              placeholder="Alt text"
-                              data-testid={`input-edit-alt-${item.id}`}
-                            />
-                            <Input
-                              type="number"
-                              value={editingItem.displayOrder || 0}
-                              onChange={(e) => setEditingItem(prev => prev ? { ...prev, displayOrder: parseInt(e.target.value) || 0 } : null)}
-                              placeholder="Display order"
-                              data-testid={`input-edit-order-${item.id}`}
-                            />
-                          </div>
-                          <Textarea
-                            value={editingItem.caption || ''}
-                            onChange={(e) => setEditingItem(prev => prev ? { ...prev, caption: e.target.value } : null)}
-                            placeholder="Caption"
-                            data-testid={`textarea-edit-caption-${item.id}`}
-                          />
-                          <div className="flex items-center gap-2">
-                            <Switch
-                              checked={editingItem.isActive}
-                              onCheckedChange={(checked) => setEditingItem(prev => prev ? { ...prev, isActive: checked } : null)}
-                              data-testid={`switch-active-${item.id}`}
-                            />
-                            <Label>Active</Label>
-                          </div>
-                        </div>
-                      ) : (
-                        <div>
-                          <h3 className="font-semibold text-lg" data-testid={`text-content-type-${item.id}`}>
-                            {contentTypes.find(type => type.value === item.contentType)?.label || item.contentType}
-                          </h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400" data-testid={`text-alt-text-${item.id}`}>
-                            Alt Text: {item.altText || 'Not provided'}
-                          </p>
-                          {item.caption && (
-                            <p className="text-sm text-gray-600 dark:text-gray-400" data-testid={`text-caption-${item.id}`}>
-                              Caption: {item.caption}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-4 text-sm text-gray-500 mt-2">
-                            <span data-testid={`text-order-${item.id}`}>Order: {item.displayOrder}</span>
-                            <span data-testid={`text-status-${item.id}`} className={item.isActive ? 'text-green-600' : 'text-red-600'}>
-                              {item.isActive ? 'Active' : 'Inactive'}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex gap-2">
-                      {editingItem?.id === item.id ? (
-                        <>
-                          <Button
-                            size="sm"
-                            onClick={() => handleUpdate(item)}
-                            disabled={updateMutation.isPending}
-                            data-testid={`button-save-${item.id}`}
-                          >
-                            <Save className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setEditingItem(null)}
-                            data-testid={`button-cancel-edit-${item.id}`}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setEditingItem(item)}
-                            data-testid={`button-edit-${item.id}`}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDelete(item.id)}
-                            disabled={deleteMutation.isPending}
-                            data-testid={`button-delete-${item.id}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
+                    <div className="space-y-2">
+                      <Label htmlFor="displayOrder">Display Order</Label>
+                      <Input
+                        id="displayOrder"
+                        type="number"
+                        value={newContent.displayOrder}
+                        onChange={(e) => setNewContent(prev => ({ ...prev, displayOrder: parseInt(e.target.value) || 0 }))}
+                        data-testid="input-display-order"
+                      />
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="file">Image File</Label>
+                    <Input
+                      id="file"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                      data-testid="input-image-file"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="altText">Alt Text (for accessibility)</Label>
+                    <Input
+                      id="altText"
+                      value={newContent.altText}
+                      onChange={(e) => setNewContent(prev => ({ ...prev, altText: e.target.value }))}
+                      placeholder="Describe the image"
+                      data-testid="input-alt-text"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="caption">Caption (Optional)</Label>
+                    <Textarea
+                      id="caption"
+                      value={newContent.caption}
+                      onChange={(e) => setNewContent(prev => ({ ...prev, caption: e.target.value }))}
+                      placeholder="Optional caption"
+                      data-testid="textarea-caption"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button onClick={handleUpload} disabled={uploadMutation.isPending || !uploadFile || !newContent.contentType} data-testid="button-upload">
+                      <Upload className="h-4 w-4 mr-2" />
+                      {uploadMutation.isPending ? 'Uploading...' : 'Upload Image'}
+                    </Button>
+                    <Button variant="outline" onClick={() => { setShowUploadForm(false); setUploadFile(null); }} data-testid="button-cancel-upload">
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             )}
-          </CardContent>
-        </Card>
-      </div>
-    </>
+
+            {/* Images List */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-4">
+                <CardTitle>Images in {section.label}</CardTitle>
+                {!showUploadForm && activeSection === sectionKey && (
+                  <Button onClick={() => { setShowUploadForm(true); setNewContent({ ...newContent, contentType: section.types[0] }); }} data-testid="button-add-image">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Add Image
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="text-center py-8 text-muted-foreground">Loading...</div>
+                ) : sectionContent.length === 0 ? (
+                  <div className="text-center py-12">
+                    <ImageIcon className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                    <p className="text-muted-foreground">No images uploaded for this section yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {sectionContent.sort((a, b) => a.displayOrder - b.displayOrder).map((item) => (
+                      <div key={item.id} className="border rounded-lg p-4 flex items-center gap-4 hover:bg-accent/5 transition-colors" data-testid={`image-item-${item.id}`}>
+                        {/* Image Preview */}
+                        <div className="w-20 h-20 bg-muted rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt={item.altText || 'Gallery image'} className="w-full h-full object-cover" data-testid={`img-preview-${item.id}`} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                          ) : (
+                            <ImageIcon className="h-8 w-8 text-muted-foreground opacity-50" />
+                          )}
+                        </div>
+
+                        {/* Details */}
+                        <div className="flex-1 min-w-0">
+                          {editingItem?.id === item.id ? (
+                            <div className="space-y-2">
+                              <Input value={editingItem.altText || ''} onChange={(e) => setEditingItem(prev => prev ? { ...prev, altText: e.target.value } : null)} placeholder="Alt text" data-testid={`input-edit-alt-${item.id}`} />
+                              <Input type="number" value={editingItem.displayOrder || 0} onChange={(e) => setEditingItem(prev => prev ? { ...prev, displayOrder: parseInt(e.target.value) || 0 } : null)} placeholder="Order" data-testid={`input-edit-order-${item.id}`} />
+                              <Textarea value={editingItem.caption ?? ''} onChange={(e) => setEditingItem(prev => prev ? { ...prev, caption: e.target.value } : null)} placeholder="Caption" className="resize-none h-20" data-testid={`textarea-edit-caption-${item.id}`} />
+                              <div className="flex items-center gap-2">
+                                <Switch checked={editingItem.isActive} onCheckedChange={(checked) => setEditingItem(prev => prev ? { ...prev, isActive: checked } : null)} data-testid={`switch-active-${item.id}`} />
+                                <Label className="text-sm">Active</Label>
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <div className="font-medium text-sm truncate">{item.contentType.replace(/_/g, ' ')}</div>
+                              <p className="text-xs text-muted-foreground truncate">Alt: {item.altText || '—'}</p>
+                              {item.caption && <p className="text-xs text-muted-foreground truncate">Caption: {item.caption}</p>}
+                              <div className="flex gap-3 text-xs text-muted-foreground mt-1">
+                                <span>Order: {item.displayOrder}</span>
+                                <span className={item.isActive ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                                  {item.isActive ? 'Active' : 'Inactive'}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-1 flex-shrink-0">
+                          {editingItem?.id === item.id ? (
+                            <>
+                              <Button size="sm" variant="default" onClick={() => handleUpdate(item)} disabled={updateMutation.isPending} data-testid={`button-save-${item.id}`}>
+                                <Save className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => setEditingItem(null)} data-testid={`button-cancel-edit-${item.id}`}>
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button size="sm" variant="outline" onClick={() => setEditingItem(item)} data-testid={`button-edit-${item.id}`}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="destructive" onClick={() => deleteMutation.mutate(item.id)} disabled={deleteMutation.isPending} data-testid={`button-delete-${item.id}`}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        ))}
+      </Tabs>
+    </div>
   );
 }

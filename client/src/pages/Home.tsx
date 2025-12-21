@@ -376,103 +376,53 @@ export default function Home() {
       </section>
 
       {/* Gallery Carousel */}
-      <section className="py-16">
+      <section className="py-20 lg:py-28">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-foreground mb-4" data-testid="text-gallery-title">
+          <div className="text-center mb-16 lg:mb-20">
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6 animate-slide-down" data-testid="text-gallery-title">
               School Life Gallery
             </h2>
-            <p className="text-muted-foreground" data-testid="text-gallery-description">
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto animate-fade-in" data-testid="text-gallery-description">
               Capturing moments of learning, growth, and achievement
             </p>
           </div>
 
           {galleryImages.length > 0 ? (
-            <div className="relative max-w-4xl mx-auto">
-              {/* Main carousel with improved responsive design */}
-              <div className="relative h-60 sm:h-72 md:h-80 lg:h-96 rounded-2xl overflow-hidden mb-6 shadow-2xl">
+            <div className="relative max-w-5xl mx-auto animate-fade-in">
+              {/* Main carousel with optimized responsive design */}
+              <div className="relative min-h-96 sm:min-h-[28rem] md:min-h-[32rem] lg:min-h-[42rem] rounded-3xl overflow-hidden shadow-2xl group bg-gradient-to-br from-gray-200 to-gray-300">
                 <img
                   src={galleryImages[currentGalleryIndex]?.src}
                   alt={galleryImages[currentGalleryIndex]?.alt}
-                  className="w-full h-full object-cover transition-all duration-700 ease-in-out"
+                  className="w-full h-full object-cover transition-all duration-700 ease-in-out group-hover:scale-102"
                   data-testid={`img-gallery-main-${currentGalleryIndex}`}
+                  loading="lazy"
                 />
 
-                {/* Enhanced navigation arrows */}
-                <div className="absolute inset-0 flex items-center justify-between p-3 sm:p-4">
+                {/* Enhanced navigation arrows with better styling */}
+                <div className="absolute inset-0 flex items-center justify-between px-4 sm:px-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-10 w-10 sm:h-12 sm:w-12 bg-white/20 hover:bg-white/30 text-white rounded-full backdrop-blur-sm border border-white/20 transition-all duration-300 hover:scale-110"
+                    className="h-12 w-12 sm:h-14 sm:w-14 bg-white/30 hover:bg-white/50 text-white rounded-full backdrop-blur-md border border-white/30 transition-all duration-300 hover:scale-110 shadow-lg"
                     onClick={prevGalleryImage}
                     data-testid="button-gallery-prev"
                   >
-                    <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+                    <ChevronLeft className="h-6 w-6 sm:h-7 sm:w-7" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-10 w-10 sm:h-12 sm:w-12 bg-white/20 hover:bg-white/30 text-white rounded-full backdrop-blur-sm border border-white/20 transition-all duration-300 hover:scale-110"
+                    className="h-12 w-12 sm:h-14 sm:w-14 bg-white/30 hover:bg-white/50 text-white rounded-full backdrop-blur-md border border-white/30 transition-all duration-300 hover:scale-110 shadow-lg"
                     onClick={nextGalleryImage}
                     data-testid="button-gallery-next"
                   >
-                    <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
+                    <ChevronRight className="h-6 w-6 sm:h-7 sm:w-7" />
                   </Button>
                 </div>
 
-                {/* Enhanced image counter */}
-                <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 bg-black/60 text-white px-3 py-2 rounded-full text-xs sm:text-sm font-medium backdrop-blur-sm">
-                  <span className="flex items-center space-x-1">
-                    <span>{currentGalleryIndex + 1}</span>
-                    <span className="text-white/60">/</span>
-                    <span>{galleryImages.length}</span>
-                  </span>
-                </div>
-
-                {/* Progress indicator dots */}
-                <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-2">
-                  {galleryImages.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentGalleryIndex(index)}
-                      className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                        currentGalleryIndex === index 
-                          ? 'bg-white scale-125' 
-                          : 'bg-white/50 hover:bg-white/75'
-                      }`}
-                      data-testid={`button-gallery-dot-${index}`}
-                    />
-                  ))}
-                </div>
               </div>
 
-              {/* Enhanced thumbnail navigation */}
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 sm:gap-3">
-                {galleryImages.map((image, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentGalleryIndex(index)}
-                    className={`relative h-16 sm:h-20 rounded-xl overflow-hidden transition-all duration-300 transform ${
-                      currentGalleryIndex === index 
-                        ? 'ring-2 ring-primary ring-offset-2 scale-105 shadow-lg' 
-                        : 'hover:opacity-80 hover:scale-105 hover:shadow-md'
-                    }`}
-                    data-testid={`button-gallery-thumbnail-${index}`}
-                  >
-                    <img
-                      src={image.src}
-                      alt={image.alt}
-                      className="w-full h-full object-cover"
-                    />
-                    {currentGalleryIndex !== index && (
-                      <div className="absolute inset-0 bg-black/40" />
-                    )}
-                    {currentGalleryIndex === index && (
-                      <div className="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent" />
-                    )}
-                  </button>
-                ))}
-              </div>
             </div>
           ) : (
             <div className="text-center py-12">
