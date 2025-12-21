@@ -143,18 +143,18 @@ export default function Gallery() {
                   {images.map((image, index) => (
                     <Card
                       key={image.id}
-                      className={`overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-105 ${
+                      className={`overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg ${
                         index === currentIndex ? 'ring-2 ring-primary' : ''
                       }`}
                       onClick={() => setCurrentIndex(index)}
                       data-testid={`gallery-thumbnail-${index}`}
                     >
                       <CardContent className="p-0">
-                        <div className="h-48 sm:h-56 md:h-64 overflow-hidden bg-muted">
+                        <div className="aspect-square overflow-hidden bg-muted">
                           <img
                             src={image.src}
                             alt={image.alt}
-                            className="w-full h-full object-contain"
+                            className="w-full h-full object-cover"
                             loading="lazy"
                           />
                         </div>
