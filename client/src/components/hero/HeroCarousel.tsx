@@ -1,10 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import type { HomePageContent } from '@shared/schema';
 
-/**
- * HeroCarousel Component - Simple crossfade carousel
- */
-
 interface HeroCarouselProps {
   images: HomePageContent[];
   isLoading: boolean;
@@ -103,13 +99,12 @@ export function HeroCarousel({
   );
 
   const currentImage = validImages[currentIndex];
-  const showNextImage = nextIndex !== null ? validImages[nextIndex] : null;
+  const displayNextImage = nextIndex !== null ? validImages[nextIndex] : null;
 
   const preloadNextImage = (index: number) => {
     if (validImages.length <= 1) return;
     const nextIdx = (index + 1) % validImages.length;
     const nextImg = validImages[nextIdx];
-
     if (nextImg?.imageUrl) {
       preloadImage(nextImg.imageUrl).catch(() => {
         console.warn(`Failed to preload image: ${nextImg.imageUrl}`);
@@ -119,19 +114,14 @@ export function HeroCarousel({
 
   const advanceCarousel = (targetIndex: number) => {
     if (targetIndex === currentIndex || nextIndex !== null) return;
-
-    // Start transition with next image visible
     setNextIndex(targetIndex);
     preloadNextImage(targetIndex);
-
-    // After transition completes, swap and reset
     setTimeout(() => {
       setCurrentIndex(targetIndex);
       setNextIndex(null);
     }, transitionDuration);
   };
 
-  // Auto-rotate carousel
   useEffect(() => {
     if (!isLoading && validImages.length > 1) {
       autoRotateTimerRef.current = setInterval(() => {
@@ -139,12 +129,10 @@ export function HeroCarousel({
           const nextIdx = (prev + 1) % validImages.length;
           setNextIndex(nextIdx);
           preloadNextImage(nextIdx);
-
           setTimeout(() => {
             setCurrentIndex(nextIdx);
             setNextIndex(null);
           }, transitionDuration);
-
           return prev;
         });
       }, autoRotateInterval);
@@ -164,29 +152,29 @@ export function HeroCarousel({
   return (
     <div className="relative max-w-lg mx-auto lg:max-w-none">
       <div className="relative rounded-3xl overflow-hidden shadow-2xl group">
-        {/* Image container with overlapping images for crossfade */}
         <div className="relative aspect-[4/3]">
-          {/* Current image - fades out when transitioning */}
+          {/* Current image layer */}
           {currentImage?.imageUrl && (
-            <img
-              src={currentImage.imageUrl}
-              alt={currentImage.altText || 'Treasure-Home School hero image'}
-              className={`
-                w-full h-full object-cover absolute inset-0
-                transition-opacity duration-1000 ease-in-out
-                ${nextIndex !== null ? 'opacity-0' : 'opacity-100'}
-              `}
-              loading="eager"
-              decoding="async"
-              data-testid="img-hero-carousel-current"
-            />
+            <>
+              <img
+                src={currentImage.imageUrl}
+                alt={currentImage.altText || 'Treasure-Home School hero image'}
+                className={`
+                  w-full h-full object-cover absolute inset-0
+                  transition-opacity duration-1000 ease-in-out
+                  ${nextIndex !== null ? 'opacity-0' : 'opacity-100'}
+                `}
+                loading="eager"
+                decoding="async"
+              />
+            </>
           )}
 
-          {/* Next image - fades in when transitioning */}
-          {showNextImage?.imageUrl && (
+          {/* Next image layer - overlaps current */}
+          {displayNextImage?.imageUrl && (
             <img
-              src={showNextImage.imageUrl}
-              alt={showNextImage.altText || 'Treasure-Home School hero image'}
+              src={displayNextImage.imageUrl}
+              alt={displayNextImage.altText || 'Treasure-Home School hero image'}
               className={`
                 w-full h-full object-cover absolute inset-0
                 transition-opacity duration-1000 ease-in-out
@@ -194,36 +182,31 @@ export function HeroCarousel({
               `}
               loading="eager"
               decoding="async"
-              data-testid="img-hero-carousel-next"
             />
           )}
 
-          {/* Single visible image when not transitioning */}
+          {/* Fallback - ensures image is visible when not transitioning */}
           {nextIndex === null && currentImage?.imageUrl && (
-            <div className="w-full h-full">
-              <img
-                src={currentImage.imageUrl}
-                alt={currentImage.altText || 'Treasure-Home School hero image'}
-                className="w-full h-full object-cover"
-                loading="eager"
-                decoding="async"
-              />
-            </div>
+            <img
+              src={currentImage.imageUrl}
+              alt={currentImage.altText || 'Treasure-Home School hero image'}
+              className="w-full h-full object-cover"
+              loading="eager"
+              decoding="async"
+            />
           )}
 
           {/* Gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
         </div>
 
-        {/* Navigation dots */}
         <NavigationDots
           count={validImages.length}
           currentIndex={currentIndex}
           onDotClick={advanceCarousel}
         />
 
-        {/* Caption */}
-        <div className="transition-opacity duration-700 ease-in-out">
+        <div>
           {currentImage && <CaptionOverlay caption={currentImage.caption} />}
         </div>
       </div>
