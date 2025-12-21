@@ -263,6 +263,9 @@ async function uploadToCloudinary(
 
 /**
  * Upload file to local storage (development fallback)
+ * 
+ * Files are stored in server/uploads/{folder}/... and served via /uploads route
+ * URL returned here is relative to the /uploads static route
  */
 async function uploadToLocal(
   file: Express.Multer.File, 
@@ -275,15 +278,15 @@ async function uploadToLocal(
     // Create directory if it doesn't exist
     await fs.mkdir(uploadDir, { recursive: true });
     
-    // Generate unique filename
+    // Generate unique filename with timestamp and random suffix for uniqueness
     const timestamp = Date.now();
     const randomSuffix = Math.random().toString(36).substring(2, 8);
     const ext = path.extname(file.originalname);
     const baseName = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9-_]/g, '_');
     const filename = `${baseName}_${timestamp}_${randomSuffix}${ext}`;
     
+    // Determine full file path (may include user subdirectory)
     let filePath: string;
-    
     if (options.userId) {
       const userDir = path.join(uploadDir, options.userId);
       await fs.mkdir(userDir, { recursive: true });
@@ -292,7 +295,7 @@ async function uploadToLocal(
       filePath = path.join(uploadDir, filename);
     }
     
-    // Write file
+    // Write file to disk
     if (file.buffer) {
       await fs.writeFile(filePath, file.buffer);
     } else if (file.path) {
@@ -301,8 +304,10 @@ async function uploadToLocal(
       return { success: false, error: 'No file data available for upload' };
     }
     
-    // Return local URL
-    const localUrl = `/${filePath.replace(/\\/g, '/')}`;
+    // Generate URL for serving via /uploads static route
+    // Extract path relative to server/uploads directory
+    const relativeToUploads = filePath.replace(/\\/g, '/').replace(/^server\/uploads\//, '');
+    const localUrl = `/uploads/${relativeToUploads}`;
     
     return {
       success: true,
@@ -340,15 +345,22 @@ export async function uploadFile(
 }
 
 /**
- * Delete file from Cloudinary
+ * Delete file from Cloudinary or local storage
+ * 
+ * Handles both Cloudinary URLs and local file URLs
+ * Local URLs follow pattern: /uploads/{folder}/... which maps to server/uploads/{folder}/...
  */
 export async function deleteFile(publicIdOrUrl: string): Promise<boolean> {
   if (!useCloudinary) {
-    // For local files, try to delete from filesystem
+    // For local files, reconstruct filesystem path from URL
     try {
-      const localPath = publicIdOrUrl.startsWith('/') 
-        ? publicIdOrUrl.substring(1) 
+      // Convert /uploads/homepage/file.jpg to server/uploads/homepage/file.jpg
+      const localPath = publicIdOrUrl.startsWith('/uploads/')
+        ? `server${publicIdOrUrl}`
+        : publicIdOrUrl.startsWith('/')
+        ? `server${publicIdOrUrl}`
         : publicIdOrUrl;
+      
       await fs.unlink(localPath);
       return true;
     } catch (error) {
@@ -358,7 +370,7 @@ export async function deleteFile(publicIdOrUrl: string): Promise<boolean> {
   }
 
   try {
-    // Extract public_id from URL if needed
+    // Extract public_id from Cloudinary URL if needed
     let publicId = publicIdOrUrl;
     if (publicIdOrUrl.includes('cloudinary.com')) {
       const match = publicIdOrUrl.match(/\/v\d+\/(.+?)(?:\.[^.]+)?$/);
