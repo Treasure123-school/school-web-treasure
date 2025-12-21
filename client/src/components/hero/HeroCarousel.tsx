@@ -198,9 +198,12 @@ export function HeroCarousel({
     setIsTransitioning(true);
     setTimeout(() => {
       setCurrentIndex(targetIndex);
-      setIsTransitioning(false);
       preloadNextImage(targetIndex);
     }, transitionDuration);
+    
+    setTimeout(() => {
+      setIsTransitioning(false);
+    }, transitionDuration + 10);
   };
 
   // Auto-rotate carousel with proper transition animation
@@ -211,9 +214,11 @@ export function HeroCarousel({
           const nextIndex = (prev + 1) % validImages.length;
           setIsTransitioning(true);
           setTimeout(() => {
-            setIsTransitioning(false);
             preloadNextImage(nextIndex);
           }, transitionDuration);
+          setTimeout(() => {
+            setIsTransitioning(false);
+          }, transitionDuration + 10);
           return nextIndex;
         });
       }, autoRotateInterval);
