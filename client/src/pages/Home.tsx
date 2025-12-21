@@ -421,43 +421,8 @@ export default function Home() {
                   </Button>
                 </div>
 
-                {/* Enhanced image counter badge */}
-                <div className="absolute top-4 sm:top-6 right-4 sm:right-6 bg-black/70 text-white px-4 py-2 rounded-full text-sm font-semibold backdrop-blur-md shadow-lg">
-                  <span className="flex items-center space-x-2">
-                    <span className="text-base">{currentGalleryIndex + 1}</span>
-                    <span className="text-white/50">/</span>
-                    <span className="text-base">{galleryImages.length}</span>
-                  </span>
-                </div>
-
-                {/* Smart progress indicator dots - only show if more than 1 image */}
-                {galleryImages.length > 1 && (
-                  <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-3 z-10">
-                    {galleryImages.map((_, index) => (
-                      <button
-                        key={index}
-                        onClick={() => setCurrentGalleryIndex(index)}
-                        className={`transition-all duration-300 rounded-full ${
-                          currentGalleryIndex === index 
-                            ? 'w-8 h-3 bg-white shadow-lg' 
-                            : 'w-2.5 h-2.5 bg-white/60 hover:bg-white/80'
-                        }`}
-                        aria-label={`Go to image ${index + 1}`}
-                        data-testid={`button-gallery-dot-${index}`}
-                      />
-                    ))}
-                  </div>
-                )}
               </div>
 
-              {/* Smart gallery info - shows count only if multiple images */}
-              {galleryImages.length > 1 && (
-                <div className="mt-8 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    Explore {galleryImages.length} moments from our school community
-                  </p>
-                </div>
-              )}
             </div>
           ) : (
             <div className="text-center py-12">
