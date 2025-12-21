@@ -150,7 +150,7 @@ export default function Gallery() {
                       data-testid={`gallery-thumbnail-${index}`}
                     >
                       <CardContent className="p-0">
-                        <div className="aspect-square overflow-hidden bg-muted">
+                        <div className="aspect-video overflow-hidden bg-muted">
                           <img
                             src={image.src}
                             alt={image.alt}
