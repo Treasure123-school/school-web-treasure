@@ -17,7 +17,7 @@ interface HeroCarouselProps {
   isLoading: boolean;
   autoRotateInterval?: number;
   transitionDuration?: number;
-  animationType?: 'slide' | 'fade' | 'zoom';
+  animationType?: 'bounce' | 'fade' | 'zoom' | 'slide';
 }
 
 /**
@@ -99,22 +99,25 @@ const NavigationDots = ({
 const HeroImage = ({
   image,
   isTransitioning,
-  animationType = 'slide'
+  animationType = 'bounce'
 }: {
   image: HomePageContent;
   isTransitioning: boolean;
-  animationType?: 'slide' | 'fade' | 'zoom';
+  animationType?: 'bounce' | 'fade' | 'zoom' | 'slide';
 }) => {
   const animationClasses = {
-    slide: isTransitioning 
-      ? 'opacity-100 translate-x-12' 
-      : 'opacity-100 translate-x-0',
+    bounce: isTransitioning 
+      ? 'opacity-0 scale-75' 
+      : 'opacity-100 scale-100 animate-bounce-in',
     fade: isTransitioning 
       ? 'opacity-0 scale-110 blur-md' 
       : 'opacity-100 scale-100 blur-0',
     zoom: isTransitioning 
       ? 'opacity-0 scale-95' 
-      : 'opacity-100 scale-100'
+      : 'opacity-100 scale-100',
+    slide: isTransitioning 
+      ? 'opacity-100 translate-x-12' 
+      : 'opacity-100 translate-x-0'
   };
 
   return (
@@ -164,7 +167,7 @@ export function HeroCarousel({
   isLoading,
   autoRotateInterval = 5000,
   transitionDuration = 1000,
-  animationType = 'slide'
+  animationType = 'bounce'
 }: HeroCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
