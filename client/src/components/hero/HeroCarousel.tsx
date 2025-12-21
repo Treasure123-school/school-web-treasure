@@ -152,7 +152,7 @@ export function HeroCarousel({
   return (
     <div className="relative max-w-lg mx-auto lg:max-w-none">
       <div className="relative rounded-3xl overflow-hidden shadow-2xl group">
-        <div className="relative aspect-[4/3] bg-gray-900">
+        <div className="relative aspect-[4/3] bg-gradient-to-br from-blue-500/20 to-blue-600/20">
           {/* Current image - always visible */}
           {currentImage?.imageUrl && (
             <img
