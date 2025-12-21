@@ -93,7 +93,7 @@ const NavigationDots = ({
 };
 
 /**
- * Image display with professional transition and overlay
+ * Image display with smooth professional transitions
  */
 const HeroImage = ({
   image,
@@ -110,8 +110,11 @@ const HeroImage = ({
           alt={image.altText || 'Treasure-Home School hero image'}
           className={`
             w-full h-full object-cover
-            transition-all duration-700 ease-out
-            ${isTransitioning ? 'opacity-70 scale-105' : 'opacity-100 scale-100'}
+            transition-all duration-1000 ease-in-out
+            ${isTransitioning 
+              ? 'opacity-0 scale-110 blur-md' 
+              : 'opacity-100 scale-100 blur-0'
+            }
           `}
           loading="eager"
           decoding="async"
@@ -236,13 +239,28 @@ export function HeroCarousel({
   return (
     <div className="relative max-w-lg mx-auto lg:max-w-none">
       <div className="relative rounded-3xl overflow-hidden shadow-2xl group">
-        {currentImage && <HeroImage image={currentImage} isTransitioning={isTransitioning} />}
+        {/* Smooth fade transition wrapper */}
+        <div className={`
+          transition-opacity duration-1000 ease-in-out
+          ${isTransitioning ? 'opacity-50' : 'opacity-100'}
+        `}>
+          {currentImage && <HeroImage image={currentImage} isTransitioning={isTransitioning} />}
+        </div>
+        
+        {/* Navigation dots with smooth transitions */}
         <NavigationDots
           count={validImages.length}
           currentIndex={currentIndex}
           onDotClick={navigateToImage}
         />
-        {currentImage && <CaptionOverlay caption={currentImage.caption} />}
+        
+        {/* Caption with fade effect */}
+        <div className={`
+          transition-opacity duration-700 ease-in-out
+          ${isTransitioning ? 'opacity-0' : 'opacity-100'}
+        `}>
+          {currentImage && <CaptionOverlay caption={currentImage.caption} />}
+        </div>
       </div>
     </div>
   );
