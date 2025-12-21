@@ -5,7 +5,7 @@ import type { HomePageContent } from '@shared/schema';
  * HeroCarousel Component
  * 
  * A professional, reusable hero image carousel with:
- * - Smooth fade + zoom transitions between images
+ * - Smooth slide transitions between images
  * - Automatic image preloading for seamless playback
  * - Professional skeleton loading state
  * - Touch-friendly navigation dots
@@ -17,6 +17,7 @@ interface HeroCarouselProps {
   isLoading: boolean;
   autoRotateInterval?: number;
   transitionDuration?: number;
+  animationType?: 'slide' | 'fade' | 'zoom';
 }
 
 /**
@@ -97,39 +98,53 @@ const NavigationDots = ({
  */
 const HeroImage = ({
   image,
-  isTransitioning
+  isTransitioning,
+  animationType = 'slide'
 }: {
   image: HomePageContent;
   isTransitioning: boolean;
-}) => (
-  <div className="relative aspect-[4/3]">
-    {image?.imageUrl ? (
-      <>
-        <img
-          src={image.imageUrl}
-          alt={image.altText || 'Treasure-Home School hero image'}
-          className={`
-            w-full h-full object-cover
-            transition-all duration-1000 ease-in-out
-            ${isTransitioning 
-              ? 'opacity-0 scale-110 blur-md' 
-              : 'opacity-100 scale-100 blur-0'
-            }
-          `}
-          loading="eager"
-          decoding="async"
-          data-testid="img-hero-carousel"
-        />
-        {/* Gradient overlay for text visibility and professional look */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
-      </>
-    ) : (
-      <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-blue-600/20 flex items-center justify-center">
-        <span className="text-white text-lg">Loading image...</span>
-      </div>
-    )}
-  </div>
-);
+  animationType?: 'slide' | 'fade' | 'zoom';
+}) => {
+  // Animation styles based on type
+  const animationClasses = {
+    slide: isTransitioning 
+      ? 'opacity-100 translate-x-12' 
+      : 'opacity-100 translate-x-0',
+    fade: isTransitioning 
+      ? 'opacity-0 scale-110 blur-md' 
+      : 'opacity-100 scale-100 blur-0',
+    zoom: isTransitioning 
+      ? 'opacity-0 scale-95' 
+      : 'opacity-100 scale-100'
+  };
+
+  return (
+    <div className="relative aspect-[4/3]">
+      {image?.imageUrl ? (
+        <>
+          <img
+            src={image.imageUrl}
+            alt={image.altText || 'Treasure-Home School hero image'}
+            className={`
+              w-full h-full object-cover
+              transition-all duration-1000 ease-in-out
+              ${animationClasses[animationType]}
+            `}
+            loading="eager"
+            decoding="async"
+            data-testid="img-hero-carousel"
+          />
+          {/* Gradient overlay for text visibility and professional look */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
+        </>
+      ) : (
+        <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-blue-600/20 flex items-center justify-center">
+          <span className="text-white text-lg">Loading image...</span>
+        </div>
+      )}
+    </div>
+  );
+};
 
 /**
  * Caption overlay - displays if available
@@ -150,7 +165,8 @@ export function HeroCarousel({
   images,
   isLoading,
   autoRotateInterval = 5000,
-  transitionDuration = 700
+  transitionDuration = 700,
+  animationType = 'slide'
 }: HeroCarouselProps) {
   // State management
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -239,12 +255,9 @@ export function HeroCarousel({
   return (
     <div className="relative max-w-lg mx-auto lg:max-w-none">
       <div className="relative rounded-3xl overflow-hidden shadow-2xl group">
-        {/* Smooth fade transition wrapper */}
-        <div className={`
-          transition-opacity duration-1000 ease-in-out
-          ${isTransitioning ? 'opacity-50' : 'opacity-100'}
-        `}>
-          {currentImage && <HeroImage image={currentImage} isTransitioning={isTransitioning} />}
+        {/* Image container with animation */}
+        <div className="overflow-hidden">
+          {currentImage && <HeroImage image={currentImage} isTransitioning={isTransitioning} animationType={animationType} />}
         </div>
         
         {/* Navigation dots with smooth transitions */}
