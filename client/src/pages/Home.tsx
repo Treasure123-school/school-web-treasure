@@ -389,12 +389,12 @@ export default function Home() {
 
           {galleryImages.length > 0 ? (
             <div className="relative max-w-5xl mx-auto animate-fade-in">
-              {/* Main carousel with optimized responsive design */}
-              <div className="relative min-h-96 sm:min-h-[28rem] md:min-h-[32rem] lg:min-h-[42rem] rounded-3xl overflow-hidden shadow-2xl group bg-gradient-to-br from-gray-200 to-gray-300">
+              {/* Main carousel */}
+              <div className="relative aspect-video rounded-3xl overflow-hidden shadow-2xl group bg-gradient-to-br from-gray-200 to-gray-300">
                 <img
                   src={galleryImages[currentGalleryIndex]?.src}
                   alt={galleryImages[currentGalleryIndex]?.alt}
-                  className="w-full h-full object-cover transition-all duration-700 ease-in-out group-hover:scale-102"
+                  className="w-full h-full object-cover transition-all duration-700 ease-in-out"
                   data-testid={`img-gallery-main-${currentGalleryIndex}`}
                   loading="lazy"
                 />
