@@ -164,14 +164,14 @@ export function HeroCarousel({
             />
           )}
 
-          {/* Next image - blends/mixes over current */}
+          {/* Next image - mixes into current */}
           {nextImage?.imageUrl && (
             <img
               src={nextImage.imageUrl}
               alt={nextImage.altText || 'Treasure-Home School hero image'}
               className={`
                 absolute inset-0 w-full h-full object-cover
-                transition-opacity duration-1000 ease-in-out mix-blend-screen
+                transition-opacity duration-1000 ease-in-out
                 ${nextIndex !== null ? 'opacity-100' : 'opacity-0'}
               `}
               loading="eager"
