@@ -106,12 +106,12 @@ const HeroImage = ({
   animationType?: 'fade' | 'bounce' | 'zoom' | 'slide';
 }) => {
   const animationClasses = {
+    fade: isTransitioning 
+      ? 'opacity-0' 
+      : 'opacity-100',
     bounce: isTransitioning 
       ? 'opacity-0 scale-75' 
       : 'opacity-100 scale-100 animate-bounce-in',
-    fade: isTransitioning 
-      ? 'opacity-0 scale-110 blur-md' 
-      : 'opacity-100 scale-100 blur-0',
     zoom: isTransitioning 
       ? 'opacity-0 scale-95' 
       : 'opacity-100 scale-100',
