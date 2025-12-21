@@ -105,7 +105,6 @@ const HeroImage = ({
   isTransitioning: boolean;
   animationType?: 'slide' | 'fade' | 'zoom';
 }) => {
-  // Animation styles based on type
   const animationClasses = {
     slide: isTransitioning 
       ? 'opacity-100 translate-x-12' 
@@ -134,7 +133,6 @@ const HeroImage = ({
             decoding="async"
             data-testid="img-hero-carousel"
           />
-          {/* Gradient overlay for text visibility and professional look */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
         </>
       ) : (
@@ -165,68 +163,54 @@ export function HeroCarousel({
   images,
   isLoading,
   autoRotateInterval = 5000,
-  transitionDuration = 700,
+  transitionDuration = 1000,
   animationType = 'slide'
 }: HeroCarouselProps) {
-  // State management
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const autoRotateTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const preloadTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Filter valid images (active and have URL)
   const validImages = useMemo(
     () => images.filter(img => img.isActive && img.imageUrl),
     [images]
   );
 
-  // Get current image safely
   const currentImage = validImages[currentIndex];
 
-  /**
-   * Preload the next image in the carousel
-   * This ensures smooth transitions without loading delays
-   */
   const preloadNextImage = (index: number) => {
     if (validImages.length <= 1) return;
-
     const nextIndex = (index + 1) % validImages.length;
     const nextImage = validImages[nextIndex];
 
     if (nextImage?.imageUrl) {
       preloadImage(nextImage.imageUrl).catch(() => {
-        // Silently handle preload failures - don't break the carousel
         console.warn(`Failed to preload image: ${nextImage.imageUrl}`);
       });
     }
   };
 
-  /**
-   * Navigate to a specific image with smooth transition
-   */
-  const navigateToImage = (index: number) => {
-    if (index === currentIndex || isTransitioning) return;
+  const advanceCarousel = (targetIndex: number) => {
+    if (targetIndex === currentIndex || isTransitioning) return;
 
     setIsTransitioning(true);
-    
-    // Transition duration matches CSS animation
     setTimeout(() => {
-      setCurrentIndex(index);
+      setCurrentIndex(targetIndex);
       setIsTransitioning(false);
-      preloadNextImage(index);
+      preloadNextImage(targetIndex);
     }, transitionDuration);
   };
 
-  /**
-   * Auto-rotate carousel every interval
-   * Only active when more than one image exists and not loading
-   */
+  // Auto-rotate carousel with proper transition animation
   useEffect(() => {
     if (!isLoading && validImages.length > 1) {
       autoRotateTimerRef.current = setInterval(() => {
         setCurrentIndex(prev => {
           const nextIndex = (prev + 1) % validImages.length;
-          preloadNextImage(nextIndex);
+          setIsTransitioning(true);
+          setTimeout(() => {
+            setIsTransitioning(false);
+            preloadNextImage(nextIndex);
+          }, transitionDuration);
           return nextIndex;
         });
       }, autoRotateInterval);
@@ -237,37 +221,25 @@ export function HeroCarousel({
         }
       };
     }
-  }, [validImages.length, isLoading, autoRotateInterval]);
+  }, [validImages.length, isLoading, autoRotateInterval, transitionDuration]);
 
-  /**
-   * Preload the next image when current image changes
-   */
-  useEffect(() => {
-    preloadNextImage(currentIndex);
-  }, [currentIndex, validImages]);
-
-  // Loading state
   if (isLoading || validImages.length === 0) {
     return <HeroSkeleton />;
   }
 
-  // Render carousel
   return (
     <div className="relative max-w-lg mx-auto lg:max-w-none">
       <div className="relative rounded-3xl overflow-hidden shadow-2xl group">
-        {/* Image container with animation */}
         <div className="overflow-hidden">
           {currentImage && <HeroImage image={currentImage} isTransitioning={isTransitioning} animationType={animationType} />}
         </div>
         
-        {/* Navigation dots with smooth transitions */}
         <NavigationDots
           count={validImages.length}
           currentIndex={currentIndex}
-          onDotClick={navigateToImage}
+          onDotClick={advanceCarousel}
         />
         
-        {/* Caption with fade effect */}
         <div className={`
           transition-opacity duration-700 ease-in-out
           ${isTransitioning ? 'opacity-0' : 'opacity-100'}
