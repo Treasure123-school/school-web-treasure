@@ -153,29 +153,25 @@ export function HeroCarousel({
     <div className="relative max-w-lg mx-auto lg:max-w-none">
       <div className="relative rounded-3xl overflow-hidden shadow-2xl group">
         <div className="relative aspect-[4/3] bg-gray-900">
-          {/* Current image - fades out */}
+          {/* Current image - always visible */}
           {currentImage?.imageUrl && (
             <img
               src={currentImage.imageUrl}
               alt={currentImage.altText || 'Treasure-Home School hero image'}
-              className={`
-                absolute inset-0 w-full h-full object-cover
-                transition-opacity duration-1000 ease-in-out
-                ${nextIndex !== null ? 'opacity-0' : 'opacity-100'}
-              `}
+              className="absolute inset-0 w-full h-full object-cover"
               loading="eager"
               decoding="async"
             />
           )}
 
-          {/* Next image - fades in */}
+          {/* Next image - blends/mixes over current */}
           {nextImage?.imageUrl && (
             <img
               src={nextImage.imageUrl}
               alt={nextImage.altText || 'Treasure-Home School hero image'}
               className={`
                 absolute inset-0 w-full h-full object-cover
-                transition-opacity duration-1000 ease-in-out
+                transition-opacity duration-1000 ease-in-out mix-blend-screen
                 ${nextIndex !== null ? 'opacity-100' : 'opacity-0'}
               `}
               loading="eager"
