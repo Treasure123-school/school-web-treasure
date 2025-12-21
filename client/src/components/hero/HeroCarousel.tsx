@@ -2,14 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import type { HomePageContent } from '@shared/schema';
 
 /**
- * HeroCarousel Component
- * 
- * A professional, reusable hero image carousel with:
- * - Smooth slide transitions between images
- * - Automatic image preloading for seamless playback
- * - Professional skeleton loading state
- * - Touch-friendly navigation dots
- * - Responsive design with proper aspect ratios
+ * HeroCarousel Component - Simple crossfade carousel
  */
 
 interface HeroCarouselProps {
@@ -17,13 +10,8 @@ interface HeroCarouselProps {
   isLoading: boolean;
   autoRotateInterval?: number;
   transitionDuration?: number;
-  animationType?: 'fade' | 'bounce' | 'zoom' | 'slide';
 }
 
-/**
- * Image preloader utility - preloads images to ensure smooth transitions
- * Prevents flickering and loading delays when carousel rotates
- */
 const preloadImage = (src: string): Promise<void> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -33,9 +21,6 @@ const preloadImage = (src: string): Promise<void> => {
   });
 };
 
-/**
- * Skeleton loader - professional placeholder while images load
- */
 const HeroSkeleton = () => (
   <div className="relative rounded-3xl overflow-hidden shadow-2xl aspect-[4/3] bg-gradient-to-br from-blue-500/20 to-blue-600/20 backdrop-blur-sm border border-white/20">
     <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center space-y-6">
@@ -59,9 +44,6 @@ const HeroSkeleton = () => (
   </div>
 );
 
-/**
- * Navigation dots - smooth indicator of current image with click navigation
- */
 const NavigationDots = ({
   count,
   currentIndex,
@@ -93,63 +75,6 @@ const NavigationDots = ({
   );
 };
 
-/**
- * Image display with smooth professional transitions
- */
-const HeroImage = ({
-  image,
-  isTransitioning,
-  animationType = 'fade'
-}: {
-  image: HomePageContent;
-  isTransitioning: boolean;
-  animationType?: 'fade' | 'bounce' | 'zoom' | 'slide';
-}) => {
-  const animationClasses = {
-    fade: isTransitioning 
-      ? 'opacity-0' 
-      : 'opacity-100',
-    bounce: isTransitioning 
-      ? 'opacity-0 scale-75' 
-      : 'opacity-100 scale-100 animate-bounce-in',
-    zoom: isTransitioning 
-      ? 'opacity-0 scale-95' 
-      : 'opacity-100 scale-100',
-    slide: isTransitioning 
-      ? 'opacity-100 translate-x-12' 
-      : 'opacity-100 translate-x-0'
-  };
-
-  return (
-    <div className="relative aspect-[4/3]">
-      {image?.imageUrl ? (
-        <>
-          <img
-            src={image.imageUrl}
-            alt={image.altText || 'Treasure-Home School hero image'}
-            className={`
-              w-full h-full object-cover
-              transition-all duration-1000 ease-in-out
-              ${animationClasses[animationType]}
-            `}
-            loading="eager"
-            decoding="async"
-            data-testid="img-hero-carousel"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
-        </>
-      ) : (
-        <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-blue-600/20 flex items-center justify-center">
-          <span className="text-white text-lg">Loading image...</span>
-        </div>
-      )}
-    </div>
-  );
-};
-
-/**
- * Caption overlay - displays if available
- */
 const CaptionOverlay = ({ caption }: { caption: string | null }) => {
   if (!caption) return null;
 
@@ -166,11 +91,10 @@ export function HeroCarousel({
   images,
   isLoading,
   autoRotateInterval = 5000,
-  transitionDuration = 1000,
-  animationType = 'fade'
+  transitionDuration = 1000
 }: HeroCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [nextIndex, setNextIndex] = useState<number | null>(null);
   const autoRotateTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const validImages = useMemo(
@@ -179,47 +103,49 @@ export function HeroCarousel({
   );
 
   const currentImage = validImages[currentIndex];
+  const showNextImage = nextIndex !== null ? validImages[nextIndex] : null;
 
   const preloadNextImage = (index: number) => {
     if (validImages.length <= 1) return;
-    const nextIndex = (index + 1) % validImages.length;
-    const nextImage = validImages[nextIndex];
+    const nextIdx = (index + 1) % validImages.length;
+    const nextImg = validImages[nextIdx];
 
-    if (nextImage?.imageUrl) {
-      preloadImage(nextImage.imageUrl).catch(() => {
-        console.warn(`Failed to preload image: ${nextImage.imageUrl}`);
+    if (nextImg?.imageUrl) {
+      preloadImage(nextImg.imageUrl).catch(() => {
+        console.warn(`Failed to preload image: ${nextImg.imageUrl}`);
       });
     }
   };
 
   const advanceCarousel = (targetIndex: number) => {
-    if (targetIndex === currentIndex || isTransitioning) return;
+    if (targetIndex === currentIndex || nextIndex !== null) return;
 
-    setIsTransitioning(true);
+    // Start transition with next image visible
+    setNextIndex(targetIndex);
+    preloadNextImage(targetIndex);
+
+    // After transition completes, swap and reset
     setTimeout(() => {
       setCurrentIndex(targetIndex);
-      preloadNextImage(targetIndex);
+      setNextIndex(null);
     }, transitionDuration);
-    
-    setTimeout(() => {
-      setIsTransitioning(false);
-    }, transitionDuration + 10);
   };
 
-  // Auto-rotate carousel with proper transition animation
+  // Auto-rotate carousel
   useEffect(() => {
     if (!isLoading && validImages.length > 1) {
       autoRotateTimerRef.current = setInterval(() => {
         setCurrentIndex(prev => {
-          const nextIndex = (prev + 1) % validImages.length;
-          setIsTransitioning(true);
+          const nextIdx = (prev + 1) % validImages.length;
+          setNextIndex(nextIdx);
+          preloadNextImage(nextIdx);
+
           setTimeout(() => {
-            preloadNextImage(nextIndex);
+            setCurrentIndex(nextIdx);
+            setNextIndex(null);
           }, transitionDuration);
-          setTimeout(() => {
-            setIsTransitioning(false);
-          }, transitionDuration + 10);
-          return nextIndex;
+
+          return prev;
         });
       }, autoRotateInterval);
 
@@ -238,20 +164,66 @@ export function HeroCarousel({
   return (
     <div className="relative max-w-lg mx-auto lg:max-w-none">
       <div className="relative rounded-3xl overflow-hidden shadow-2xl group">
-        <div className="overflow-hidden">
-          {currentImage && <HeroImage image={currentImage} isTransitioning={isTransitioning} animationType={animationType} />}
+        {/* Image container with overlapping images for crossfade */}
+        <div className="relative aspect-[4/3]">
+          {/* Current image - fades out when transitioning */}
+          {currentImage?.imageUrl && (
+            <img
+              src={currentImage.imageUrl}
+              alt={currentImage.altText || 'Treasure-Home School hero image'}
+              className={`
+                w-full h-full object-cover absolute inset-0
+                transition-opacity duration-1000 ease-in-out
+                ${nextIndex !== null ? 'opacity-0' : 'opacity-100'}
+              `}
+              loading="eager"
+              decoding="async"
+              data-testid="img-hero-carousel-current"
+            />
+          )}
+
+          {/* Next image - fades in when transitioning */}
+          {showNextImage?.imageUrl && (
+            <img
+              src={showNextImage.imageUrl}
+              alt={showNextImage.altText || 'Treasure-Home School hero image'}
+              className={`
+                w-full h-full object-cover absolute inset-0
+                transition-opacity duration-1000 ease-in-out
+                ${nextIndex !== null ? 'opacity-100' : 'opacity-0'}
+              `}
+              loading="eager"
+              decoding="async"
+              data-testid="img-hero-carousel-next"
+            />
+          )}
+
+          {/* Single visible image when not transitioning */}
+          {nextIndex === null && currentImage?.imageUrl && (
+            <div className="w-full h-full">
+              <img
+                src={currentImage.imageUrl}
+                alt={currentImage.altText || 'Treasure-Home School hero image'}
+                className="w-full h-full object-cover"
+                loading="eager"
+                decoding="async"
+              />
+            </div>
+          )}
+
+          {/* Gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
         </div>
-        
+
+        {/* Navigation dots */}
         <NavigationDots
           count={validImages.length}
           currentIndex={currentIndex}
           onDotClick={advanceCarousel}
         />
-        
-        <div className={`
-          transition-opacity duration-700 ease-in-out
-          ${isTransitioning ? 'opacity-0' : 'opacity-100'}
-        `}>
+
+        {/* Caption */}
+        <div className="transition-opacity duration-700 ease-in-out">
           {currentImage && <CaptionOverlay caption={currentImage.caption} />}
         </div>
       </div>
