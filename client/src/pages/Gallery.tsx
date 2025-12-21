@@ -1,274 +1,177 @@
 import PublicLayout from '@/components/layout/PublicLayout';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import type { HomePageContent } from '@shared/schema';
 
 export default function Gallery() {
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-  // In a real app, these would come from the API
-  const categories = [
-    { id: 1, name: 'All Photos', count: 24 },
-    { id: 2, name: 'School Events', count: 8 },
-    { id: 3, name: 'Classroom Activities', count: 6 },
-    { id: 4, name: 'Sports', count: 5 },
-    { id: 5, name: 'Achievements', count: 3 },
-    { id: 6, name: 'Infrastructure', count: 2 }
-  ];
+  // Fetch gallery images from database
+  const { data: allContent = [], isLoading } = useQuery<HomePageContent[]>({
+    queryKey: ['/api', 'public', 'homepage-content'],
+    staleTime: 5 * 60 * 1000,
+  });
 
-  // Sample gallery images - in real app, this would come from API
-  const galleryImages = [
+  // Filter and sort gallery preview images
+  const galleryImages = allContent
+    .filter(item => 
+      item.contentType.startsWith('gallery_preview_') && 
+      item.isActive && 
+      item.imageUrl
+    )
+    .sort((a, b) => a.displayOrder - b.displayOrder)
+    .map(item => ({
+      id: item.id,
+      src: item.imageUrl!,
+      alt: item.altText || item.caption || 'School gallery image',
+      caption: item.caption
+    }));
+
+  // Fallback images if none uploaded
+  const fallbackImages = [
     {
       id: 1,
       src: 'https://images.unsplash.com/photo-1497486751825-1233686d5d80?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=400',
       alt: 'Students engaged in classroom learning',
-      category: 'Classroom Activities',
-      categoryId: 3
+      caption: 'Classroom Learning'
     },
     {
       id: 2,
       src: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=400',
       alt: 'Students participating in sports activities',
-      category: 'Sports',
-      categoryId: 4
+      caption: 'Sports & Recreation'
     },
     {
       id: 3,
       src: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=400',
       alt: 'Students conducting science experiments',
-      category: 'Classroom Activities',
-      categoryId: 3
+      caption: 'Science Lab'
     },
     {
       id: 4,
-      src: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=400',
-      alt: 'Modern school building',
-      category: 'Infrastructure',
-      categoryId: 6
-    },
-    {
-      id: 5,
-      src: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=400',
-      alt: 'Graduation ceremony',
-      category: 'School Events',
-      categoryId: 2
-    },
-    {
-      id: 6,
-      src: 'https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=400',
-      alt: 'Students in library',
-      category: 'Classroom Activities',
-      categoryId: 3
-    },
-    {
-      id: 7,
-      src: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=400',
-      alt: 'Annual sports day',
-      category: 'Sports',
-      categoryId: 4
-    },
-    {
-      id: 8,
-      src: 'https://images.unsplash.com/photo-1544717297-fa95b6ee9643?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=400',
-      alt: 'Award ceremony',
-      category: 'Achievements',
-      categoryId: 5
-    },
-    {
-      id: 9,
-      src: 'https://images.unsplash.com/photo-1562774053-701939374585?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=400',
-      alt: 'Science fair presentation',
-      category: 'School Events',
-      categoryId: 2
-    },
-    {
-      id: 10,
-      src: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=400',
-      alt: 'Music class performance',
-      category: 'Classroom Activities',
-      categoryId: 3
-    },
-    {
-      id: 11,
-      src: 'https://images.unsplash.com/photo-1581726690015-c9861de5d82c?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=400',
-      alt: 'Basketball team',
-      category: 'Sports',
-      categoryId: 4
-    },
-    {
-      id: 12,
-      src: 'https://images.unsplash.com/photo-1577896851231-70ef18881754?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=400',
-      alt: 'Principal\'s award presentation',
-      category: 'Achievements',
-      categoryId: 5
+      src: 'https://pixabay.com/get/g4b5de1b17360e7341ea05b3642f661cdaf69148acab371a0683000806209ef4e0fe83b5de589985b71b982913fd361ff36cf54100f89a9b6599375dc964cbe4e_1280.jpg',
+      alt: 'Graduation ceremony with students and families',
+      caption: 'Graduation Ceremony'
     }
   ];
 
-  const filteredImages = selectedCategory && selectedCategory !== 1 
-    ? galleryImages.filter(img => img.categoryId === selectedCategory)
-    : galleryImages;
+  const images = galleryImages.length > 0 ? galleryImages : fallbackImages;
+
+  const nextImage = () => {
+    setCurrentIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const prevImage = () => {
+    setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
 
   return (
     <PublicLayout>
-      {/* Hero Section */}
-      <section className="hero-gradient py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl lg:text-5xl font-bold text-primary-foreground mb-6" data-testid="text-gallery-title">
-            School Life Gallery
-          </h1>
-          <p className="text-xl text-primary-foreground/90 max-w-3xl mx-auto" data-testid="text-gallery-subtitle">
-            Capturing moments of learning, growth, and achievement at Treasure-Home School
-          </p>
-        </div>
-      </section>
-
-      {/* Category Filter */}
-      <section className="py-8 bg-muted/30">
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap justify-center gap-4">
-            {categories.map((category) => (
-              <Button
-                key={category.id}
-                variant={selectedCategory === category.id ? "default" : "outline"}
-                onClick={() => setSelectedCategory(category.id === 1 ? null : category.id)}
-                className="transition-colors"
-                data-testid={`button-category-${category.id}`}
-              >
-                {category.name} ({category.count})
-              </Button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Gallery Grid */}
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredImages.map((image) => (
-              <Card 
-                key={image.id} 
-                className="card-hover shadow-sm border border-border overflow-hidden group cursor-pointer"
-                data-testid={`card-image-${image.id}`}
-              >
-                <div className="relative">
-                  <img
-                    src={image.src}
-                    alt={image.alt}
-                    className="w-full h-48 object-cover transition-transform group-hover:scale-105"
-                    data-testid={`img-gallery-${image.id}`}
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors">
-                    <div className="absolute bottom-0 left-0 right-0 p-4 text-white transform translate-y-full group-hover:translate-y-0 transition-transform">
-                      <p className="text-sm font-medium" data-testid={`text-image-alt-${image.id}`}>
-                        {image.alt}
-                      </p>
-                      <p className="text-xs opacity-90" data-testid={`text-image-category-${image.id}`}>
-                        {image.category}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-
-          {filteredImages.length === 0 && (
-            <div className="text-center py-12" data-testid="text-no-images">
-              <p className="text-muted-foreground">No images found in this category.</p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Gallery Stats */}
-      <section className="py-16 bg-muted/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            <div data-testid="stat-total-photos">
-              <div className="text-3xl font-bold text-primary mb-2">200+</div>
-              <div className="text-muted-foreground">Total Photos</div>
-            </div>
-            <div data-testid="stat-events-captured">
-              <div className="text-3xl font-bold text-primary mb-2">50+</div>
-              <div className="text-muted-foreground">Events Captured</div>
-            </div>
-            <div data-testid="stat-years-documented">
-              <div className="text-3xl font-bold text-primary mb-2">15+</div>
-              <div className="text-muted-foreground">Years Documented</div>
-            </div>
-            <div data-testid="stat-memories-shared">
-              <div className="text-3xl font-bold text-primary mb-2">1000+</div>
-              <div className="text-muted-foreground">Memories Shared</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Highlights */}
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-foreground mb-4" data-testid="text-highlights-title">
-              Recent Highlights
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto" data-testid="text-highlights-description">
-              Our most recent achievements and memorable moments
+          {/* Page Header */}
+          <div className="text-center mb-16 lg:mb-20">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6" data-testid="text-gallery-title">
+              School Life Gallery
+            </h1>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto" data-testid="text-gallery-description">
+              Explore moments of learning, growth, and achievement at Treasure-Home School
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <Card className="shadow-sm border border-border" data-testid="card-highlight-1">
-              <CardContent className="p-6">
-                <img
-                  src="https://images.unsplash.com/photo-1524178232363-1fb2b075b655?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=200"
-                  alt="Annual graduation ceremony"
-                  className="w-full h-32 object-cover rounded-lg mb-4"
-                />
-                <h3 className="font-semibold mb-2" data-testid="text-highlight-title-1">
-                  Annual Graduation Ceremony 2024
-                </h3>
-                <p className="text-muted-foreground text-sm" data-testid="text-highlight-description-1">
-                  Celebrating our graduating class of 2024 with pride and joy as they move on to their next chapter.
-                </p>
-              </CardContent>
-            </Card>
+          {/* Main Gallery */}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <p className="text-muted-foreground">Loading gallery...</p>
+            </div>
+          ) : (
+            <div className="space-y-12">
+              {/* Featured Image Section */}
+              <div className="relative max-w-5xl mx-auto">
+                {/* Main carousel */}
+                <div className="relative min-h-96 sm:min-h-[28rem] md:min-h-[32rem] lg:min-h-[42rem] rounded-3xl overflow-hidden shadow-2xl group bg-gradient-to-br from-gray-200 to-gray-300">
+                  <img
+                    src={images[currentIndex]?.src}
+                    alt={images[currentIndex]?.alt}
+                    className="w-full h-full object-cover transition-all duration-700 ease-in-out group-hover:scale-102"
+                    data-testid={`img-gallery-main-${currentIndex}`}
+                    loading="lazy"
+                  />
 
-            <Card className="shadow-sm border border-border" data-testid="card-highlight-2">
-              <CardContent className="p-6">
-                <img
-                  src="https://images.unsplash.com/photo-1562774053-701939374585?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=200"
-                  alt="Science fair winners"
-                  className="w-full h-32 object-cover rounded-lg mb-4"
-                />
-                <h3 className="font-semibold mb-2" data-testid="text-highlight-title-2">
-                  Inter-School Science Fair Victory
-                </h3>
-                <p className="text-muted-foreground text-sm" data-testid="text-highlight-description-2">
-                  Our students won first place in the regional science fair with their innovative water purification project.
-                </p>
-              </CardContent>
-            </Card>
+                  {/* Navigation arrows - visible on hover */}
+                  <div className="absolute inset-0 flex items-center justify-between px-4 sm:px-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-12 w-12 sm:h-14 sm:w-14 bg-white/30 hover:bg-white/50 text-white rounded-full backdrop-blur-md border border-white/30 transition-all duration-300 hover:scale-110 shadow-lg"
+                      onClick={prevImage}
+                      data-testid="button-gallery-prev"
+                    >
+                      <ChevronLeft className="h-6 w-6 sm:h-7 sm:w-7" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-12 w-12 sm:h-14 sm:w-14 bg-white/30 hover:bg-white/50 text-white rounded-full backdrop-blur-md border border-white/30 transition-all duration-300 hover:scale-110 shadow-lg"
+                      onClick={nextImage}
+                      data-testid="button-gallery-next"
+                    >
+                      <ChevronRight className="h-6 w-6 sm:h-7 sm:w-7" />
+                    </Button>
+                  </div>
+                </div>
 
-            <Card className="shadow-sm border border-border" data-testid="card-highlight-3">
-              <CardContent className="p-6">
-                <img
-                  src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=200"
-                  alt="New sports complex"
-                  className="w-full h-32 object-cover rounded-lg mb-4"
-                />
-                <h3 className="font-semibold mb-2" data-testid="text-highlight-title-3">
-                  New Sports Complex Opening
-                </h3>
-                <p className="text-muted-foreground text-sm" data-testid="text-highlight-description-3">
-                  Grand opening of our new state-of-the-art sports complex, enhancing our physical education programs.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+                {/* Image caption */}
+                {images[currentIndex]?.caption && (
+                  <div className="mt-4 text-center">
+                    <p className="text-lg font-medium text-foreground">{images[currentIndex].caption}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Gallery Grid */}
+              <div className="space-y-8">
+                <div className="text-center">
+                  <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-4">All Moments</h2>
+                  <p className="text-muted-foreground">Click on any image to view it in the carousel above</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {images.map((image, index) => (
+                    <Card
+                      key={image.id}
+                      className={`overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-105 ${
+                        index === currentIndex ? 'ring-2 ring-primary' : ''
+                      }`}
+                      onClick={() => setCurrentIndex(index)}
+                      data-testid={`gallery-thumbnail-${index}`}
+                    >
+                      <CardContent className="p-0">
+                        <div className="aspect-square overflow-hidden bg-muted">
+                          <img
+                            src={image.src}
+                            alt={image.alt}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        </div>
+                        {image.caption && (
+                          <div className="p-3 bg-background">
+                            <p className="text-sm font-medium text-foreground truncate">{image.caption}</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      </section>
+      </div>
     </PublicLayout>
   );
 }
