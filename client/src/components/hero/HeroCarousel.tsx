@@ -99,15 +99,15 @@ export function HeroCarousel({
   );
 
   const currentImage = validImages[currentIndex];
-  const displayNextImage = nextIndex !== null ? validImages[nextIndex] : null;
+  const nextImage = nextIndex !== null ? validImages[nextIndex] : validImages[currentIndex];
 
   const preloadNextImage = (index: number) => {
     if (validImages.length <= 1) return;
     const nextIdx = (index + 1) % validImages.length;
-    const nextImg = validImages[nextIdx];
-    if (nextImg?.imageUrl) {
-      preloadImage(nextImg.imageUrl).catch(() => {
-        console.warn(`Failed to preload image: ${nextImg.imageUrl}`);
+    const img = validImages[nextIdx];
+    if (img?.imageUrl) {
+      preloadImage(img.imageUrl).catch(() => {
+        console.warn(`Failed to preload image: ${img.imageUrl}`);
       });
     }
   };
@@ -152,45 +152,32 @@ export function HeroCarousel({
   return (
     <div className="relative max-w-lg mx-auto lg:max-w-none">
       <div className="relative rounded-3xl overflow-hidden shadow-2xl group">
-        <div className="relative aspect-[4/3]">
-          {/* Current image layer */}
+        <div className="relative aspect-[4/3] bg-gray-900">
+          {/* Current image - fades out */}
           {currentImage?.imageUrl && (
-            <>
-              <img
-                src={currentImage.imageUrl}
-                alt={currentImage.altText || 'Treasure-Home School hero image'}
-                className={`
-                  w-full h-full object-cover absolute inset-0
-                  transition-opacity duration-1000 ease-in-out
-                  ${nextIndex !== null ? 'opacity-0' : 'opacity-100'}
-                `}
-                loading="eager"
-                decoding="async"
-              />
-            </>
-          )}
-
-          {/* Next image layer - overlaps current */}
-          {displayNextImage?.imageUrl && (
             <img
-              src={displayNextImage.imageUrl}
-              alt={displayNextImage.altText || 'Treasure-Home School hero image'}
+              src={currentImage.imageUrl}
+              alt={currentImage.altText || 'Treasure-Home School hero image'}
               className={`
-                w-full h-full object-cover absolute inset-0
+                absolute inset-0 w-full h-full object-cover
                 transition-opacity duration-1000 ease-in-out
-                ${nextIndex !== null ? 'opacity-100' : 'opacity-0'}
+                ${nextIndex !== null ? 'opacity-0' : 'opacity-100'}
               `}
               loading="eager"
               decoding="async"
             />
           )}
 
-          {/* Fallback - ensures image is visible when not transitioning */}
-          {nextIndex === null && currentImage?.imageUrl && (
+          {/* Next image - fades in */}
+          {nextImage?.imageUrl && (
             <img
-              src={currentImage.imageUrl}
-              alt={currentImage.altText || 'Treasure-Home School hero image'}
-              className="w-full h-full object-cover"
+              src={nextImage.imageUrl}
+              alt={nextImage.altText || 'Treasure-Home School hero image'}
+              className={`
+                absolute inset-0 w-full h-full object-cover
+                transition-opacity duration-1000 ease-in-out
+                ${nextIndex !== null ? 'opacity-100' : 'opacity-0'}
+              `}
               loading="eager"
               decoding="async"
             />
