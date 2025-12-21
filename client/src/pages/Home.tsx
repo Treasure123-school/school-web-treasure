@@ -8,6 +8,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Calendar, Clock, ChevronLeft, ChevronRight, Users, Award, GraduationCap, Star } from 'lucide-react';
 import type { HomePageContent } from '@shared/schema';
 import Typed from 'typed.js';
+import { HeroCarousel } from '@/components/hero/HeroCarousel';
 
 export default function Home() {
   // Fetch dynamic content from database with optimized caching
@@ -17,14 +18,12 @@ export default function Home() {
   });
 
   // Filter content by type
-  const heroImages = allHomePageContent.filter(content => content.contentType === 'hero_image' && content.isActive);
+  const heroImages = allHomePageContent.filter(content => content.contentType === 'hero_image');
   const galleryPreviewImages = allHomePageContent.filter(content => 
     content.contentType === 'gallery_preview_1' || 
     content.contentType === 'gallery_preview_2' || 
     content.contentType === 'gallery_preview_3'
   );
-  
-  const heroLoading = contentLoading;
 
   // Fetch latest published announcements for homepage preview
   const { data: allAnnouncements = [] } = useQuery<any[]>({
@@ -40,27 +39,6 @@ export default function Home() {
 
   // Gallery carousel state
   const [currentGalleryIndex, setCurrentGalleryIndex] = useState(0);
-  
-  // Hero carousel state - cycling through all active hero images
-  const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-
-  // Auto-rotate hero images every 5 seconds
-  useEffect(() => {
-    if (heroImages.length > 1 && !heroLoading) {
-      const timer = setInterval(() => {
-        setIsTransitioning(true);
-        setTimeout(() => {
-          setCurrentHeroIndex((prev) => (prev + 1) % heroImages.length);
-          setIsTransitioning(false);
-        }, 300);
-      }, 5000);
-      return () => clearInterval(timer);
-    }
-  }, [heroImages.length, heroLoading]);
-
-  // Get current hero image
-  const currentHeroImage = heroImages[currentHeroIndex];
 
   const features = [
     {
@@ -238,90 +216,14 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Right Content - Image Carousel */}
+            {/* Right Content - Hero Carousel */}
             <div className="order-1 lg:order-2 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              <div className="relative max-w-lg mx-auto lg:max-w-none">
-                {heroLoading || heroImages.length === 0 ? (
-                  // Loading state with marketing text
-                  <div className="relative rounded-3xl overflow-hidden shadow-2xl aspect-[4/3] bg-gradient-to-br from-blue-500/20 to-blue-600/20 backdrop-blur-sm border border-white/20">
-                    <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center space-y-6">
-                      <div className="space-y-3">
-                        <h3 className="text-3xl lg:text-4xl font-bold text-white animate-pulse">
-                          Treasure-Home School
-                        </h3>
-                        <p className="text-xl lg:text-2xl text-yellow-300 font-semibold animate-pulse" style={{ animationDelay: '0.2s' }}>
-                          Qualitative Education
-                        </p>
-                        <p className="text-lg lg:text-xl text-blue-100 animate-pulse" style={{ animationDelay: '0.4s' }}>
-                          & Moral Excellence
-                        </p>
-                      </div>
-                      <div className="flex space-x-2 mt-4">
-                        <div className="w-3 h-3 bg-white/60 rounded-full animate-bounce"></div>
-                        <div className="w-3 h-3 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                        <div className="w-3 h-3 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="relative rounded-3xl overflow-hidden shadow-2xl group">
-                    {/* Hero Image with transition */}
-                    <div className="relative aspect-[4/3]">
-                      {currentHeroImage?.imageUrl ? (
-                        <img 
-                          src={currentHeroImage.imageUrl} 
-                          alt={currentHeroImage.altText || "Treasure-Home School"} 
-                          className={`w-full h-full object-cover transition-all duration-500 ${isTransitioning ? 'opacity-70 scale-105' : 'opacity-100 scale-100'}`}
-                          loading="eager"
-                          decoding="async"
-                          data-testid="img-hero-school"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-blue-600/20 flex items-center justify-center">
-                          <span className="text-white text-lg">Loading image...</span>
-                        </div>
-                      )}
-                      
-                      {/* Gradient overlay for better text visibility */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
-                    </div>
-
-                    {/* Navigation dots - only show if multiple images */}
-                    {heroImages.length > 1 && (
-                      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-2 z-10">
-                        {heroImages.map((_, index) => (
-                          <button
-                            key={index}
-                            onClick={() => {
-                              setIsTransitioning(true);
-                              setTimeout(() => {
-                                setCurrentHeroIndex(index);
-                                setIsTransitioning(false);
-                              }, 300);
-                            }}
-                            className={`transition-all duration-300 rounded-full ${
-                              currentHeroIndex === index 
-                                ? 'w-6 h-2 bg-white' 
-                                : 'w-2 h-2 bg-white/50 hover:bg-white/75'
-                            }`}
-                            aria-label={`View image ${index + 1}`}
-                            data-testid={`button-hero-dot-${index}`}
-                          />
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Caption overlay if available */}
-                    {currentHeroImage?.caption && (
-                      <div className="absolute bottom-16 left-6 right-6 text-white">
-                        <p className="text-sm lg:text-base font-medium bg-black/50 backdrop-blur-sm px-4 py-2 rounded-lg">
-                          {currentHeroImage.caption}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              <HeroCarousel
+                images={heroImages}
+                isLoading={contentLoading}
+                autoRotateInterval={5000}
+                transitionDuration={700}
+              />
             </div>
           </div>
         </div>
