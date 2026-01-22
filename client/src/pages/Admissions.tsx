@@ -95,28 +95,24 @@ export default function Admissions() {
       title: 'Submit Application',
       description: 'Complete and submit the online application form with required documents.',
       icon: FileText,
-      color: 'bg-blue-500'
     },
     {
       step: '2',
       title: 'Document Review',
       description: 'Our admissions team reviews your application and supporting documents.',
       icon: Search,
-      color: 'bg-purple-500'
     },
     {
       step: '3',
       title: 'Assessment & Interview',
       description: 'Student assessment and parent interview (if applicable for the grade level).',
       icon: UserCheck,
-      color: 'bg-amber-500'
     },
     {
       step: '4',
       title: 'Admission Decision',
       description: 'Receive admission decision and enrollment instructions within 5-7 business days.',
       icon: CheckCircle,
-      color: 'bg-emerald-500'
     }
   ];
 
@@ -142,136 +138,103 @@ export default function Admissions() {
   return (
     <PublicLayout>
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-primary py-20 lg:py-32">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070')] bg-cover bg-center opacity-10"></div>
-        <div className="container relative mx-auto px-4 text-center">
-          <Badge className="mb-4 bg-white/20 text-white backdrop-blur-md hover:bg-white/30 px-4 py-1 text-sm font-medium">
-            Enrollment Open 2026/2027
-          </Badge>
-          <h1 className="mb-6 text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl" data-testid="text-admissions-title">
+      <section className="hero-gradient py-16">
+        <div className="container mx-auto px-4 text-center">
+          <h1 className="mb-6 text-4xl font-bold text-white lg:text-5xl" data-testid="text-admissions-title">
             Join Treasure-Home School
           </h1>
-          <p className="mx-auto max-w-2xl text-lg text-white/90 sm:text-xl" data-testid="text-admissions-subtitle">
-            Begin your child's journey to academic excellence and moral development in a nurturing environment.
+          <p className="mx-auto max-w-3xl text-xl text-white/90" data-testid="text-admissions-subtitle">
+            Begin your child's journey to academic excellence and moral development
           </p>
         </div>
       </section>
 
       {/* Admission Process */}
-      <section className="py-20 lg:py-24">
+      <section className="py-16">
         <div className="container mx-auto px-4">
-          <div className="mb-16 text-center">
-            <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl" data-testid="text-process-title">
+          <div className="mb-12 text-center">
+            <h2 className="mb-4 text-3xl font-bold text-foreground" data-testid="text-process-title">
               Admission Process
             </h2>
-            <div className="mx-auto mb-4 h-1 w-20 rounded bg-primary"></div>
             <p className="mx-auto max-w-2xl text-muted-foreground" data-testid="text-process-description">
-              Our streamlined admission process ensures a smooth and transparent enrollment experience for every family.
+              Our streamlined admission process ensures a smooth enrollment experience
             </p>
           </div>
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
             {admissionProcess.map((process, index) => (
-              <div key={index} className="group relative flex flex-col items-center text-center" data-testid={`card-process-${index}`}>
-                <div className={`mb-6 flex h-16 w-16 items-center justify-center rounded-2xl ${process.color} text-white shadow-lg transition-transform group-hover:scale-110`}>
-                  <process.icon className="h-8 w-8" />
-                  <div className="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full border-4 border-white bg-primary text-xs font-bold text-white dark:border-background">
+              <Card key={index} className="card-hover border border-border text-center shadow-sm" data-testid={`card-process-${index}`}>
+                <CardContent className="p-6">
+                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white font-bold">
                     {process.step}
                   </div>
-                </div>
-                <h3 className="mb-3 text-xl font-bold" data-testid={`text-process-title-${index}`}>
-                  {process.title}
-                </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed" data-testid={`text-process-description-${index}`}>
-                  {process.description}
-                </p>
-                {index < admissionProcess.length - 1 && (
-                  <div className="hidden lg:block absolute top-8 left-[65%] w-[70%] border-t-2 border-dashed border-muted"></div>
-                )}
-              </div>
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <process.icon className="h-8 w-8" />
+                  </div>
+                  <h3 className="mb-3 font-semibold" data-testid={`text-process-title-${index}`}>
+                    {process.title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {process.description}
+                  </p>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
       </section>
 
       {/* Requirements & Form */}
-      <section className="bg-muted/30 py-20 lg:py-24">
+      <section className="bg-muted/30 py-16">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 gap-12 lg:grid-cols-12">
-            {/* Left Column: Requirements */}
-            <div className="lg:col-span-4 space-y-8">
-              <Card className="overflow-hidden border-none shadow-xl ring-1 ring-border" data-testid="card-requirements">
-                <CardHeader className="bg-primary p-6 text-white">
+          <div className="grid grid-cols-1 gap-12 lg:grid-cols-3">
+            {/* Requirements */}
+            <div className="lg:col-span-1">
+              <Card className="border border-border shadow-sm" data-testid="card-requirements">
+                <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <ClipboardList className="h-6 w-6" />
-                    <span>Required Documents</span>
+                    <ClipboardList className="h-5 w-5 text-primary" />
+                    <span data-testid="text-requirements-title">Required Documents</span>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-6">
-                  <div className="space-y-4">
+                <CardContent>
+                  <ul className="space-y-3">
                     {requirements.map((req, index) => (
-                      <div key={index} className="flex items-start gap-3" data-testid={`requirement-${index}`}>
-                        <div className="mt-1 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <li key={index} className="flex items-start gap-3" data-testid={`requirement-${index}`}>
+                        <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                           <Check className="h-3 w-3" />
                         </div>
-                        <span className="text-sm font-medium leading-tight">{req}</span>
-                      </div>
+                        <span className="text-sm text-foreground">{req}</span>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                   
-                  <div className="mt-8 rounded-xl bg-amber-50 p-4 dark:bg-amber-950/20">
-                    <div className="mb-2 flex items-center gap-2 font-bold text-amber-800 dark:text-amber-400">
-                      <Info className="h-4 w-4" />
-                      <span className="text-sm">Application Fee</span>
+                  <div className="mt-6 rounded-lg bg-secondary/10 p-4">
+                    <div className="mb-2 flex items-center gap-2">
+                      <Info className="h-4 w-4 text-secondary" />
+                      <span className="text-sm font-semibold">Application Fee</span>
                     </div>
-                    <p className="text-sm text-amber-700/80 dark:text-amber-300/80">
-                      ₦5,000 (Non-refundable). Pay at the school bursary or via bank transfer before submission.
+                    <p className="text-sm text-muted-foreground">
+                      ₦5,000 (Non-refundable application processing fee)
                     </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-none shadow-md ring-1 ring-border">
-                <CardContent className="p-6">
-                  <h3 className="mb-4 text-lg font-bold">Admission Timeline</h3>
-                  <div className="space-y-4">
-                    <div className="flex gap-4">
-                      <div className="h-2 w-2 mt-2 rounded-full bg-primary"></div>
-                      <div>
-                        <p className="text-sm font-bold">Jan 15 - Apr 30</p>
-                        <p className="text-xs text-muted-foreground">General Application Period</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-4">
-                      <div className="h-2 w-2 mt-2 rounded-full bg-muted"></div>
-                      <div>
-                        <p className="text-sm font-bold">May 15 - Jun 15</p>
-                        <p className="text-xs text-muted-foreground">Entrance Assessments</p>
-                      </div>
-                    </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Right Column: Form */}
-            <div className="lg:col-span-8">
-              <Card className="border-none shadow-2xl ring-1 ring-border" data-testid="card-application-form">
-                <CardHeader className="border-b bg-card p-6 sm:p-8">
-                  <CardTitle className="text-2xl font-bold tracking-tight">Application for Admission</CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">Please fill in all the required fields carefully.</p>
+            {/* Application Form */}
+            <div className="lg:col-span-2">
+              <Card className="border border-border shadow-sm" data-testid="card-application-form">
+                <CardHeader>
+                  <CardTitle data-testid="text-form-title">Application Form</CardTitle>
                 </CardHeader>
-                <CardContent className="p-6 sm:p-8">
+                <CardContent>
                   <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10">
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                       {/* Section 1: Student */}
-                      <div className="space-y-6">
-                        <div className="flex items-center gap-2 border-b pb-2 text-primary">
-                          <User className="h-5 w-5" />
-                          <h3 className="text-lg font-bold uppercase tracking-wider">Student Information</h3>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-foreground">Student Information</h3>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                           <FormField
                             control={form.control}
                             name="studentName"
@@ -279,7 +242,7 @@ export default function Admissions() {
                               <FormItem>
                                 <FormLabel>Student Full Name *</FormLabel>
                                 <FormControl>
-                                  <Input placeholder="John Doe" {...field} data-testid="input-student-name" />
+                                  <Input {...field} data-testid="input-student-name" />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -293,10 +256,7 @@ export default function Admissions() {
                               <FormItem>
                                 <FormLabel>Date of Birth *</FormLabel>
                                 <FormControl>
-                                  <div className="relative">
-                                    <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input type="date" className="pl-10" {...field} data-testid="input-date-of-birth" />
-                                  </div>
+                                  <Input type="date" {...field} data-testid="input-date-of-birth" />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -351,13 +311,9 @@ export default function Admissions() {
                       </div>
 
                       {/* Section 2: Parent */}
-                      <div className="space-y-6">
-                        <div className="flex items-center gap-2 border-b pb-2 text-primary">
-                          <Home className="h-5 w-5" />
-                          <h3 className="text-lg font-bold uppercase tracking-wider">Parent/Guardian Information</h3>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-foreground">Parent/Guardian Information</h3>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                           <FormField
                             control={form.control}
                             name="parentName"
@@ -365,7 +321,7 @@ export default function Admissions() {
                               <FormItem>
                                 <FormLabel>Parent/Guardian Name *</FormLabel>
                                 <FormControl>
-                                  <Input placeholder="Mr/Mrs. Smith" {...field} data-testid="input-parent-name" />
+                                  <Input {...field} data-testid="input-parent-name" />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -379,10 +335,7 @@ export default function Admissions() {
                               <FormItem>
                                 <FormLabel>Email Address *</FormLabel>
                                 <FormControl>
-                                  <div className="relative">
-                                    <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input type="email" className="pl-10" placeholder="parent@example.com" {...field} data-testid="input-parent-email" />
-                                  </div>
+                                  <Input type="email" {...field} data-testid="input-parent-email" />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -396,10 +349,7 @@ export default function Admissions() {
                               <FormItem>
                                 <FormLabel>Phone Number *</FormLabel>
                                 <FormControl>
-                                  <div className="relative">
-                                    <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input className="pl-10" placeholder="080 0000 0000" {...field} data-testid="input-parent-phone" />
-                                  </div>
+                                  <Input {...field} data-testid="input-parent-phone" />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -413,10 +363,7 @@ export default function Admissions() {
                               <FormItem>
                                 <FormLabel>Home Address *</FormLabel>
                                 <FormControl>
-                                  <div className="relative">
-                                    <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input className="pl-10" placeholder="123 Street Name" {...field} data-testid="input-address" />
-                                  </div>
+                                  <Input {...field} data-testid="input-address" />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -426,13 +373,9 @@ export default function Admissions() {
                       </div>
 
                       {/* Section 3: Additional */}
-                      <div className="space-y-6">
-                        <div className="flex items-center gap-2 border-b pb-2 text-primary">
-                          <GraduationCap className="h-5 w-5" />
-                          <h3 className="text-lg font-bold uppercase tracking-wider">Additional Details</h3>
-                        </div>
-                        
-                        <div className="space-y-6">
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-foreground">Additional Information</h3>
+                        <div className="space-y-4">
                           <FormField
                             control={form.control}
                             name="previousSchool"
@@ -454,7 +397,21 @@ export default function Admissions() {
                               <FormItem>
                                 <FormLabel>Medical Information / Allergies</FormLabel>
                                 <FormControl>
-                                  <Textarea rows={3} placeholder="Please list any medical conditions or allergies..." {...field} data-testid="input-medical-info" />
+                                  <Textarea rows={3} placeholder="Please list any medical conditions, allergies, or special needs" {...field} data-testid="input-medical-info" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="additionalInfo"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Additional Comments</FormLabel>
+                                <FormControl>
+                                  <Textarea rows={3} placeholder="Any additional information you'd like us to know" {...field} data-testid="input-additional-info" />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -465,19 +422,11 @@ export default function Admissions() {
 
                       <Button 
                         type="submit" 
-                        size="lg"
-                        className="w-full text-lg font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.01]" 
+                        className="w-full" 
                         disabled={admissionMutation.isPending}
                         data-testid="button-submit-application"
                       >
-                        {admissionMutation.isPending ? (
-                          'Processing...'
-                        ) : (
-                          <>
-                            Submit Application
-                            <ArrowRight className="ml-2 h-5 w-5" />
-                          </>
-                        )}
+                        {admissionMutation.isPending ? 'Submitting Application...' : 'Submit Application'}
                       </Button>
                     </form>
                   </Form>
@@ -489,38 +438,38 @@ export default function Admissions() {
       </section>
 
       {/* Contact Info */}
-      <section className="py-20 lg:py-24">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="mb-4 text-3xl font-bold tracking-tight" data-testid="text-contact-title">
+      <section className="py-16">
+        <div className="container mx-auto px-4 text-center max-w-4xl">
+          <h2 className="mb-6 text-3xl font-bold text-foreground" data-testid="text-contact-title">
             Need Help with Your Application?
           </h2>
-          <p className="mx-auto mb-12 max-w-2xl text-muted-foreground text-lg" data-testid="text-contact-description">
-            Our dedicated admissions team is available to assist you throughout the enrollment journey.
+          <p className="mb-8 text-lg text-muted-foreground" data-testid="text-contact-description">
+            Our admissions team is here to assist you throughout the process
           </p>
           
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-            <div className="flex flex-col items-center rounded-2xl bg-muted/50 p-8 shadow-sm transition-colors hover:bg-muted" data-testid="contact-phone">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Phone className="h-7 w-7" />
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <div className="text-center" data-testid="contact-phone">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Phone className="h-6 w-6" />
               </div>
-              <h3 className="mb-2 text-xl font-bold">Call Us</h3>
-              <p className="text-muted-foreground">08037906249, 08107921359</p>
+              <h3 className="mb-1 font-semibold">Call Us</h3>
+              <p className="text-sm text-muted-foreground">08037906249, 08107921359</p>
             </div>
             
-            <div className="flex flex-col items-center rounded-2xl bg-muted/50 p-8 shadow-sm transition-colors hover:bg-muted" data-testid="contact-email">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Mail className="h-7 w-7" />
+            <div className="text-center" data-testid="contact-email">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-secondary/10 text-secondary">
+                <Mail className="h-6 w-6" />
               </div>
-              <h3 className="mb-2 text-xl font-bold">Email Us</h3>
-              <p className="text-muted-foreground">admissions@treasurehomeschool.com</p>
+              <h3 className="mb-1 font-semibold">Email Us</h3>
+              <p className="text-sm text-muted-foreground">admissions@treasurehomeschool.com</p>
             </div>
             
-            <div className="flex flex-col items-center rounded-2xl bg-muted/50 p-8 shadow-sm transition-colors hover:bg-muted" data-testid="contact-visit">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <MapPin className="h-7 w-7" />
+            <div className="text-center" data-testid="contact-visit">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <MapPin className="h-6 w-6" />
               </div>
-              <h3 className="mb-2 text-xl font-bold">Visit Us</h3>
-              <p className="text-muted-foreground">Seriki-Soyinka Ifo, Ogun State</p>
+              <h3 className="mb-1 font-semibold">Visit Us</h3>
+              <p className="text-sm text-muted-foreground">Seriki-Soyinka Ifo, Ogun State</p>
             </div>
           </div>
         </div>
