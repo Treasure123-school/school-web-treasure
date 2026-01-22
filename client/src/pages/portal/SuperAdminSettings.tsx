@@ -43,6 +43,7 @@ interface SettingsData {
 
 export default function SuperAdminSettings() {
   const { toast } = useToast();
+  const [isEditing, setIsEditing] = useState(false);
 
   const { data: settings } = useQuery<SettingsData>({
     queryKey: ["/api/superadmin/settings"],
@@ -117,7 +118,11 @@ export default function SuperAdminSettings() {
       });
       return;
     }
-    saveSettingsMutation.mutate(formData);
+    saveSettingsMutation.mutate(formData, {
+      onSuccess: () => {
+        setIsEditing(false);
+      }
+    });
   };
 
   const handleTestWeightChange = (value: string) => {
@@ -137,18 +142,54 @@ export default function SuperAdminSettings() {
   return (
     <SuperAdminLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold dark:text-white" data-testid="text-page-title">
-            System Settings
-          </h1>
-          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1">
-            Configure global system settings
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold dark:text-white" data-testid="text-page-title">
+              System Settings
+            </h1>
+            <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1">
+              Configure global system settings
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {isEditing ? (
+              <>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsEditing(false);
+                    if (settings) setFormData({ ...formData, ...settings });
+                  }}
+                  data-testid="button-cancel-settings"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleSave} 
+                  disabled={saveSettingsMutation.isPending || !weightsValid}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  data-testid="button-save-settings"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {saveSettingsMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </>
+            ) : (
+              <Button 
+                onClick={() => setIsEditing(true)}
+                className="bg-primary hover:bg-primary/90"
+                data-testid="button-edit-settings"
+              >
+                <Settings2 className="h-4 w-4 mr-2" />
+                Edit Settings
+              </Button>
+            )}
+          </div>
         </div>
 
-        <div className="grid gap-6">
+        <div className={`grid gap-6 ${!isEditing ? "opacity-90 pointer-events-none select-none" : ""}`}>
           {/* School Information */}
-          <Card className="dark:bg-slate-800 dark:border-slate-700">
+          <Card className="dark:bg-slate-800 dark:border-slate-700 shadow-sm">
             <CardHeader>
               <CardTitle className="dark:text-white">School Information</CardTitle>
               <CardDescription className="dark:text-slate-400">
@@ -163,6 +204,7 @@ export default function SuperAdminSettings() {
                     id="schoolName"
                     data-testid="input-school-name"
                     value={formData.schoolName}
+                    readOnly={!isEditing}
                     onChange={(e) => setFormData({ ...formData, schoolName: e.target.value })}
                     className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
                   />
@@ -173,6 +215,7 @@ export default function SuperAdminSettings() {
                     id="schoolMotto"
                     data-testid="input-school-motto"
                     value={formData.schoolMotto}
+                    readOnly={!isEditing}
                     onChange={(e) => setFormData({ ...formData, schoolMotto: e.target.value })}
                     className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
                   />
@@ -184,6 +227,7 @@ export default function SuperAdminSettings() {
                     type="email"
                     data-testid="input-school-email"
                     value={formData.schoolEmail}
+                    readOnly={!isEditing}
                     onChange={(e) => setFormData({ ...formData, schoolEmail: e.target.value })}
                     className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
                   />
@@ -194,6 +238,7 @@ export default function SuperAdminSettings() {
                     id="schoolPhone"
                     data-testid="input-school-phone"
                     value={formData.schoolPhone}
+                    readOnly={!isEditing}
                     onChange={(e) => setFormData({ ...formData, schoolPhone: e.target.value })}
                     className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
                   />
@@ -205,6 +250,7 @@ export default function SuperAdminSettings() {
                   id="schoolAddress"
                   data-testid="input-school-address"
                   value={formData.schoolAddress}
+                  readOnly={!isEditing}
                   onChange={(e) => setFormData({ ...formData, schoolAddress: e.target.value })}
                   className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
                 />
@@ -244,6 +290,7 @@ export default function SuperAdminSettings() {
                         max="100"
                         data-testid="input-test-weight"
                         value={formData.testWeight}
+                        readOnly={!isEditing}
                         onChange={(e) => handleTestWeightChange(e.target.value)}
                         className="w-24 dark:bg-slate-900 dark:border-slate-700 dark:text-white"
                       />
@@ -264,6 +311,7 @@ export default function SuperAdminSettings() {
                         max="100"
                         data-testid="input-exam-weight"
                         value={formData.examWeight}
+                        readOnly={!isEditing}
                         onChange={(e) => handleExamWeightChange(e.target.value)}
                         className="w-24 dark:bg-slate-900 dark:border-slate-700 dark:text-white"
                       />
@@ -291,6 +339,7 @@ export default function SuperAdminSettings() {
                     Default Grading Scale
                   </Label>
                   <Select 
+                    disabled={!isEditing}
                     value={formData.defaultGradingScale} 
                     onValueChange={(value) => setFormData({ ...formData, defaultGradingScale: value })}
                   >
@@ -354,6 +403,7 @@ export default function SuperAdminSettings() {
                   Score Aggregation Mode
                 </Label>
                 <Select 
+                  disabled={!isEditing}
                   value={formData.scoreAggregationMode} 
                   onValueChange={(value) => setFormData({ ...formData, scoreAggregationMode: value })}
                 >
@@ -393,6 +443,7 @@ export default function SuperAdminSettings() {
                   </p>
                 </div>
                 <Switch
+                  disabled={!isEditing}
                   checked={formData.autoCreateReportCard}
                   onCheckedChange={(checked) =>
                     setFormData({ ...formData, autoCreateReportCard: checked })
@@ -409,6 +460,7 @@ export default function SuperAdminSettings() {
                   </p>
                 </div>
                 <Switch
+                  disabled={!isEditing}
                   checked={formData.showGradeBreakdown}
                   onCheckedChange={(checked) =>
                     setFormData({ ...formData, showGradeBreakdown: checked })
@@ -425,6 +477,7 @@ export default function SuperAdminSettings() {
                   </p>
                 </div>
                 <Switch
+                  disabled={!isEditing}
                   checked={formData.allowTeacherOverrides}
                   onCheckedChange={(checked) =>
                     setFormData({ ...formData, allowTeacherOverrides: checked })
@@ -455,6 +508,7 @@ export default function SuperAdminSettings() {
                   </p>
                 </div>
                 <Switch
+                  disabled={!isEditing}
                   checked={formData.enableExamsModule}
                   onCheckedChange={(checked) =>
                     setFormData({ ...formData, enableExamsModule: checked })
@@ -470,6 +524,7 @@ export default function SuperAdminSettings() {
                   </p>
                 </div>
                 <Switch
+                  disabled={!isEditing}
                   checked={formData.enableAttendanceModule}
                   onCheckedChange={(checked) =>
                     setFormData({ ...formData, enableAttendanceModule: checked })
@@ -485,6 +540,7 @@ export default function SuperAdminSettings() {
                   </p>
                 </div>
                 <Switch
+                  disabled={!isEditing}
                   checked={formData.enableResultsModule}
                   onCheckedChange={(checked) =>
                     setFormData({ ...formData, enableResultsModule: checked })
@@ -512,105 +568,34 @@ export default function SuperAdminSettings() {
                   </p>
                 </div>
                 <Switch
+                  disabled={!isEditing}
                   checked={formData.hideAdminAccountsFromAdmins}
                   onCheckedChange={(checked) =>
                     setFormData({ ...formData, hideAdminAccountsFromAdmins: checked })
                   }
-                  data-testid="switch-hide-admin-accounts"
+                  data-testid="switch-hide-admins"
                 />
               </div>
 
-              <div className="border-t pt-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="space-y-0.5 flex-1">
-                    <Label className="text-sm sm:text-base dark:text-slate-200 flex items-center gap-2">
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                      Deleted User Retention Period
-                    </Label>
-                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-                      Number of days deleted users remain recoverable before permanent deletion. Automatic cleanup runs daily at 2:00 AM.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Select
-                      value={formData.deletedUserRetentionDays.toString()}
-                      onValueChange={(value) => setFormData({ ...formData, deletedUserRetentionDays: parseInt(value) })}
-                    >
-                      <SelectTrigger className="w-32 dark:bg-slate-900 dark:border-slate-700" data-testid="select-retention-days">
-                        <SelectValue placeholder="Select days" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="7">7 days</SelectItem>
-                        <SelectItem value="14">14 days</SelectItem>
-                        <SelectItem value="30">30 days</SelectItem>
-                        <SelectItem value="60">60 days</SelectItem>
-                        <SelectItem value="90">90 days</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Maintenance Mode */}
-          <Card className="dark:bg-slate-800 dark:border-slate-700 border-orange-200 dark:border-orange-900">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
-                <AlertTriangle className="h-5 w-5" />
-                Maintenance Mode
-              </CardTitle>
-              <CardDescription className="dark:text-slate-400">
-                Temporarily lock down all portals for system updates
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div className="space-y-0.5">
-                  <Label className="text-sm sm:text-base dark:text-slate-200">Enable Maintenance Mode</Label>
-                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-                    Users won't be able to access the system
-                  </p>
-                </div>
-                <Switch
-                  checked={formData.maintenanceMode}
-                  onCheckedChange={(checked) =>
-                    setFormData({ ...formData, maintenanceMode: checked })
-                  }
-                  data-testid="switch-maintenance-mode"
+              <div className="space-y-2">
+                <Label htmlFor="retentionDays" className="text-sm dark:text-slate-300">Deleted User Retention (Days)</Label>
+                <Input
+                  id="retentionDays"
+                  type="number"
+                  min="1"
+                  max="365"
+                  data-testid="input-retention-days"
+                  value={formData.deletedUserRetentionDays}
+                  readOnly={!isEditing}
+                  onChange={(e) => setFormData({ ...formData, deletedUserRetentionDays: parseInt(e.target.value) || 30 })}
+                  className="w-full md:w-32 dark:bg-slate-900 dark:border-slate-700 dark:text-white"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Number of days to keep deleted user data before permanent removal
+                </p>
               </div>
-              {formData.maintenanceMode && (
-                <div className="space-y-2">
-                  <Label htmlFor="maintenanceMessage" className="dark:text-slate-200">
-                    Maintenance Message
-                  </Label>
-                  <Textarea
-                    id="maintenanceMessage"
-                    data-testid="input-maintenance-message"
-                    placeholder="System is under maintenance. Please check back later."
-                    value={formData.maintenanceModeMessage}
-                    onChange={(e) =>
-                      setFormData({ ...formData, maintenanceModeMessage: e.target.value })
-                    }
-                    className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
-                  />
-                </div>
-              )}
             </CardContent>
           </Card>
-
-          <div className="flex justify-end">
-            <Button
-              onClick={handleSave}
-              disabled={saveSettingsMutation.isPending || !weightsValid}
-              data-testid="button-save-settings"
-              className="w-full sm:w-auto"
-            >
-              <Save className="mr-2 h-4 w-4" />
-              {saveSettingsMutation.isPending ? "Saving..." : "Save Settings"}
-            </Button>
-          </div>
         </div>
       </div>
     </SuperAdminLayout>
