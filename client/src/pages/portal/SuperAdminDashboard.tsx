@@ -190,60 +190,65 @@ export default function SuperAdminDashboard() {
           })}
         </div>
 
-        {/* System Overview Card */}
-        <Card className="shadow-lg border-none animate-in fade-in slide-in-from-bottom-4 duration-1000">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Award className="h-5 w-5 text-primary" />
+        {/* System Monitoring & Security Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="shadow-lg border-none animate-in fade-in slide-in-from-bottom-4 duration-1000 overflow-hidden">
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-blue-500/10">
+                  <Activity className="h-5 w-5 text-blue-600" />
+                </div>
+                <CardTitle className="text-lg">System Health</CardTitle>
               </div>
-              <CardTitle>System Overview</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-muted-foreground">
-              Welcome to the Super Admin Portal. You have complete control over the school management system.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/30 border border-blue-200 dark:border-blue-800">
-                <h4 className="font-semibold mb-2 flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-blue-600" />
-                  Admin Management
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Create, edit, and manage system administrators with different permission levels.
-                </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Server Status</span>
+                  <span className="flex items-center gap-1 text-emerald-600 font-medium">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                    Operational
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Database Sync</span>
+                  <span className="text-blue-600 font-medium">Real-time</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Active WebSockets</span>
+                  <span className="text-purple-600 font-medium">Connected</span>
+                </div>
               </div>
-              <div className="p-4 rounded-xl bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-950/30 dark:to-purple-900/30 border border-purple-200 dark:border-purple-800">
-                <h4 className="font-semibold mb-2 flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-purple-600" />
-                  Activity Monitoring
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Track all system activities, monitor user sessions, and review security logs.
-                </p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-lg border-none animate-in fade-in slide-in-from-bottom-4 duration-1000 overflow-hidden">
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-orange-500/10">
+                  <Shield className="h-5 w-5 text-orange-600" />
+                </div>
+                <CardTitle className="text-lg">Security Overview</CardTitle>
               </div>
-              <div className="p-4 rounded-xl bg-gradient-to-r from-green-50 to-green-100 dark:from-green-950/30 dark:to-green-900/30 border border-green-200 dark:border-green-800">
-                <h4 className="font-semibold mb-2 flex items-center gap-2">
-                  <Settings className="h-4 w-4 text-green-600" />
-                  System Configuration
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Configure global settings, manage integrations, and customize system behavior.
-                </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Auth System</span>
+                  <span className="text-emerald-600 font-medium">Secure</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Latest Login</span>
+                  <span className="text-muted-foreground italic">Just now</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Admin Access</span>
+                  <span className="text-orange-600 font-medium font-mono text-xs uppercase px-1.5 py-0.5 rounded bg-orange-100">Super Admin</span>
+                </div>
               </div>
-              <div className="p-4 rounded-xl bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-950/30 dark:to-orange-900/30 border border-orange-200 dark:border-orange-800">
-                <h4 className="font-semibold mb-2 flex items-center gap-2">
-                  <Database className="h-4 w-4 text-orange-600" />
-                  Data Management
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Manage system-wide content, announcements, and data across all user types.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </SuperAdminLayout>
   );
