@@ -1125,6 +1125,10 @@ class RealtimeService {
     };
   }
 
+  broadcastSystemSettingsUpdate(settings: any) {
+    this.io?.emit('system_settings_update', settings);
+  }
+
   shutdown() {
     if (this.eventIdCleanupInterval) {
       clearInterval(this.eventIdCleanupInterval);

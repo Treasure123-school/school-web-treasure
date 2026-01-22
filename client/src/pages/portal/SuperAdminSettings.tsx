@@ -99,6 +99,12 @@ export default function SuperAdminSettings() {
       toast({ title: "Success", description: "Settings saved successfully" });
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/settings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/grading-config"] });
+      // Invalidate all public settings queries to ensure immediate updates across the site
+      queryClient.invalidateQueries({ queryKey: ["/api/public/settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api", "public", "homepage-content"] });
+      
+      // Force a refetch of all settings to update UI immediately
+      queryClient.refetchQueries({ queryKey: ["/api/superadmin/settings"] });
     },
     onError: (error: any) => {
       toast({ 

@@ -8934,6 +8934,17 @@ Treasure-Home School Administration
       try {
         const settings = await storage.updateSystemSettings(req.body);
 
+        // Invalidate all related caches to ensure immediate updates across the site
+        enhancedCache.invalidate(/^superadmin:settings/);
+        enhancedCache.invalidate(/^public:settings/);
+        
+        // Broadcast the update via Socket.IO for real-time frontend updates
+        // Use any to avoid type issues if the method is not yet in the interface
+        const rs = realtimeService as any;
+        if (rs && typeof rs.broadcastSystemSettingsUpdate === 'function') {
+          rs.broadcastSystemSettingsUpdate(settings);
+        }
+
         // Log the settings change
         await storage.createAuditLog({
           userId: req.user!.id,

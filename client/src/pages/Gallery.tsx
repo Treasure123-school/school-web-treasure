@@ -10,6 +10,7 @@ interface SettingsData {
 export default function Gallery() {
   const { data: settings } = useQuery<SettingsData>({
     queryKey: ["/api/superadmin/settings"],
+    staleTime: 5 * 60 * 1000,
   });
 
   const schoolName = settings?.schoolName || "Treasure-Home School";
