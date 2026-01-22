@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { MapPin, Phone, Mail, Clock, Car, Calendar } from 'lucide-react';
 
 const contactSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -55,25 +56,25 @@ export default function Contact() {
 
   const contactInfo = [
     {
-      icon: 'fas fa-map-marker-alt',
+      icon: MapPin,
       title: 'Address',
       content: 'Seriki-Soyinka Ifo, Ogun State',
       color: 'primary'
     },
     {
-      icon: 'fas fa-phone',
+      icon: Phone,
       title: 'Phone',
       content: '08037906249, 08107921359',
       color: 'secondary'
     },
     {
-      icon: 'fas fa-envelope',
+      icon: Mail,
       title: 'Email',
       content: 'treasurehomeschool@gmail.com',
       color: 'green'
     },
     {
-      icon: 'fas fa-clock',
+      icon: Clock,
       title: 'Office Hours',
       content: 'Monday - Friday: 8:00 AM - 4:00 PM',
       color: 'blue'
@@ -104,7 +105,7 @@ export default function Contact() {
   return (
     <PublicLayout>
       {/* Hero Section */}
-      <section className="hero-gradient py-16">
+      <section className="bg-primary py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl lg:text-5xl font-bold text-primary-foreground mb-6" data-testid="text-contact-title">
             Get in Touch
@@ -129,7 +130,7 @@ export default function Contact() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
             {contactInfo.map((info, index) => (
-              <Card key={index} className="card-hover shadow-sm border border-border" data-testid={`card-contact-info-${index}`}>
+              <Card key={index} className="hover-elevate shadow-sm border border-border" data-testid={`card-contact-info-${index}`}>
                 <CardContent className="p-6 text-center">
                   <div className={`w-16 h-16 rounded-lg flex items-center justify-center mx-auto mb-4 ${
                     info.color === 'primary' ? 'bg-primary/10' :
@@ -137,12 +138,12 @@ export default function Contact() {
                     info.color === 'green' ? 'bg-green-100' :
                     'bg-blue-100'
                   }`}>
-                    <i className={`${info.icon} ${
+                    <info.icon className={`${
                       info.color === 'primary' ? 'text-primary' :
                       info.color === 'secondary' ? 'text-secondary' :
                       info.color === 'green' ? 'text-green-600' :
                       'text-blue-600'
-                    } text-xl`}></i>
+                    } w-8 h-8`} />
                   </div>
                   <h3 className="font-semibold mb-2" data-testid={`text-contact-info-title-${index}`}>
                     {info.title}
@@ -236,7 +237,7 @@ export default function Contact() {
                 <div className="space-y-4 mb-6">
                   <div className="flex items-start space-x-3">
                     <div className="bg-primary/10 p-2 rounded-lg mt-1">
-                      <i className="fas fa-map-marker-alt text-primary"></i>
+                      <MapPin className="text-primary w-5 h-5" />
                     </div>
                     <div>
                       <p className="font-medium">School Address</p>
@@ -248,7 +249,7 @@ export default function Contact() {
                   
                   <div className="flex items-start space-x-3">
                     <div className="bg-secondary/10 p-2 rounded-lg mt-1">
-                      <i className="fas fa-car text-secondary"></i>
+                      <Car className="text-secondary w-5 h-5" />
                     </div>
                     <div>
                       <p className="font-medium">Transportation</p>
@@ -260,7 +261,7 @@ export default function Contact() {
                   
                   <div className="flex items-start space-x-3">
                     <div className="bg-green-100 p-2 rounded-lg mt-1">
-                      <i className="fas fa-calendar text-green-600"></i>
+                      <Calendar className="text-green-600 w-5 h-5" />
                     </div>
                     <div>
                       <p className="font-medium">Visit Hours</p>
@@ -295,7 +296,7 @@ export default function Contact() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {departments.map((dept, index) => (
-              <Card key={index} className="card-hover shadow-sm border border-border" data-testid={`card-department-${index}`}>
+              <Card key={index} className="hover-elevate shadow-sm border border-border" data-testid={`card-department-${index}`}>
                 <CardContent className="p-6">
                   <h3 className="text-lg font-semibold mb-3" data-testid={`text-department-name-${index}`}>
                     {dept.name}
@@ -305,13 +306,13 @@ export default function Contact() {
                   </p>
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
-                      <i className="fas fa-phone text-primary text-sm"></i>
+                      <Phone className="text-primary w-4 h-4" />
                       <span className="text-sm" data-testid={`text-department-phone-${index}`}>
                         {dept.phone}
                       </span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <i className="fas fa-envelope text-primary text-sm"></i>
+                      <Mail className="text-primary w-4 h-4" />
                       <span className="text-sm" data-testid={`text-department-email-${index}`}>
                         {dept.email}
                       </span>
@@ -326,3 +327,4 @@ export default function Contact() {
     </PublicLayout>
   );
 }
+
