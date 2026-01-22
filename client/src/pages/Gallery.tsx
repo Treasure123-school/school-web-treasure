@@ -3,7 +3,17 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useQuery } from '@tanstack/react-query';
 import type { HomePageContent } from '@shared/schema';
 
+interface SettingsData {
+  schoolName: string;
+}
+
 export default function Gallery() {
+  const { data: settings } = useQuery<SettingsData>({
+    queryKey: ["/api/superadmin/settings"],
+  });
+
+  const schoolName = settings?.schoolName || "Treasure-Home School";
+
   // Fetch gallery images from database
   const { data: allContent = [], isLoading } = useQuery<HomePageContent[]>({
     queryKey: ['/api', 'public', 'homepage-content'],
@@ -65,7 +75,7 @@ export default function Gallery() {
               School Life Gallery
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto" data-testid="text-gallery-description">
-              Capturing moments of learning, growth, and achievement at Treasure-Home School
+              Capturing moments of learning, growth, and achievement at {schoolName}
             </p>
           </div>
 

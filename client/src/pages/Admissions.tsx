@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -31,6 +31,14 @@ import {
   Info
 } from 'lucide-react';
 
+interface SettingsData {
+  schoolName: string;
+  schoolMotto: string;
+  schoolEmail: string;
+  schoolPhone: string;
+  schoolAddress: string;
+}
+
 const admissionSchema = z.object({
   studentName: z.string().min(1, 'Student name is required'),
   dateOfBirth: z.string().min(1, 'Date of birth is required'),
@@ -50,6 +58,15 @@ type AdmissionForm = z.infer<typeof admissionSchema>;
 export default function Admissions() {
   const { toast } = useToast();
   
+  const { data: settings } = useQuery<SettingsData>({
+    queryKey: ["/api/superadmin/settings"],
+  });
+
+  const schoolName = settings?.schoolName || "Treasure-Home School";
+  const schoolEmail = settings?.schoolEmail || "admissions@treasurehomeschool.com";
+  const schoolPhone = settings?.schoolPhone || "08037906249, 08107921359";
+  const schoolAddress = settings?.schoolAddress || "Seriki-Soyinka Ifo, Ogun State";
+
   const form = useForm<AdmissionForm>({
     resolver: zodResolver(admissionSchema),
     defaultValues: {
@@ -141,7 +158,7 @@ export default function Admissions() {
       <section className="hero-gradient py-16">
         <div className="container mx-auto px-4 text-center">
           <h1 className="mb-6 text-4xl font-bold text-white lg:text-5xl" data-testid="text-admissions-title">
-            Join Treasure-Home School
+            Join {schoolName}
           </h1>
           <p className="mx-auto max-w-3xl text-xl text-white/90" data-testid="text-admissions-subtitle">
             Begin your child's journey to academic excellence and moral development
@@ -453,7 +470,7 @@ export default function Admissions() {
                 <Phone className="h-6 w-6" />
               </div>
               <h3 className="mb-1 font-semibold">Call Us</h3>
-              <p className="text-sm text-muted-foreground">08037906249, 08107921359</p>
+              <p className="text-sm text-muted-foreground">{schoolPhone}</p>
             </div>
             
             <div className="text-center" data-testid="contact-email">
@@ -461,7 +478,7 @@ export default function Admissions() {
                 <Mail className="h-6 w-6" />
               </div>
               <h3 className="mb-1 font-semibold">Email Us</h3>
-              <p className="text-sm text-muted-foreground">admissions@treasurehomeschool.com</p>
+              <p className="text-sm text-muted-foreground">{schoolEmail}</p>
             </div>
             
             <div className="text-center" data-testid="contact-visit">
@@ -469,7 +486,7 @@ export default function Admissions() {
                 <MapPin className="h-6 w-6" />
               </div>
               <h3 className="mb-1 font-semibold">Visit Us</h3>
-              <p className="text-sm text-muted-foreground">Seriki-Soyinka Ifo, Ogun State</p>
+              <p className="text-sm text-muted-foreground">{schoolAddress}</p>
             </div>
           </div>
         </div>

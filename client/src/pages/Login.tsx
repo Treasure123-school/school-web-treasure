@@ -8,13 +8,18 @@ import { AlertCircle, Eye, EyeOff, Lock, User, KeyRound, ArrowLeft, Shield, Chec
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
 import { Link, useLocation } from 'wouter';
 import { getRoleNameById, getPortalByRoleId } from '@/lib/roles';
 import schoolLogo from '@assets/school-logo.png';
+
+interface SettingsData {
+  schoolName: string;
+  schoolMotto: string;
+}
 
 const loginSchema = z.object({
   identifier: z.string()
@@ -67,6 +72,14 @@ export default function Login() {
   const { toast } = useToast();
   const { login } = useAuth();
   const [, navigate] = useLocation();
+
+  const { data: settings } = useQuery<SettingsData>({
+    queryKey: ["/api/superadmin/settings"],
+  });
+
+  const schoolName = settings?.schoolName || "Treasure-Home School";
+  const schoolMotto = settings?.schoolMotto || "Honesty and Success";
+
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [tempUserData, setTempUserData] = useState<any>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -321,9 +334,9 @@ export default function Login() {
                 />
               </Link>
               <h1 className="text-xl sm:text-2xl font-bold text-white" data-testid="text-school-name">
-                Treasure-Home School
+                {schoolName}
               </h1>
-              <p className="text-blue-100 text-sm mt-1 italic">Honesty and Success</p>
+              <p className="text-blue-100 text-sm mt-1 italic">{schoolMotto}</p>
             </div>
 
             <CardContent className="p-6 sm:p-8">

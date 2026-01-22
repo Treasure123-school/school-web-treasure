@@ -2,6 +2,7 @@ import PublicLayout from '@/components/layout/PublicLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
 import { 
   Heart, 
   Trophy, 
@@ -17,7 +18,21 @@ import {
   GraduationCap
 } from 'lucide-react';
 
+interface SettingsData {
+  schoolName: string;
+  schoolMotto: string;
+  schoolAddress: string;
+}
+
 export default function About() {
+  const { data: settings } = useQuery<SettingsData>({
+    queryKey: ["/api/superadmin/settings"],
+  });
+
+  const schoolName = settings?.schoolName || "Treasure-Home School";
+  const schoolMotto = settings?.schoolMotto || "Honesty and Success";
+  const schoolAddress = settings?.schoolAddress || "Seriki-Soyinka Ifo, Ogun State, Nigeria";
+
   const values = [
     {
       title: 'Honesty',
@@ -62,10 +77,10 @@ export default function About() {
       <section className="hero-gradient py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl lg:text-5xl font-bold text-primary-foreground mb-6" data-testid="text-about-title">
-            About Treasure-Home School
+            About {schoolName}
           </h1>
           <p className="text-xl text-primary-foreground/90 max-w-3xl mx-auto" data-testid="text-about-subtitle">
-            Nurturing minds, building character, and preparing leaders for tomorrow
+            {schoolMotto}
           </p>
         </div>
       </section>
@@ -113,7 +128,7 @@ export default function About() {
               Our Core Values
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto" data-testid="text-values-description">
-              These fundamental principles guide everything we do at Treasure-Home School
+              These fundamental principles guide everything we do at {schoolName}
             </p>
           </div>
 
@@ -157,13 +172,12 @@ export default function About() {
               </h2>
               <div className="space-y-4 text-muted-foreground">
                 <p data-testid="text-history-p1">
-                  Established over 15 years ago in the heart of Seriki-Soyinka Ifo, Ogun State, 
-                  Treasure-Home School began as a small institution with a big vision - to provide 
-                  quality education that transforms lives.
+                  Established with a big vision - to provide quality education that transforms lives, 
+                  {schoolName} is located in the heart of {schoolAddress}.
                 </p>
                 <p data-testid="text-history-p2">
-                  From our humble beginnings with just a handful of students, we have grown to become 
-                  one of the most respected educational institutions in the region, serving over 500 students 
+                  From our humble beginnings, we have grown to become 
+                  one of the most respected educational institutions in the region, serving students 
                   from playgroup to senior secondary school.
                 </p>
                 <p data-testid="text-history-p3">
@@ -218,7 +232,7 @@ export default function About() {
       <section className="py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold text-foreground mb-6" data-testid="text-cta-title">
-            Join the Treasure-Home Family
+            Join the {schoolName} Family
           </h2>
           <p className="text-muted-foreground text-lg mb-8 max-w-2xl mx-auto" data-testid="text-cta-description">
             Experience the difference that quality education and moral excellence can make in your child's life. 

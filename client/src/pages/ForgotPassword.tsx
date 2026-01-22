@@ -7,10 +7,15 @@ import { GraduationCap, Mail, CheckCircle, AlertCircle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'wouter';
+
+interface SettingsData {
+  schoolName: string;
+  schoolMotto: string;
+}
 
 const forgotPasswordSchema = z.object({
   identifier: z.string().min(1, 'Username or email is required'),
@@ -21,6 +26,13 @@ type ForgotPasswordForm = z.infer<typeof forgotPasswordSchema>;
 export default function ForgotPassword() {
   const { toast } = useToast();
   const [emailSent, setEmailSent] = useState(false);
+
+  const { data: settings } = useQuery<SettingsData>({
+    queryKey: ["/api/superadmin/settings"],
+  });
+
+  const schoolName = settings?.schoolName || "Treasure-Home School";
+  const schoolMotto = settings?.schoolMotto || "Honesty and Success";
 
   const {
     register,
@@ -38,7 +50,6 @@ export default function ForgotPassword() {
     onSuccess: (data) => {
       setEmailSent(true);
 
-      // In development mode, show the reset code and link
       if (data.developmentMode && (data.resetToken || data.resetLink)) {
         toast({
           title: "Reset Code Generated (Dev Mode)",
@@ -77,7 +88,7 @@ export default function ForgotPassword() {
             </div>
           ),
           className: 'border-green-500 bg-green-50 dark:bg-green-950/50',
-          duration: 15000, // Show longer for dev mode
+          duration: 15000,
         });
       } else {
         toast({
@@ -123,8 +134,8 @@ export default function ForgotPassword() {
               <GraduationCap className="text-primary-foreground h-8 w-8" />
             </div>
             <div className="text-left">
-              <h1 className="text-xl font-bold text-foreground">Treasure-Home School</h1>
-              <p className="text-sm text-muted-foreground">"Honesty and Success"</p>
+              <h1 className="text-xl font-bold text-foreground">{schoolName}</h1>
+              <p className="text-sm text-muted-foreground">{schoolMotto}</p>
             </div>
           </Link>
           <h2 className="text-2xl font-bold text-foreground" data-testid="text-title">
@@ -268,18 +279,6 @@ export default function ForgotPassword() {
                     </div>
                   </div>
                 </div>
-
-                {process.env.NODE_ENV === 'development' && (
-                  <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="h-4 w-4 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
-                      <p className="text-xs text-purple-800 dark:text-purple-200">
-                        <strong>Development Mode:</strong> Reset link shown in notification above.
-                        In production, it will be sent via email.
-                      </p>
-                    </div>
-                  </div>
-                )}
 
                 <div className="text-center pt-2">
                   <Link
