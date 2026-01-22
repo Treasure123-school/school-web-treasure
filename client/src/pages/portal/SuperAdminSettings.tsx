@@ -45,8 +45,11 @@ export default function SuperAdminSettings() {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
 
-  const { data: settings } = useQuery<SettingsData>({
+  const { data: settings, refetch } = useQuery<SettingsData>({
     queryKey: ["/api/superadmin/settings"],
+    staleTime: 0,
+    gcTime: 0, // Ensure no stale data is kept in cache
+    refetchOnMount: "always",
   });
 
   const [formData, setFormData] = useState<SettingsData>({
@@ -76,8 +79,8 @@ export default function SuperAdminSettings() {
 
   useEffect(() => {
     if (settings) {
-      setFormData({
-        ...formData,
+      setFormData(prev => ({
+        ...prev,
         ...settings,
         testWeight: settings.testWeight ?? 40,
         examWeight: settings.examWeight ?? 60,
@@ -87,7 +90,7 @@ export default function SuperAdminSettings() {
         showGradeBreakdown: settings.showGradeBreakdown ?? true,
         allowTeacherOverrides: settings.allowTeacherOverrides ?? true,
         deletedUserRetentionDays: settings.deletedUserRetentionDays ?? 30,
-      });
+      }));
     }
   }, [settings]);
 
@@ -95,15 +98,20 @@ export default function SuperAdminSettings() {
     mutationFn: async (data: SettingsData) => {
       return apiRequest("PUT", "/api/superadmin/settings", data);
     },
-    onSuccess: () => {
+    onSuccess: (updatedSettings: any) => {
       toast({ title: "Success", description: "Settings saved successfully" });
+      
+      // Update the cache immediately with the returned data
+      queryClient.setQueryData(["/api/superadmin/settings"], updatedSettings);
+      queryClient.setQueryData(["/api/public/settings"], updatedSettings);
+      
+      // Invalidate all related queries to ensure consistency
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/settings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/grading-config"] });
-      // Invalidate all public settings queries to ensure immediate updates across the site
       queryClient.invalidateQueries({ queryKey: ["/api/public/settings"] });
       queryClient.invalidateQueries({ queryKey: ["/api", "public", "homepage-content"] });
       
-      // Force a refetch of all settings to update UI immediately
+      // Force a refetch to be absolutely sure
       queryClient.refetchQueries({ queryKey: ["/api/superadmin/settings"] });
     },
     onError: (error: any) => {
@@ -124,7 +132,34 @@ export default function SuperAdminSettings() {
       });
       return;
     }
-    saveSettingsMutation.mutate(formData, {
+    
+    // Create a clean object to send, ensuring no extra fields that might cause issues
+    const dataToSave = {
+      schoolName: formData.schoolName,
+      schoolMotto: formData.schoolMotto,
+      schoolEmail: formData.schoolEmail,
+      schoolPhone: formData.schoolPhone,
+      schoolAddress: formData.schoolAddress,
+      maintenanceMode: formData.maintenanceMode,
+      maintenanceModeMessage: formData.maintenanceModeMessage,
+      enableSmsNotifications: formData.enableSmsNotifications,
+      enableEmailNotifications: formData.enableEmailNotifications,
+      enableExamsModule: formData.enableExamsModule,
+      enableAttendanceModule: formData.enableAttendanceModule,
+      enableResultsModule: formData.enableResultsModule,
+      themeColor: formData.themeColor,
+      hideAdminAccountsFromAdmins: formData.hideAdminAccountsFromAdmins,
+      testWeight: formData.testWeight,
+      examWeight: formData.examWeight,
+      defaultGradingScale: formData.defaultGradingScale,
+      autoCreateReportCard: formData.autoCreateReportCard,
+      scoreAggregationMode: formData.scoreAggregationMode,
+      showGradeBreakdown: formData.showGradeBreakdown,
+      allowTeacherOverrides: formData.allowTeacherOverrides,
+      deletedUserRetentionDays: formData.deletedUserRetentionDays,
+    };
+
+    saveSettingsMutation.mutate(dataToSave, {
       onSuccess: () => {
         setIsEditing(false);
       }

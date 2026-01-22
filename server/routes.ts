@@ -8932,17 +8932,30 @@ Treasure-Home School Administration
     // Update system settings (Super Admin only)
     app.put('/api/superadmin/settings', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
       try {
-        const settings = await storage.updateSystemSettings(req.body);
+        const settingsData = { ...req.body };
+        
+        // Remove id and timestamps to avoid trying to update them
+        delete settingsData.id;
+        delete settingsData.createdAt;
+        delete settingsData.updatedAt;
+
+        const settings = await storage.updateSystemSettings(settingsData);
 
         // Invalidate all related caches to ensure immediate updates across the site
         enhancedCache.invalidate(/^superadmin:settings/);
         enhancedCache.invalidate(/^public:settings/);
+        enhancedCache.invalidate(/\/api\/superadmin\/settings/);
         
         // Broadcast the update via Socket.IO for real-time frontend updates
-        // Use any to avoid type issues if the method is not yet in the interface
-        const rs = realtimeService as any;
-        if (rs && typeof rs.broadcastSystemSettingsUpdate === 'function') {
-          rs.broadcastSystemSettingsUpdate(settings);
+        try {
+          const rs = realtimeService as any;
+          if (rs && typeof rs.broadcastSystemSettingsUpdate === 'function') {
+            rs.broadcastSystemSettingsUpdate(settings);
+          }
+          
+          realtimeService.emitTableChange('system_settings', 'UPDATE', settings, undefined, req.user!.id);
+        } catch (ioError) {
+          console.error('Error broadcasting settings update:', ioError);
         }
 
         // Log the settings change
@@ -8954,18 +8967,13 @@ Treasure-Home School Administration
           reason: 'System settings updated by Super Admin',
         });
 
-        // Broadcast settings change to all connected clients via Socket.IO
-        realtimeService.emitTableChange('system_settings', 'UPDATE', {
-          ...settings,
-          testWeight: settings.testWeight,
-          examWeight: settings.examWeight,
-          defaultGradingScale: settings.defaultGradingScale,
-          scoreAggregationMode: settings.scoreAggregationMode,
-        }, undefined, req.user!.id);
-
         res.json(settings);
       } catch (error) {
-        res.status(500).json({ message: 'Failed to update system settings' });
+        console.error('Failed to update system settings:', error);
+        res.status(500).json({ 
+          message: 'Failed to update system settings',
+          error: error instanceof Error ? error.message : String(error)
+        });
       }
     });
 

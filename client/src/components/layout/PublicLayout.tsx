@@ -27,7 +27,8 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
 
   const { data: settings } = useQuery<SettingsData>({
     queryKey: ["/api/superadmin/settings"],
-    staleTime: 0, // Ensure we always get the latest settings
+    staleTime: 0,
+    gcTime: 0,
     refetchOnWindowFocus: true,
   });
 

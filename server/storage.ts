@@ -7083,24 +7083,31 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
   async updateSystemSettings(settings: Partial<InsertSystemSettings>): Promise<SystemSettings> {
-    // Get existing settings
     const existing = await this.getSystemSettings();
+    const updateData: any = { ...settings };
+    delete updateData.id;
+    delete updateData.createdAt;
+    delete updateData.updatedAt;
     
     if (existing) {
-      // Update existing settings
-      const result = await this.db
+      const result = await db
         .update(schema.systemSettings)
-        .set({ ...settings, updatedAt: new Date() })
+        .set({ ...updateData, updatedAt: new Date() })
         .where(eq(schema.systemSettings.id, existing.id))
         .returning();
-      return result[0];
+      
+      const rows = result as any[];
+      if (!rows || !rows.length) throw new Error("Update failed");
+      return rows[0];
     } else {
-      // Create new settings if none exist
-      const result = await this.db
+      const result = await db
         .insert(schema.systemSettings)
-        .values(settings)
+        .values({ ...updateData, createdAt: new Date(), updatedAt: new Date() })
         .returning();
-      return result[0];
+      
+      const rows = result as any[];
+      if (!rows || !rows.length) throw new Error("Insert failed");
+      return rows[0];
     }
   }
 
