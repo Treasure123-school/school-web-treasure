@@ -29,12 +29,28 @@ import { NotificationBell } from '@/components/NotificationBell';
 interface SuperAdminLayoutProps {
   children: ReactNode;
 }
+import { useQuery } from "@tanstack/react-query";
+
+interface SettingsData {
+  schoolName: string;
+  schoolMotto: string;
+}
+
 export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
   const [location, navigate] = useLocation();
   const { user, logout } = useAuth();
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const { data: settings } = useQuery<SettingsData>({
+    queryKey: ["/api/public/settings"],
+    staleTime: 0,
+    gcTime: 0,
+  });
+
+  const schoolName = settings?.schoolName || "Treasure-Home School";
+  const schoolMotto = settings?.schoolMotto || "Qualitative Education & Moral Excellence";
 
   useEffect(() => {
     const savedState = localStorage.getItem('superadmin-sidebar-collapsed');
@@ -184,13 +200,13 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
           <div className="bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-2xl p-2.5 shadow-lg ring-2 ring-white dark:ring-gray-800">
             <img 
               src={schoolLogo} 
-              alt="Treasure-Home School Logo" 
+              alt={`${schoolName} Logo`} 
               className={`${collapsed ? 'h-7 w-7' : 'h-11 w-11'} object-contain`}
             />
           </div>
           {!collapsed && (
             <div>
-              <h1 className="font-bold text-sm bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent">Treasure-Home</h1>
+              <h1 className="font-bold text-sm bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent truncate max-w-[140px]">{schoolName}</h1>
               <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">Super Admin Portal</p>
             </div>
           )}
@@ -333,10 +349,10 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
               )}
               <div className="min-w-0 flex-1">
                 <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold truncate bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent">
-                  Treasure-Home School
+                  {schoolName}
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm md:text-base truncate font-medium">
-                  Qualitative Education & Moral Excellence
+                  {schoolMotto}
                 </p>
               </div>
             </div>

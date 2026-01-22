@@ -26,7 +26,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
   const navContainerRef = useRef<HTMLDivElement>(null);
 
   const { data: settings } = useQuery<SettingsData>({
-    queryKey: ["/api/superadmin/settings"],
+    queryKey: ["/api/public/settings"], // Changed to public settings for better accessibility
     staleTime: 0,
     gcTime: 0,
     refetchOnWindowFocus: true,

@@ -8909,6 +8909,23 @@ Treasure-Home School Administration
       }
     });
 
+    // Get public system settings
+    app.get('/api/public/settings', async (_req: Request, res: Response) => {
+      try {
+        const cacheKey = 'public:settings';
+        const cached = enhancedCache.get(cacheKey);
+        if (cached) return res.json(cached);
+
+        const settings = await storage.getSystemSettings();
+        if (settings) {
+          enhancedCache.set(cacheKey, settings, 3600); // 1 hour cache
+        }
+        res.json(settings || {});
+      } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch public settings' });
+      }
+    });
+
     // Get audit logs (Super Admin only)
     app.get('/api/superadmin/logs', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
       try {
