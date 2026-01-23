@@ -33,7 +33,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
   });
 
   const schoolName = settings?.schoolName || "Treasure-Home School";
-  const schoolMotto = settings?.schoolMotto || "Honesty and Success";
+  const schoolMotto = settings?.schoolMotto || "Qualitative Education & Moral Excellence";
   const schoolEmail = settings?.schoolEmail || "treasurehomeschool@gmail.com";
   const schoolPhone = settings?.schoolPhone || "08037906249, 08107921359";
   const schoolAddress = settings?.schoolAddress || "Seriki-Soyinka Ifo, Ogun State, Nigeria";

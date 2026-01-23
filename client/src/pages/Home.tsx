@@ -26,7 +26,7 @@ export default function Home() {
   });
 
   const schoolName = settings?.schoolName || "Treasure-Home School";
-  const schoolMotto = settings?.schoolMotto || "Honesty and Success";
+  const schoolMotto = settings?.schoolMotto || "Qualitative Education & Moral Excellence";
   const schoolAddress = settings?.schoolAddress || "Seriki-Soyinka, Ifo, Ogun State";
 
   // Fetch dynamic content from database with optimized caching

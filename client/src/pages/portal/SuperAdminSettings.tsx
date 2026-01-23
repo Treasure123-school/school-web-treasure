@@ -48,8 +48,9 @@ export default function SuperAdminSettings() {
   const { data: settings, refetch } = useQuery<SettingsData>({
     queryKey: ["/api/superadmin/settings"],
     staleTime: 0,
-    gcTime: 0, // Ensure no stale data is kept in cache
+    gcTime: 0,
     refetchOnMount: "always",
+    refetchInterval: 5000, // Added polling for real-time updates
   });
 
   const [formData, setFormData] = useState<SettingsData>({
