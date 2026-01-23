@@ -331,7 +331,18 @@ export default function PortalLayout({ children, userRole, userName, userInitial
           const Icon = item.icon;
           if ('type' in item && item.type === 'group') {
             return (
-              <Collapsible key={item.label} open={item.isOpen} onOpenChange={item.setIsOpen}>
+              <Collapsible 
+                key={item.label} 
+                open={item.isOpen} 
+                onOpenChange={(open) => {
+                  if (open) {
+                    // Set this one as open and close others via openMenuKey
+                    item.setIsOpen(true);
+                  } else {
+                    item.setIsOpen(false);
+                  }
+                }}
+              >
                 <CollapsibleTrigger asChild>
                   <Button
                     variant="ghost"

@@ -235,7 +235,12 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
                           startTransition(() => navigate(item.children![0].path));
                         }
                       } else {
-                        toggleSection(item.label);
+                        // Exclusive dropdown behavior (Accordion style)
+                        if (isExpanded) {
+                          setExpandedSections(prev => prev.filter(s => s !== item.label));
+                        } else {
+                          setExpandedSections([item.label]);
+                        }
                       }
                     }}
                     className={`w-full text-sm font-semibold rounded-xl ${
