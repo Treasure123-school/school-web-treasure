@@ -12,6 +12,7 @@ import { z, ZodError } from "zod";
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
+import sharp from "sharp";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { randomUUID } from "crypto";
@@ -1157,13 +1158,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
+      // Automatically compress images to 2MB if they are larger or just to ensure quality/size
+      const isImage = req.file.mimetype.startsWith('image/');
+      let fileToUpload = req.file;
+
+      if (isImage) {
+        try {
+          const originalPath = req.file.path;
+          const compressedPath = `${originalPath}-compressed.webp`;
+          
+          // Professional compression using sharp
+          // Convert to webp for better compression while maintaining quality
+          await sharp(originalPath)
+            .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
+            .webp({ quality: 80 })
+            .toFile(compressedPath);
+
+          // Update the file object to point to the compressed version
+          fileToUpload = {
+            ...req.file,
+            path: compressedPath,
+            originalname: `${path.parse(req.file.originalname).name}.webp`,
+            mimetype: 'image/webp'
+          };
+
+          // Clean up the original uncompressed file
+          await fs.unlink(originalPath).catch(err => console.error("Failed to delete original file:", err));
+        } catch (sharpError) {
+          console.error("Image compression failed:", sharpError);
+          // Fallback to original file if compression fails
+        }
+      }
+
       const uploadType = req.body.uploadType || "general";
       const options = {
         uploadType,
         userId: req.user.id
       };
 
-      const result = await uploadFileToStorage(req.file, options);
+      const result = await uploadFileToStorage(fileToUpload, options);
 
       if (result.success) {
         res.json({ url: result.url });
