@@ -320,7 +320,7 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
         <div className="w-full max-w-md">
           <Card 
-            className={`shadow-2xl border-0 bg-white dark:bg-gray-900 overflow-hidden transition-all duration-700 ease-out ${
+            className={`shadow-lg border border-gray-100/50 dark:border-gray-800/50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm overflow-hidden transition-all duration-700 ease-out ${
               isCardVisible 
                 ? 'opacity-100 translate-y-0 scale-100' 
                 : 'opacity-0 translate-y-8 scale-95'
@@ -368,10 +368,10 @@ export default function Login() {
               {authPhase === 'idle' && (
                 <>
                   <div className="text-center mb-6">
-                    <h2 className="text-lg font-bold text-foreground" data-testid="text-login-title">
+                    <h2 className="text-xl font-bold tracking-tight text-foreground" data-testid="text-login-title">
                       Portal Login
                     </h2>
-                    <p className="text-xs text-muted-foreground mt-0.5" data-testid="text-login-subtitle">
+                    <p className="text-sm text-muted-foreground mt-1" data-testid="text-login-subtitle">
                       Sign in to access your dashboard
                     </p>
                   </div>
@@ -512,10 +512,10 @@ export default function Login() {
 
                     <Button
                       type="submit"
-                      className={`w-full h-12 text-base font-semibold transition-all duration-300 ${
+                      className={`w-full h-12 text-base font-semibold transition-all duration-300 shadow-sm ${
                         isButtonDisabled 
                           ? 'bg-blue-400 cursor-not-allowed' 
-                          : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg hover:scale-[1.02]'
+                          : 'bg-blue-600 hover:bg-blue-700 hover:shadow-md active:scale-[0.98]'
                       }`}
                       disabled={isButtonDisabled}
                       data-testid="button-login"
