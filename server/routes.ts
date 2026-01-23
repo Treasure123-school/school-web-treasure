@@ -1158,17 +1158,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      // Automatically compress images to 2MB if they are larger or just to ensure quality/size
+      const uploadType = req.body.uploadType || "general";
       const isImage = req.file.mimetype.startsWith('image/');
       let fileToUpload = req.file;
 
+      // Handle image compression if it's an image
       if (isImage) {
         try {
           const originalPath = req.file.path;
           const compressedPath = `${originalPath}-compressed.webp`;
           
           // Professional compression using sharp
-          // Convert to webp for better compression while maintaining quality
           // Ensure alpha channel is preserved for transparency
           await sharp(originalPath)
             .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
@@ -1189,22 +1189,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await fs.unlink(originalPath).catch(err => console.error("Failed to delete original file:", err));
         } catch (sharpError) {
           console.error("Image compression failed:", sharpError);
-          // Fallback to original file if compression fails
+          // Fallback to original file
+          fileToUpload = req.file;
         }
       }
 
-      const uploadType = req.body.uploadType || "general";
       const options = {
         uploadType,
         userId: req.user.id
       };
 
+      // Use the unified storage service
       const result = await uploadFileToStorage(fileToUpload, options);
 
-      // CRITICAL: Clean up compressed temporary file after it's been moved to final storage
+      // CRITICAL: Clean up compressed temporary file after it's been handled
       if (isImage && fileToUpload.path !== req.file.path) {
-        // The uploadFileToStorage usually moves the file, but we'll try to delete to be sure
-        // especially if it's copied or handled differently
         await fs.unlink(fileToUpload.path).catch(() => {});
       }
 
