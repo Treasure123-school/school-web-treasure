@@ -512,16 +512,6 @@ export default function PortalLayout({ children, userRole, userName, userInitial
                 </Avatar>
                 <span className="text-xs sm:text-sm font-semibold hidden md:inline truncate max-w-[100px] lg:max-w-none text-gray-700 dark:text-gray-300" data-testid="text-username">{userName}</span>
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={handleLogout}
-                data-testid="button-logout"
-                title="Logout"
-                className="h-9 w-9 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors duration-200 rounded-lg"
-              >
-                <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
-              </Button>
             </div>
           </div>
         </header>
