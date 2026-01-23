@@ -327,14 +327,16 @@ export default function Login() {
             }`}
             data-testid="card-login"
           >
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-8 text-center">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-8 text-center flex flex-col items-center justify-center">
               <Link href="/" className="inline-block mb-4 transition-transform hover:scale-105" data-testid="link-home">
-                <img
-                  src={displayLogo}
-                  alt="Treasure-Home School Logo"
-                  className="h-20 w-20 sm:h-24 sm:w-24 mx-auto rounded-full bg-white p-1 shadow-lg object-contain"
-                  data-testid="img-school-logo"
-                />
+                <div className="h-20 w-20 sm:h-24 sm:w-24 mx-auto rounded-full bg-white p-2 shadow-lg flex items-center justify-center overflow-hidden">
+                  <img
+                    src={displayLogo}
+                    alt="Treasure-Home School Logo"
+                    className="max-h-full max-w-full object-contain"
+                    data-testid="img-school-logo"
+                  />
+                </div>
               </Link>
               <h1 className="text-xl sm:text-2xl font-bold text-white" data-testid="text-school-name">
                 {schoolName}
