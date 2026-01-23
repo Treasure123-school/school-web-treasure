@@ -333,12 +333,12 @@ export default function Login() {
             }`}
             data-testid="card-login"
           >
-            <div className="bg-white dark:bg-gray-900 px-6 py-6 text-center flex flex-col items-center justify-center">
+            <div className="bg-transparent px-6 py-6 text-center flex flex-col items-center justify-center">
               <Link href="/" className="inline-block mb-4 transition-transform hover:scale-105" data-testid="link-home">
                 <img
                   src={displayLogo}
                   alt="Treasure-Home School Logo"
-                  className="h-20 w-auto max-w-[180px] object-contain"
+                  className="h-20 w-auto max-w-[180px] object-contain drop-shadow-md"
                   data-testid="img-school-logo"
                 />
               </Link>

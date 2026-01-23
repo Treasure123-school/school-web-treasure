@@ -312,13 +312,11 @@ export default function PortalLayout({ children, userRole, userName, userInitial
     <div className="flex flex-col h-full">
       <div className="flex-shrink-0 h-[100px] flex items-center border-b border-gray-200 dark:border-gray-700 px-4 bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900">
         <div className={`flex items-center w-full transition-all duration-300 ease-in-out ${collapsed ? 'justify-center' : 'space-x-3'}`}>
-          <div className="bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-2xl p-2.5 shadow-lg ring-2 ring-white dark:ring-gray-800">
-            <img 
-              src={displayLogo} 
-              alt={`${schoolName} Logo`} 
-              className={`${collapsed ? 'h-8 w-8' : 'h-14 w-14'} object-contain transition-all duration-300 ease-in-out`}
-            />
-          </div>
+          <img 
+            src={displayLogo} 
+            alt={`${schoolName} Logo`} 
+            className={`${collapsed ? 'h-10 w-10' : 'h-16 w-16'} object-contain transition-all duration-300 ease-in-out drop-shadow-md`}
+          />
           {!collapsed && (
             <div className="transition-all duration-300 ease-in-out opacity-100">
               <h1 className="font-bold text-sm bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent truncate max-w-[140px]">{schoolName}</h1>
