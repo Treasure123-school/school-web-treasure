@@ -22,6 +22,7 @@ import { useQuery } from '@tanstack/react-query';
 interface SettingsData {
   schoolName: string;
   schoolMotto: string;
+  schoolLogo?: string;
 }
 
 interface NavItem {
@@ -300,6 +301,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
 
   const schoolName = settings?.schoolName || "Treasure-Home School";
   const schoolMotto = settings?.schoolMotto || "Qualitative Education & Moral Excellence";
+  const displayLogo = settings?.schoolLogo || schoolLogo;
 
   // Reusable Sidebar Content Component with Modern Design
   const SidebarContent = ({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) => {
@@ -312,7 +314,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
         <div className={`flex items-center w-full transition-all duration-300 ease-in-out ${collapsed ? 'justify-center' : 'space-x-3'}`}>
           <div className="bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-2xl p-2.5 shadow-lg ring-2 ring-white dark:ring-gray-800">
             <img 
-              src={schoolLogo} 
+              src={displayLogo} 
               alt={`${schoolName} Logo`} 
               className={`${collapsed ? 'h-7 w-7' : 'h-11 w-11'} object-contain transition-all duration-300 ease-in-out`}
             />

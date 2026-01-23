@@ -15,6 +15,7 @@ interface SettingsData {
   schoolEmail: string;
   schoolPhone: string;
   schoolAddress: string;
+  schoolLogo?: string;
 }
 
 export default function PublicLayout({ children }: PublicLayoutProps) {
@@ -38,6 +39,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
   const schoolEmail = settings?.schoolEmail || "treasurehomeschool@gmail.com";
   const schoolPhone = settings?.schoolPhone || "08037906249, 08107921359";
   const schoolAddress = settings?.schoolAddress || "Seriki-Soyinka Ifo, Ogun State, Nigeria";
+  const displayLogo = settings?.schoolLogo || schoolLogo;
 
   const navigation = [
     { name: 'Home', href: '/' },
@@ -79,7 +81,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
               <Link href="/" className="flex items-center space-x-4 group">
                 <div className="rounded-full transition-all duration-300 group-hover:scale-105">
                   <img 
-                    src={schoolLogo} 
+                    src={displayLogo} 
                     alt="Treasure-Home School Logo" 
                     className="h-20 w-20 object-contain"
                   />
@@ -200,7 +202,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
               <div className="flex items-center space-x-4 mb-6">
                 <div className="rounded-full">
                   <img 
-                    src={schoolLogo} 
+                    src={displayLogo} 
                     alt="Treasure-Home School Logo" 
                     className="h-16 w-16 object-contain"
                   />
