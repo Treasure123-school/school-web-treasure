@@ -1149,6 +1149,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // which use the same JWT verification logic
   app.use(teacherAssignmentRoutes);
 
+  // ==================== FILE UPLOAD ROUTES ====================
+  // Register the centralized upload route
+  app.post("/api/upload", authenticateUser, upload.single("file"), async (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const uploadType = req.body.uploadType || "general";
+      const options = {
+        uploadType,
+        userId: req.user.id
+      };
+
+      const result = await uploadFileToStorage(req.file, options);
+
+      if (result.success) {
+        res.json({ url: result.url });
+      } else {
+        res.status(500).json({ message: result.error || "Upload failed" });
+      }
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      res.status(500).json({ message: error.message || "Upload failed" });
+    }
+  });
+
   // ==================== REALTIME SYNC ENDPOINT ====================
   // This endpoint allows frontend to get initial data for tables they want to subscribe to
   // Security: Role-based access control enforced per table with scope filtering
