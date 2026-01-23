@@ -23,6 +23,8 @@ import { useState, useEffect, useTransition } from 'react';
 import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { NotificationBell } from '@/components/NotificationBell';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { HeaderSearch } from '@/components/HeaderSearch';
 
 
 import { useQuery } from '@tanstack/react-query';
@@ -512,6 +514,8 @@ export default function PortalLayout({ children, userRole, userName, userInitial
               </div>
             </div>
             <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 flex-shrink-0">
+              <HeaderSearch userRole={userRole} />
+              <ThemeToggle />
               <NotificationBell />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

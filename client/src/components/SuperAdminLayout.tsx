@@ -33,6 +33,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/lib/auth";
 import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
 import { NotificationBell } from '@/components/NotificationBell';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { HeaderSearch } from '@/components/HeaderSearch';
 
 interface SuperAdminLayoutProps {
   children: ReactNode;
@@ -390,6 +392,8 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
               </div>
             </div>
             <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 flex-shrink-0">
+              <HeaderSearch userRole="superadmin" />
+              <ThemeToggle />
               <NotificationBell />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
