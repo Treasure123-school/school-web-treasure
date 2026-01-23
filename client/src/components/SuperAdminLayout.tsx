@@ -200,13 +200,11 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
     <>
       <div className={`p-5 border-b border-gray-200 dark:border-gray-700 ${collapsed ? 'px-3' : ''} bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900`}>
         <div className={`flex items-center ${collapsed ? 'justify-center' : 'space-x-3'}`}>
-          <div className="bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-2xl p-2.5 shadow-lg ring-2 ring-white dark:ring-gray-800">
-            <img 
-              src={schoolLogoUrl} 
-              alt={`${schoolName} Logo`} 
-              className={`${collapsed ? 'h-7 w-7' : 'h-11 w-11'} object-contain`}
-            />
-          </div>
+          <img 
+            src={schoolLogoUrl} 
+            alt={`${schoolName} Logo`} 
+            className={`${collapsed ? 'h-10 w-10' : 'h-16 w-16'} object-contain drop-shadow-md`}
+          />
           {!collapsed && (
             <div>
               <h1 className="font-bold text-sm bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent truncate max-w-[140px]">{schoolName}</h1>
