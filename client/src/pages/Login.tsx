@@ -327,9 +327,9 @@ export default function Login() {
             }`}
             data-testid="card-login"
           >
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-8 text-center flex flex-col items-center justify-center">
-              <Link href="/" className="inline-block mb-4 transition-transform hover:scale-105" data-testid="link-home">
-                <div className="h-20 w-20 sm:h-24 sm:w-24 mx-auto rounded-full bg-white p-2 shadow-lg flex items-center justify-center overflow-hidden">
+            <div className="bg-white dark:bg-gray-900 px-6 py-10 text-center flex flex-col items-center justify-center border-b border-gray-100 dark:border-gray-800">
+              <Link href="/" className="inline-block mb-6 transition-transform hover:scale-105" data-testid="link-home">
+                <div className="h-24 w-24 sm:h-28 sm:w-28 mx-auto rounded-full bg-white shadow-xl flex items-center justify-center overflow-hidden border border-gray-100 p-2">
                   <img
                     src={displayLogo}
                     alt="Treasure-Home School Logo"
@@ -338,10 +338,10 @@ export default function Login() {
                   />
                 </div>
               </Link>
-              <h1 className="text-xl sm:text-2xl font-bold text-white" data-testid="text-school-name">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white" data-testid="text-school-name">
                 {schoolName}
               </h1>
-              <p className="text-blue-100 text-sm mt-1 italic">{schoolMotto}</p>
+              <p className="text-blue-600 dark:text-blue-400 text-sm mt-2 font-semibold tracking-wide uppercase">{schoolMotto}</p>
             </div>
 
             <CardContent className="p-6 sm:p-8">
