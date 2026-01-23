@@ -327,24 +327,22 @@ export default function Login() {
             }`}
             data-testid="card-login"
           >
-            <div className="bg-white dark:bg-gray-900 px-6 py-10 text-center flex flex-col items-center justify-center border-b border-gray-100 dark:border-gray-800">
-              <Link href="/" className="inline-block mb-6 transition-transform hover:scale-105" data-testid="link-home">
-                <div className="h-24 w-24 sm:h-28 sm:w-28 mx-auto rounded-full bg-white shadow-xl flex items-center justify-center overflow-hidden border border-gray-100 p-2">
-                  <img
-                    src={displayLogo}
-                    alt="Treasure-Home School Logo"
-                    className="max-h-full max-w-full object-contain"
-                    data-testid="img-school-logo"
-                  />
-                </div>
+            <div className="bg-white dark:bg-gray-900 px-6 py-6 text-center flex flex-col items-center justify-center">
+              <Link href="/" className="inline-block mb-4 transition-transform hover:scale-105" data-testid="link-home">
+                <img
+                  src={displayLogo}
+                  alt="Treasure-Home School Logo"
+                  className="h-20 w-auto max-w-[180px] object-contain"
+                  data-testid="img-school-logo"
+                />
               </Link>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white" data-testid="text-school-name">
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white" data-testid="text-school-name">
                 {schoolName}
               </h1>
-              <p className="text-blue-600 dark:text-blue-400 text-sm mt-2 font-semibold tracking-wide uppercase">{schoolMotto}</p>
+              <p className="text-blue-600 dark:text-blue-400 text-xs mt-1 font-semibold tracking-wide uppercase">{schoolMotto}</p>
             </div>
 
-            <CardContent className="p-6 sm:p-8">
+            <CardContent className="p-6 pt-2">
               {authPhase === 'authenticating' && (
                 <div className="text-center py-8 animate-in fade-in duration-300">
                   <div className="relative mx-auto w-16 h-16 mb-4">
@@ -370,10 +368,10 @@ export default function Login() {
               {authPhase === 'idle' && (
                 <>
                   <div className="text-center mb-6">
-                    <h2 className="text-xl sm:text-2xl font-bold text-foreground" data-testid="text-login-title">
+                    <h2 className="text-lg font-bold text-foreground" data-testid="text-login-title">
                       Portal Login
                     </h2>
-                    <p className="text-sm text-muted-foreground mt-1" data-testid="text-login-subtitle">
+                    <p className="text-xs text-muted-foreground mt-0.5" data-testid="text-login-subtitle">
                       Sign in to access your dashboard
                     </p>
                   </div>
