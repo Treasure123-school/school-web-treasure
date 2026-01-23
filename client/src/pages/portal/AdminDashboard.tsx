@@ -47,12 +47,12 @@ export default function AdminDashboard() {
   ].filter(item => item.value > 0);
 
   const quickActions = [
-    { title: 'User Management', icon: Users, color: 'bg-indigo-100 hover:bg-indigo-200 text-indigo-700', href: '/portal/admin/users' },
-    { title: 'Manage Students', icon: GraduationCap, color: 'bg-primary/10 hover:bg-primary/20 text-primary', href: '/portal/admin/students' },
-    { title: 'Manage Exams', icon: FileText, color: 'bg-purple-100 hover:bg-purple-200 text-purple-600', href: '/portal/admin/exams' },
-    { title: 'Create Class', icon: School, color: 'bg-green-100 hover:bg-green-200 text-green-600', href: '/portal/admin/classes/add' },
-    { title: 'Send Announcement', icon: MessageSquare, color: 'bg-blue-100 hover:bg-blue-200 text-blue-600', href: '/portal/admin/announcements/add' },
-    { title: 'Generate Report', icon: BarChart3, color: 'bg-orange-100 hover:bg-orange-200 text-orange-600', href: '/portal/admin/reports' }
+    { title: 'User Management', icon: Users, color: 'bg-indigo-100 hover:bg-indigo-200 text-indigo-700 border-indigo-200', href: '/portal/admin/users' },
+    { title: 'Manage Students', icon: GraduationCap, color: 'bg-primary/10 hover:bg-primary/20 text-primary border-primary/20', href: '/portal/admin/students' },
+    { title: 'Manage Exams', icon: FileText, color: 'bg-purple-100 hover:bg-purple-200 text-purple-600 border-purple-200', href: '/portal/admin/exams' },
+    { title: 'Create Class', icon: School, color: 'bg-green-100 hover:bg-green-200 text-green-600 border-green-200', href: '/portal/admin/classes/add' },
+    { title: 'Send Announcement', icon: MessageSquare, color: 'bg-blue-100 hover:bg-blue-200 text-blue-600 border-blue-200', href: '/portal/admin/announcements/add' },
+    { title: 'Generate Report', icon: BarChart3, color: 'bg-orange-100 hover:bg-orange-200 text-orange-600 border-orange-200', href: '/portal/admin/reports' }
   ];
 
   if (!user) return <div className="p-8 text-center">Please log in to access the admin portal.</div>;
@@ -94,7 +94,7 @@ export default function AdminDashboard() {
             <CardContent>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {quickActions.map((action) => (
-                  <Button key={action.title} variant="ghost" className={`h-auto py-4 flex flex-col gap-2 items-center border border-transparent hover:border-border transition-all ${action.color}`} asChild>
+                  <Button key={action.title} variant="ghost" className={`h-auto py-4 flex flex-col gap-2 items-center border hover:border-border transition-all ${action.color}`} asChild>
                     <Link href={action.href}>
                       <action.icon className="h-6 w-6" />
                       <span className="text-xs font-medium text-center">{action.title}</span>

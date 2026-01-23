@@ -504,11 +504,11 @@ export default function PortalLayout({ children, userRole, userName, userInitial
                   </SheetContent>
                 </Sheet>
               )}
-              <div className="min-w-0 flex-1">
-                <h1 className="text-lg sm:text-xl md:text-2xl lg:text-2xl font-bold truncate bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent leading-tight">
+              <div className="flex flex-col ml-2 min-w-0 flex-1">
+                <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent leading-tight">
                   {schoolName}
                 </h1>
-                <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-sm md:text-base truncate font-medium italic">
+                <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm truncate font-medium italic">
                   {schoolMotto}
                 </p>
               </div>
