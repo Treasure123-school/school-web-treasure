@@ -306,7 +306,24 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
             );
           })}
         </nav>
-        {!isMobile && <div className="flex-shrink-0 h-20" />}
+
+        {/* Logout button at the bottom */}
+        <div className={`mt-auto p-3 border-t border-gray-200 dark:border-gray-700 ${collapsed ? 'px-2' : ''}`}>
+          <button
+            key="logout"
+            type="button"
+            onClick={() => {
+              onNavigate?.();
+              handleLogout();
+            }}
+            className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ease-in-out w-full text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-300`}
+            data-testid="nav-logout"
+            title={collapsed ? "Logout" : undefined}
+          >
+            <LogOut className={`h-4 w-4 transition-all duration-300 ease-in-out text-red-600 dark:text-red-400`} />
+            {!collapsed && <span className="transition-opacity duration-300 ease-in-out">Logout</span>}
+          </button>
+        </div>
       </div>
     );
   };
@@ -375,16 +392,6 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
                   {user?.firstName} {user?.lastName}
                 </span>
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={handleLogout}
-                data-testid="button-logout"
-                title="Logout"
-                className="h-9 w-9 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors duration-200 rounded-lg"
-              >
-                <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
-              </Button>
             </div>
           </div>
         </header>

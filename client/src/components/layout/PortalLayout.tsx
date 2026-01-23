@@ -398,36 +398,49 @@ export default function PortalLayout({ children, userRole, userName, userInitial
           const navItem = item as NavItem;
           const navItemActive = isActive(navItem.href);
           const isLogout = navItem.href === '#logout';
+          if (isLogout) return null;
+
           return (
             <button
               key={navItem.name}
               type="button"
               onClick={() => {
                 onNavigate?.();
-                if (isLogout) {
-                  handleLogout();
-                } else {
-                  startTransition(() => navigate(navItem.href));
-                }
+                startTransition(() => navigate(navItem.href));
               }}
               className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ease-in-out w-full ${
-                isLogout
-                  ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-300'
-                  : navItemActive 
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/50 dark:shadow-blue-500/30 scale-105' 
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 hover:text-blue-700 dark:hover:text-blue-300 hover:scale-102'
+                navItemActive 
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/50 dark:shadow-blue-500/30 scale-105' 
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 hover:text-blue-700 dark:hover:text-blue-300 hover:scale-102'
               }`}
               data-testid={`nav-${navItem.name.toLowerCase().replace(/\s+/g, '-')}`}
               title={collapsed ? navItem.name : undefined}
             >
-              <Icon className={`h-4 w-4 transition-all duration-300 ease-in-out ${isLogout ? 'text-red-600 dark:text-red-400' : ''}`} />
+              <Icon className={`h-4 w-4 transition-all duration-300 ease-in-out`} />
               {!collapsed && <span className="transition-opacity duration-300 ease-in-out">{navItem.name}</span>}
             </button>
           );
         })}
       </nav>
       
-      {/* Spacer for collapse button - only on desktop */}
+      {/* Logout button at the bottom */}
+      <div className={`mt-auto p-3 border-t border-gray-200 dark:border-gray-700 ${collapsed ? 'px-2' : ''}`}>
+        <button
+          key="logout"
+          type="button"
+          onClick={() => {
+            onNavigate?.();
+            handleLogout();
+          }}
+          className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ease-in-out w-full text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-300`}
+          data-testid="nav-logout"
+          title={collapsed ? "Logout" : undefined}
+        >
+          <LogOut className={`h-4 w-4 transition-all duration-300 ease-in-out text-red-600 dark:text-red-400`} />
+          {!collapsed && <span className="transition-opacity duration-300 ease-in-out">Logout</span>}
+        </button>
+      </div>
+
       {!isMobile && <div className="flex-shrink-0 h-20" />}
     </div>
   );
