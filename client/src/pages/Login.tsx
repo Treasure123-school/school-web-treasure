@@ -316,11 +316,17 @@ export default function Login() {
   const isButtonDisabled = !isFormFilled || !isValid || loginMutation.isPending || isLockedOut;
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 flex flex-col relative overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-blue-100/30 dark:bg-blue-900/10 rounded-full blur-[100px]" />
+        <div className="absolute -bottom-[10%] -right-[10%] w-[40%] h-[40%] bg-blue-100/30 dark:bg-blue-900/10 rounded-full blur-[100px]" />
+      </div>
+
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8 relative z-10">
         <div className="w-full max-w-md">
           <Card 
-            className={`shadow-lg border border-gray-100/50 dark:border-gray-800/50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm overflow-hidden transition-all duration-700 ease-out ${
+            className={`shadow-[0_20px_50px_rgba(8,_112,_184,_0.1)] border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 overflow-hidden transition-all duration-700 ease-out ${
               isCardVisible 
                 ? 'opacity-100 translate-y-0 scale-100' 
                 : 'opacity-0 translate-y-8 scale-95'
