@@ -80,6 +80,7 @@ export default function Login() {
 
   const schoolName = settings?.schoolName || "Treasure-Home School";
   const schoolMotto = settings?.schoolMotto || "Honesty and Success";
+  const displayLogo = settings?.schoolLogo || schoolLogo;
 
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [tempUserData, setTempUserData] = useState<any>(null);
@@ -328,9 +329,9 @@ export default function Login() {
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-8 text-center">
               <Link href="/" className="inline-block mb-4 transition-transform hover:scale-105" data-testid="link-home">
                 <img
-                  src={schoolLogo}
+                  src={displayLogo}
                   alt="Treasure-Home School Logo"
-                  className="h-20 w-20 sm:h-24 sm:w-24 mx-auto rounded-full bg-white p-1 shadow-lg"
+                  className="h-20 w-20 sm:h-24 sm:w-24 mx-auto rounded-full bg-white p-1 shadow-lg object-contain"
                   data-testid="img-school-logo"
                 />
               </Link>

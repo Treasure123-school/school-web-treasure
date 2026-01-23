@@ -104,6 +104,7 @@ interface BaileysReportTemplateProps {
   schoolPhone?: string;
   schoolEmail?: string;
   schoolMotto?: string;
+  schoolLogo?: string;
 }
 
 const getRemarkFromGrade = (grade: string): string => {
@@ -156,9 +157,11 @@ export const BaileysReportTemplate = forwardRef<HTMLDivElement, BaileysReportTem
   schoolAddress = "Seriki-Soyinka, Ifo, Ogun State, Nigeria",
   schoolPhone = "08012345678",
   schoolEmail = "info@treasurehomeschool.com",
-  schoolMotto = "Honesty and Success"
+  schoolMotto = "Honesty and Success",
+  schoolLogo: customLogo
 }, ref) => {
   const subjects = reportCard.items || reportCard.subjects || [];
+  const displayLogo = customLogo || logoPath;
   const totalObtained = subjects.reduce((sum, s) => sum + (s.obtainedMarks || 0), 0);
   const totalMax = subjects.length * 100;
   const avgPercentage = reportCard.averagePercentage || (totalMax > 0 ? Math.round((totalObtained / totalMax) * 100 * 10) / 10 : 0);
@@ -245,7 +248,7 @@ export const BaileysReportTemplate = forwardRef<HTMLDivElement, BaileysReportTem
       <div style={{ textAlign: 'center', borderBottom: '2px solid #1f2937', paddingBottom: '8px', marginBottom: '6px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
           <img 
-            src={logoPath} 
+            src={displayLogo} 
             alt="School Logo" 
             style={{ height: '50px', width: '50px', objectFit: 'contain' }}
             crossOrigin="anonymous"
