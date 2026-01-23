@@ -295,6 +295,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
     queryKey: ["/api/public/settings"],
     staleTime: 0,
     gcTime: 0,
+    refetchInterval: 5000,
   });
 
   const schoolName = settings?.schoolName || "Treasure-Home School";

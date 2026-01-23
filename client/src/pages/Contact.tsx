@@ -7,10 +7,18 @@ import { Label } from '@/components/ui/label';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { MapPin, Phone, Mail, Clock, Car, Calendar } from 'lucide-react';
+
+interface SettingsData {
+  schoolName: string;
+  schoolMotto: string;
+  schoolEmail: string;
+  schoolPhone: string;
+  schoolAddress: string;
+}
 
 const contactSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -22,6 +30,16 @@ type ContactForm = z.infer<typeof contactSchema>;
 
 export default function Contact() {
   const { toast } = useToast();
+  
+  const { data: settings } = useQuery<SettingsData>({
+    queryKey: ["/api/public/settings"],
+    refetchInterval: 5000,
+  });
+
+  const schoolName = settings?.schoolName || "Treasure-Home School";
+  const schoolEmail = settings?.schoolEmail || "treasurehomeschool@gmail.com";
+  const schoolPhone = settings?.schoolPhone || "08037906249, 08107921359";
+  const schoolAddress = settings?.schoolAddress || "Seriki-Soyinka Ifo, Ogun State, Nigeria";
   
   const {
     register,
@@ -58,19 +76,19 @@ export default function Contact() {
     {
       icon: MapPin,
       title: 'Address',
-      content: 'Seriki-Soyinka Ifo, Ogun State',
+      content: schoolAddress,
       color: 'primary'
     },
     {
       icon: Phone,
       title: 'Phone',
-      content: '08037906249, 08107921359',
+      content: schoolPhone,
       color: 'secondary'
     },
     {
       icon: Mail,
       title: 'Email',
-      content: 'treasurehomeschool@gmail.com',
+      content: schoolEmail,
       color: 'green'
     },
     {
@@ -84,20 +102,20 @@ export default function Contact() {
   const departments = [
     {
       name: 'Admissions Office',
-      phone: '08037906249',
-      email: 'admissions@treasurehomeschool.com',
+      phone: settings?.schoolPhone?.split(',')[0].trim() || '08037906249',
+      email: `admissions@${schoolEmail.split('@')[1] || 'treasurehomeschool.com'}`,
       description: 'For all admission inquiries and application processes'
     },
     {
       name: 'Academic Office',
-      phone: '08107921359',
-      email: 'academics@treasurehomeschool.com',
+      phone: settings?.schoolPhone?.split(',')[1]?.trim() || settings?.schoolPhone?.split(',')[0].trim() || '08107921359',
+      email: `academics@${schoolEmail.split('@')[1] || 'treasurehomeschool.com'}`,
       description: 'For academic matters, curriculum, and student progress'
     },
     {
       name: 'General Inquiries',
-      phone: '08037906249',
-      email: 'info@treasurehomeschool.com',
+      phone: schoolPhone.split(',')[0].trim(),
+      email: `info@${schoolEmail.split('@')[1] || 'treasurehomeschool.com'}`,
       description: 'For general questions and information about the school'
     }
   ];

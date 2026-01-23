@@ -8965,6 +8965,11 @@ Treasure-Home School Administration
         
         // Broadcast the update via Socket.IO for real-time frontend updates
         try {
+          // Notify all clients about settings update via socket.io
+          if (realtimeService && typeof (realtimeService as any).broadcastSettingsUpdate === 'function') {
+            (realtimeService as any).broadcastSettingsUpdate(settings);
+          }
+          
           const rs = realtimeService as any;
           if (rs && typeof rs.broadcastSystemSettingsUpdate === 'function') {
             rs.broadcastSystemSettingsUpdate(settings);

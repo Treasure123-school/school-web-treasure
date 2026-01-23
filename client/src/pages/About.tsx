@@ -26,8 +26,8 @@ interface SettingsData {
 
 export default function About() {
   const { data: settings } = useQuery<SettingsData>({
-    queryKey: ["/api/superadmin/settings"],
-    staleTime: 0,
+    queryKey: ["/api/public/settings"],
+    refetchInterval: 5000,
   });
 
   const schoolName = settings?.schoolName || "Treasure-Home School";

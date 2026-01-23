@@ -21,6 +21,13 @@ export default function SuperAdminDashboard() {
   
   useLoginSuccess();
   
+  const { data: settings } = useQuery<any>({
+    queryKey: ["/api/public/settings"],
+    refetchInterval: 5000,
+  });
+
+  const schoolName = settings?.schoolName || "Treasure-Home School";
+
   const { data: stats, isLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/superadmin/stats"],
   });
@@ -116,7 +123,7 @@ export default function SuperAdminDashboard() {
                 Welcome back, {user?.lastName || 'Admin'}!
               </h1>
               <p className="text-blue-100 text-sm">
-                Manage all system aspects of Treasure-Home School
+                Manage all system aspects of {schoolName}
               </p>
             </div>
           </div>

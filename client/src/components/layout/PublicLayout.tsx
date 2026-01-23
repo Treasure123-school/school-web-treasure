@@ -27,6 +27,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
 
   const { data: settings } = useQuery<SettingsData>({
     queryKey: ["/api/public/settings"], // Changed to public settings for better accessibility
+    refetchInterval: 5000,
     staleTime: 0,
     gcTime: 0,
     refetchOnWindowFocus: true,
