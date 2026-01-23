@@ -22,6 +22,7 @@ interface SettingsData {
   schoolEmail: string;
   schoolPhone: string;
   schoolAddress: string;
+  schoolLogo?: string;
   maintenanceMode: boolean;
   maintenanceModeMessage: string;
   enableSmsNotifications: boolean;
@@ -120,6 +121,7 @@ export default function SuperAdminSettings() {
       setFormData(prev => ({
         ...prev,
         ...settings,
+        schoolLogo: settings.schoolLogo || "",
         testWeight: settings.testWeight ?? 40,
         examWeight: settings.examWeight ?? 60,
         defaultGradingScale: settings.defaultGradingScale ?? "standard",

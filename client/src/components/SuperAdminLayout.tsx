@@ -34,6 +34,7 @@ import { useQuery } from "@tanstack/react-query";
 interface SettingsData {
   schoolName: string;
   schoolMotto: string;
+  schoolLogo?: string;
 }
 
 export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
