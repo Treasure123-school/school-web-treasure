@@ -74,7 +74,8 @@ export default function Login() {
   const [, navigate] = useLocation();
 
   const { data: settings } = useQuery<SettingsData>({
-    queryKey: ["/api/superadmin/settings"],
+    queryKey: ["/api/public/settings"],
+    refetchInterval: 5000,
   });
 
   const schoolName = settings?.schoolName || "Treasure-Home School";
