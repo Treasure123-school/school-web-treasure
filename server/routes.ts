@@ -1180,6 +1180,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           fileToUpload = {
             ...req.file,
             path: compressedPath,
+            filename: path.basename(compressedPath),
             originalname: `${path.parse(req.file.originalname).name}.webp`,
             mimetype: 'image/webp'
           };
@@ -1199,6 +1200,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       const result = await uploadFileToStorage(fileToUpload, options);
+
+      // CRITICAL: Clean up compressed temporary file after it's been moved to final storage
+      if (isImage && fileToUpload.path !== req.file.path) {
+        // The uploadFileToStorage usually moves the file, but we'll try to delete to be sure
+        // especially if it's copied or handled differently
+        await fs.unlink(fileToUpload.path).catch(() => {});
+      }
 
       if (result.success) {
         res.json({ url: result.url });
