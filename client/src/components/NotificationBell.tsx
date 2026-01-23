@@ -1,4 +1,4 @@
-import { Bell, UserPlus, AlertCircle } from 'lucide-react';
+import { Bell, UserPlus, AlertCircle, BookOpen, Calendar, MessageSquare, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -24,8 +24,7 @@ interface Notification {
 export function NotificationBell() {
   const { user } = useAuth();
 
-  // Only show notifications for admin users
-  if (!user || user.roleId !== ROLE_IDS.ADMIN) {
+  if (!user) {
     return null;
   }
   const { data: notifications = [] } = useQuery<Notification[]>({
@@ -88,6 +87,16 @@ export function NotificationBell() {
     switch (type) {
       case 'pending_user':
         return <UserPlus className="h-4 w-4 text-orange-600" />;
+      case 'exam':
+        return <BookOpen className="h-4 w-4 text-purple-600" />;
+      case 'grade':
+        return <GraduationCap className="h-4 w-4 text-green-600" />;
+      case 'schedule':
+        return <Calendar className="h-4 w-4 text-blue-600" />;
+      case 'message':
+        return <MessageSquare className="h-4 w-4 text-cyan-600" />;
+      case 'announcement':
+        return <Bell className="h-4 w-4 text-pink-600" />;
       default:
         return <AlertCircle className="h-4 w-4 text-blue-600" />;
     }
