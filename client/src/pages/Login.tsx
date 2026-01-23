@@ -534,18 +534,6 @@ export default function Login() {
             </CardContent>
           </Card>
 
-          <div className={`text-center mt-6 transition-all duration-700 delay-300 ${
-            isCardVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-          }`}>
-            <Link
-              href="/"
-              className="text-blue-600 hover:text-blue-700 text-sm font-medium inline-flex items-center gap-2 transition-colors"
-              data-testid="link-back-home"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Website
-            </Link>
-          </div>
         </div>
       </div>
 
