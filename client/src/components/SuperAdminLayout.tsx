@@ -392,7 +392,6 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
               </div>
             </div>
             <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 flex-shrink-0">
-              <HeaderSearch userRole="superadmin" />
               <ThemeToggle />
               <NotificationBell />
               <DropdownMenu>

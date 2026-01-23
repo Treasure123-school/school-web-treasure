@@ -514,7 +514,6 @@ export default function PortalLayout({ children, userRole, userName, userInitial
               </div>
             </div>
             <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 flex-shrink-0">
-              <HeaderSearch userRole={userRole} />
               <ThemeToggle />
               <NotificationBell />
               <DropdownMenu>
