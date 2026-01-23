@@ -310,7 +310,7 @@ const storage_multer = multer.diskStorage({
       dir = profileDir;
     } else if (uploadType === 'study-resource') {
       dir = studyResourcesDir;
-    } else if (uploadType === 'homepage') {
+    } else if (uploadType === 'homepage' || uploadType === 'system_settings') {
       dir = homepageDir;
     }
     cb(null, dir);

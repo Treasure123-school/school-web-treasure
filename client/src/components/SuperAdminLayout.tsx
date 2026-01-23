@@ -52,6 +52,7 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
 
   const schoolName = settings?.schoolName || "Treasure-Home School";
   const schoolMotto = settings?.schoolMotto || "Qualitative Education & Moral Excellence";
+  const schoolLogoUrl = settings?.schoolLogo || schoolLogo;
 
   useEffect(() => {
     const savedState = localStorage.getItem('superadmin-sidebar-collapsed');
@@ -200,7 +201,7 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
         <div className={`flex items-center ${collapsed ? 'justify-center' : 'space-x-3'}`}>
           <div className="bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-2xl p-2.5 shadow-lg ring-2 ring-white dark:ring-gray-800">
             <img 
-              src={schoolLogo} 
+              src={schoolLogoUrl} 
               alt={`${schoolName} Logo`} 
               className={`${collapsed ? 'h-7 w-7' : 'h-11 w-11'} object-contain`}
             />

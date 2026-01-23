@@ -53,12 +53,13 @@ export default function SuperAdminSettings() {
     refetchInterval: 5000, // Added polling for real-time updates
   });
 
-  const [formData, setFormData] = useState<SettingsData>({
+  const [formData, setFormData] = useState<SettingsData & { schoolLogo?: string }>({
     schoolName: "",
     schoolMotto: "",
     schoolEmail: "",
     schoolPhone: "",
     schoolAddress: "",
+    schoolLogo: "",
     maintenanceMode: false,
     maintenanceModeMessage: "",
     enableSmsNotifications: false,
@@ -77,6 +78,42 @@ export default function SuperAdminSettings() {
     allowTeacherOverrides: true,
     deletedUserRetentionDays: 30,
   });
+
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingLogo(true);
+    const uploadFormData = new FormData();
+    uploadFormData.append("file", file);
+    uploadFormData.append("uploadType", "system_settings");
+
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: uploadFormData,
+      });
+
+      if (!response.ok) throw new Error("Upload failed");
+
+      const data = await response.json();
+      setFormData(prev => ({ ...prev, schoolLogo: data.url }));
+      toast({ title: "Logo uploaded", description: "Save changes to apply the new logo." });
+    } catch (error: any) {
+      toast({
+        title: "Upload failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
 
   useEffect(() => {
     if (settings) {
@@ -141,6 +178,7 @@ export default function SuperAdminSettings() {
       schoolEmail: formData.schoolEmail,
       schoolPhone: formData.schoolPhone,
       schoolAddress: formData.schoolAddress,
+      schoolLogo: formData.schoolLogo,
       maintenanceMode: formData.maintenanceMode,
       maintenanceModeMessage: formData.maintenanceModeMessage,
       enableSmsNotifications: formData.enableSmsNotifications,
@@ -239,29 +277,69 @@ export default function SuperAdminSettings() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="flex flex-col items-center sm:flex-row sm:items-start gap-6 mb-6">
+                <div className="relative group">
+                  <div className="w-32 h-32 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-900/50">
+                    {formData.schoolLogo ? (
+                      <img 
+                        src={formData.schoolLogo} 
+                        alt="School Logo" 
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <div className="text-center p-2">
+                        <FileText className="h-8 w-8 mx-auto text-slate-400" />
+                        <span className="text-xs text-slate-500 mt-1">No logo</span>
+                      </div>
+                    )}
+                  </div>
+                  {isEditing && (
+                    <div className="mt-2">
+                      <Label htmlFor="logo-upload" className="cursor-pointer">
+                        <div className="text-xs text-blue-600 hover:text-blue-700 font-medium text-center">
+                          {uploadingLogo ? "Uploading..." : "Click to upload logo"}
+                        </div>
+                        <Input 
+                          id="logo-upload"
+                          type="file"
+                          className="hidden"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          disabled={uploadingLogo}
+                        />
+                      </Label>
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 w-full space-y-4">
+                  <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="schoolName" className="dark:text-slate-200">School Name</Label>
+                      <Input
+                        id="schoolName"
+                        data-testid="input-school-name"
+                        value={formData.schoolName}
+                        readOnly={!isEditing}
+                        onChange={(e) => setFormData({ ...formData, schoolName: e.target.value })}
+                        className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="schoolMotto" className="dark:text-slate-200">School Motto</Label>
+                      <Input
+                        id="schoolMotto"
+                        data-testid="input-school-motto"
+                        value={formData.schoolMotto}
+                        readOnly={!isEditing}
+                        onChange={(e) => setFormData({ ...formData, schoolMotto: e.target.value })}
+                        className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="schoolName" className="dark:text-slate-200">School Name</Label>
-                  <Input
-                    id="schoolName"
-                    data-testid="input-school-name"
-                    value={formData.schoolName}
-                    readOnly={!isEditing}
-                    onChange={(e) => setFormData({ ...formData, schoolName: e.target.value })}
-                    className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="schoolMotto" className="dark:text-slate-200">School Motto</Label>
-                  <Input
-                    id="schoolMotto"
-                    data-testid="input-school-motto"
-                    value={formData.schoolMotto}
-                    readOnly={!isEditing}
-                    onChange={(e) => setFormData({ ...formData, schoolMotto: e.target.value })}
-                    className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
-                  />
-                </div>
                 <div className="space-y-2">
                   <Label htmlFor="schoolEmail" className="dark:text-slate-200">School Email</Label>
                   <Input
