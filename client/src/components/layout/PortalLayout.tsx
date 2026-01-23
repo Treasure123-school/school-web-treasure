@@ -310,13 +310,13 @@ export default function PortalLayout({ children, userRole, userName, userInitial
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-shrink-0 h-[84px] flex items-center border-b border-gray-200 dark:border-gray-700 px-4 bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900">
+      <div className="flex-shrink-0 h-[100px] flex items-center border-b border-gray-200 dark:border-gray-700 px-4 bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900">
         <div className={`flex items-center w-full transition-all duration-300 ease-in-out ${collapsed ? 'justify-center' : 'space-x-3'}`}>
           <div className="bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-2xl p-2.5 shadow-lg ring-2 ring-white dark:ring-gray-800">
             <img 
               src={displayLogo} 
               alt={`${schoolName} Logo`} 
-              className={`${collapsed ? 'h-7 w-7' : 'h-11 w-11'} object-contain transition-all duration-300 ease-in-out`}
+              className={`${collapsed ? 'h-8 w-8' : 'h-14 w-14'} object-contain transition-all duration-300 ease-in-out`}
             />
           </div>
           {!collapsed && (
@@ -448,7 +448,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header - Modern Responsive Design - Fixed at Top */}
-        <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-md h-[84px] flex items-center px-4 sm:px-5 md:px-6">
+        <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-md h-[100px] flex items-center px-4 sm:px-5 md:px-6">
           <div className="flex justify-between items-center gap-2 sm:gap-3 w-full max-w-7xl mx-auto">
             <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4 flex-1 min-w-0">
               {/* Modern Mobile Menu Trigger */}

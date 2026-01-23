@@ -73,17 +73,17 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Clean professional navigation header */}
-      <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+      <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm py-2 sm:py-3">
         <nav>
           <div className="container-custom">
-            <div className="flex justify-between items-center h-20">
+            <div className="flex justify-between items-center h-20 sm:h-24">
               {/* Professional school branding */}
-              <Link href="/" className="flex items-center space-x-4 group">
-                <div className="rounded-full transition-all duration-300 group-hover:scale-105">
+              <Link href="/" className="flex items-center space-x-4">
+                <div className="rounded-full">
                   <img 
                     src={displayLogo} 
                     alt="Treasure-Home School Logo" 
-                    className="h-20 w-20 object-contain"
+                    className="h-20 w-20 sm:h-24 sm:w-24 object-contain"
                   />
                 </div>
                 <div className="flex flex-col">
