@@ -12,6 +12,7 @@ import { z, ZodError } from "zod";
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
+import sharp from "sharp";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { randomUUID } from "crypto";
@@ -310,7 +311,7 @@ const storage_multer = multer.diskStorage({
       dir = profileDir;
     } else if (uploadType === 'study-resource') {
       dir = studyResourcesDir;
-    } else if (uploadType === 'homepage') {
+    } else if (uploadType === 'homepage' || uploadType === 'system_settings' || uploadType === 'system-settings') {
       dir = homepageDir;
     }
     cb(null, dir);
@@ -323,23 +324,23 @@ const storage_multer = multer.diskStorage({
   }
 });
 
-const upload = multer({
-  storage: storage_multer,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|webp/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
+  const upload = multer({
+    storage: storage_multer,
+    limits: {
+      fileSize: 10 * 1024 * 1024, // Increased to 10MB to allow uncompressed uploads
+    },
+    fileFilter: (req, file, cb) => {
+      const allowedTypes = /jpeg|jpg|png|gif|webp/;
+      const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+      const mimetype = allowedTypes.test(file.mimetype);
 
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed!'));
+      if (mimetype && extname) {
+        return cb(null, true);
+      } else {
+        cb(new Error('Only image files are allowed!'));
+      }
     }
-  }
-});
+  });
 
 // Separate multer configuration for study resources (documents)
 const uploadDocument = multer({
@@ -1148,6 +1149,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Note: Authentication is handled within the router via requireAuth/requireAdmin
   // which use the same JWT verification logic
   app.use(teacherAssignmentRoutes);
+
+  // ==================== FILE UPLOAD ROUTES ====================
+  // Register the centralized upload route
+  app.post("/api/upload", authenticateUser, upload.single("file"), async (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const uploadType = req.body.uploadType || "general";
+      const isImage = req.file.mimetype.startsWith('image/');
+      let fileToUpload = req.file;
+
+      // Handle image compression if it's an image
+      if (isImage) {
+        try {
+          const originalPath = req.file.path;
+          const compressedPath = `${originalPath}-compressed.webp`;
+          
+          // Professional compression using sharp
+          // Ensure alpha channel is preserved for transparency
+          await sharp(originalPath)
+            .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
+            .ensureAlpha()
+            .webp({ quality: 80, lossless: false, nearLossless: false, force: true })
+            .toFile(compressedPath);
+
+          // Update the file object to point to the compressed version
+          fileToUpload = {
+            ...req.file,
+            path: compressedPath,
+            filename: path.basename(compressedPath),
+            originalname: `${path.parse(req.file.originalname).name}.webp`,
+            mimetype: 'image/webp'
+          };
+
+          // Clean up the original uncompressed file
+          await fs.unlink(originalPath).catch(err => console.error("Failed to delete original file:", err));
+        } catch (sharpError) {
+          console.error("Image compression failed:", sharpError);
+          // Fallback to original file
+          fileToUpload = req.file;
+        }
+      }
+
+      const options = {
+        uploadType,
+        userId: req.user.id
+      };
+
+      // Use the unified storage service
+      const result = await uploadFileToStorage(fileToUpload, options);
+
+      // CRITICAL: Clean up compressed temporary file after it's been handled
+      if (isImage && fileToUpload.path !== req.file.path) {
+        await fs.unlink(fileToUpload.path).catch(() => {});
+      }
+
+      if (result.success) {
+        res.json({ url: result.url });
+      } else {
+        res.status(500).json({ message: result.error || "Upload failed" });
+      }
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      res.status(500).json({ message: error.message || "Upload failed" });
+    }
+  });
 
   // ==================== REALTIME SYNC ENDPOINT ====================
   // This endpoint allows frontend to get initial data for tables they want to subscribe to
@@ -8909,6 +8978,23 @@ Treasure-Home School Administration
       }
     });
 
+    // Get public system settings
+    app.get('/api/public/settings', async (_req: Request, res: Response) => {
+      try {
+        const cacheKey = 'public:settings';
+        const cached = enhancedCache.get(cacheKey);
+        if (cached) return res.json(cached);
+
+        const settings = await storage.getSystemSettings();
+        if (settings) {
+          enhancedCache.set(cacheKey, settings, 3600); // 1 hour cache
+        }
+        res.json(settings || {});
+      } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch public settings' });
+      }
+    });
+
     // Get audit logs (Super Admin only)
     app.get('/api/superadmin/logs', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
       try {
@@ -8932,7 +9018,36 @@ Treasure-Home School Administration
     // Update system settings (Super Admin only)
     app.put('/api/superadmin/settings', authenticateUser, authorizeRoles(ROLES.SUPER_ADMIN), async (req: Request, res: Response) => {
       try {
-        const settings = await storage.updateSystemSettings(req.body);
+        const settingsData = { ...req.body };
+        
+        // Remove id and timestamps to avoid trying to update them
+        delete settingsData.id;
+        delete settingsData.createdAt;
+        delete settingsData.updatedAt;
+
+        const settings = await storage.updateSystemSettings(settingsData);
+
+        // Invalidate all related caches to ensure immediate updates across the site
+        enhancedCache.invalidate(/^superadmin:settings/);
+        enhancedCache.invalidate(/^public:settings/);
+        enhancedCache.invalidate(/\/api\/superadmin\/settings/);
+        
+        // Broadcast the update via Socket.IO for real-time frontend updates
+        try {
+          // Notify all clients about settings update via socket.io
+          if (realtimeService && typeof (realtimeService as any).broadcastSettingsUpdate === 'function') {
+            (realtimeService as any).broadcastSettingsUpdate(settings);
+          }
+          
+          const rs = realtimeService as any;
+          if (rs && typeof rs.broadcastSystemSettingsUpdate === 'function') {
+            rs.broadcastSystemSettingsUpdate(settings);
+          }
+          
+          realtimeService.emitTableChange('system_settings', 'UPDATE', settings, undefined, req.user!.id);
+        } catch (ioError) {
+          console.error('Error broadcasting settings update:', ioError);
+        }
 
         // Log the settings change
         await storage.createAuditLog({
@@ -8943,18 +9058,13 @@ Treasure-Home School Administration
           reason: 'System settings updated by Super Admin',
         });
 
-        // Broadcast settings change to all connected clients via Socket.IO
-        realtimeService.emitTableChange('system_settings', 'UPDATE', {
-          ...settings,
-          testWeight: settings.testWeight,
-          examWeight: settings.examWeight,
-          defaultGradingScale: settings.defaultGradingScale,
-          scoreAggregationMode: settings.scoreAggregationMode,
-        }, undefined, req.user!.id);
-
         res.json(settings);
       } catch (error) {
-        res.status(500).json({ message: 'Failed to update system settings' });
+        console.error('Failed to update system settings:', error);
+        res.status(500).json({ 
+          message: 'Failed to update system settings',
+          error: error instanceof Error ? error.message : String(error)
+        });
       }
     });
 

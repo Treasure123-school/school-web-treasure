@@ -625,6 +625,7 @@ export default function SettingsManagement() {
 
   const { data: gradingConfig } = useQuery<GradingConfigResponse>({
     queryKey: ['/api/grading-config'],
+    staleTime: 5 * 60 * 1000,
   });
 
   useEffect(() => {

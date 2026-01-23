@@ -2,11 +2,22 @@ import { Link, useLocation } from 'wouter';
 import { GraduationCap, Menu, X, Phone, Mail, MapPin, ChevronRight, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import schoolLogo from '@assets/school-logo.png';
 
 interface PublicLayoutProps {
   children: React.ReactNode;
 }
+
+interface SettingsData {
+  schoolName: string;
+  schoolMotto: string;
+  schoolEmail: string;
+  schoolPhone: string;
+  schoolAddress: string;
+  schoolLogo?: string;
+}
+
 export default function PublicLayout({ children }: PublicLayoutProps) {
   const [location] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -14,6 +25,21 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
   const [underlineStyle, setUnderlineStyle] = useState({ width: 0, left: 0 });
   const navRefs = useRef<(HTMLAnchorElement | null)[]>([]);
   const navContainerRef = useRef<HTMLDivElement>(null);
+
+  const { data: settings } = useQuery<SettingsData>({
+    queryKey: ["/api/public/settings"], // Changed to public settings for better accessibility
+    refetchInterval: 5000,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnWindowFocus: true,
+  });
+
+  const schoolName = settings?.schoolName || "Treasure-Home School";
+  const schoolMotto = settings?.schoolMotto || "Qualitative Education & Moral Excellence";
+  const schoolEmail = settings?.schoolEmail || "treasurehomeschool@gmail.com";
+  const schoolPhone = settings?.schoolPhone || "08037906249, 08107921359";
+  const schoolAddress = settings?.schoolAddress || "Seriki-Soyinka Ifo, Ogun State, Nigeria";
+  const displayLogo = settings?.schoolLogo || schoolLogo;
 
   const navigation = [
     { name: 'Home', href: '/' },
@@ -47,25 +73,25 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Clean professional navigation header */}
-      <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+      <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm py-2 sm:py-3">
         <nav>
           <div className="container-custom">
-            <div className="flex justify-between items-center h-20">
+            <div className="flex justify-between items-center h-20 sm:h-24">
               {/* Professional school branding */}
-              <Link href="/" className="flex items-center space-x-4 group">
-                <div className="rounded-full transition-all duration-300 group-hover:scale-105">
+              <Link href="/" className="flex items-center space-x-4">
+                <div className="rounded-full">
                   <img 
-                    src={schoolLogo} 
+                    src={displayLogo} 
                     alt="Treasure-Home School Logo" 
-                    className="h-20 w-20 object-contain"
+                    className="h-20 w-20 sm:h-24 sm:w-24 object-contain"
                   />
                 </div>
                 <div className="flex flex-col">
                   <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white leading-tight">
-                    Treasure-Home School
+                    {schoolName}
                   </h1>
                   <p className="text-xs sm:text-sm text-blue-600 font-semibold tracking-wide uppercase">
-                    Honesty and Success
+                    {schoolMotto}
                   </p>
                 </div>
               </Link>
@@ -176,18 +202,18 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
               <div className="flex items-center space-x-4 mb-6">
                 <div className="rounded-full">
                   <img 
-                    src={schoolLogo} 
+                    src={displayLogo} 
                     alt="Treasure-Home School Logo" 
                     className="h-16 w-16 object-contain"
                   />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold gradient-text">Treasure-Home School</h2>
-                  <p className="text-muted-foreground font-medium">"Honesty and Success"</p>
+                  <h2 className="text-2xl font-bold gradient-text">{schoolName}</h2>
+                  <p className="text-muted-foreground font-medium">"{schoolMotto}"</p>
                 </div>
               </div>
               <p className="text-muted-foreground text-sm leading-relaxed max-w-md">
-                Providing quality education with moral excellence since 2009. We nurture students from playgroup 
+                Providing quality education with moral excellence. We nurture students from playgroup 
                 to senior secondary school, preparing them for success in academics and life.
               </p>
             </div>
@@ -201,15 +227,15 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
               <div className="space-y-3 text-sm text-muted-foreground">
                 <div className="flex items-start space-x-2">
                   <MapPin className="h-4 w-4 mt-0.5 text-blue-600 flex-shrink-0" />
-                  <span>Seriki-Soyinka Ifo, Ogun State, Nigeria</span>
+                  <span>{schoolAddress}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Phone className="h-4 w-4 text-blue-600" />
-                  <span>08037906249, 08107921359</span>
+                  <span>{schoolPhone}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Mail className="h-4 w-4 text-blue-600" />
-                  <span>treasurehomeschool@gmail.com</span>
+                  <span>{schoolEmail}</span>
                 </div>
               </div>
             </div>
@@ -247,7 +273,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
           {/* Bottom Bar */}
           <div className="pt-8 border-t border-border/50 text-center">
             <p className="text-sm text-muted-foreground">
-              © 2024 Treasure-Home School. All rights reserved. | Built with excellence in education.
+              © {new Date().getFullYear()} {schoolName}. All rights reserved. | Built with excellence in education.
             </p>
           </div>
         </div>

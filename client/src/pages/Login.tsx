@@ -8,13 +8,19 @@ import { AlertCircle, Eye, EyeOff, Lock, User, KeyRound, ArrowLeft, Shield, Chec
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
 import { Link, useLocation } from 'wouter';
 import { getRoleNameById, getPortalByRoleId } from '@/lib/roles';
 import schoolLogo from '@assets/school-logo.png';
+
+interface SettingsData {
+  schoolName: string;
+  schoolMotto: string;
+  schoolLogo?: string;
+}
 
 const loginSchema = z.object({
   identifier: z.string()
@@ -67,6 +73,16 @@ export default function Login() {
   const { toast } = useToast();
   const { login } = useAuth();
   const [, navigate] = useLocation();
+
+  const { data: settings } = useQuery<SettingsData>({
+    queryKey: ["/api/public/settings"],
+    refetchInterval: 5000,
+  });
+
+  const schoolName = settings?.schoolName || "Treasure-Home School";
+  const schoolMotto = settings?.schoolMotto || "Honesty and Success";
+  const displayLogo = settings?.schoolLogo || schoolLogo;
+
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [tempUserData, setTempUserData] = useState<any>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -300,33 +316,39 @@ export default function Login() {
   const isButtonDisabled = !isFormFilled || !isValid || loginMutation.isPending || isLockedOut;
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 flex flex-col relative overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-blue-100/30 dark:bg-blue-900/10 rounded-full blur-[100px]" />
+        <div className="absolute -bottom-[10%] -right-[10%] w-[40%] h-[40%] bg-blue-100/30 dark:bg-blue-900/10 rounded-full blur-[100px]" />
+      </div>
+
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8 relative z-10">
         <div className="w-full max-w-md">
           <Card 
-            className={`shadow-2xl border-0 bg-white dark:bg-gray-900 overflow-hidden transition-all duration-700 ease-out ${
+            className={`shadow-[0_20px_50px_rgba(8,_112,_184,_0.1)] border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 overflow-hidden transition-all duration-700 ease-out ${
               isCardVisible 
                 ? 'opacity-100 translate-y-0 scale-100' 
                 : 'opacity-0 translate-y-8 scale-95'
             }`}
             data-testid="card-login"
           >
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-8 text-center">
+            <div className="bg-transparent px-6 py-6 text-center flex flex-col items-center justify-center">
               <Link href="/" className="inline-block mb-4 transition-transform hover:scale-105" data-testid="link-home">
                 <img
-                  src={schoolLogo}
+                  src={displayLogo}
                   alt="Treasure-Home School Logo"
-                  className="h-20 w-20 sm:h-24 sm:w-24 mx-auto rounded-full bg-white p-1 shadow-lg"
+                  className="h-20 w-auto max-w-[180px] object-contain drop-shadow-md"
                   data-testid="img-school-logo"
                 />
               </Link>
-              <h1 className="text-xl sm:text-2xl font-bold text-white" data-testid="text-school-name">
-                Treasure-Home School
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white" data-testid="text-school-name">
+                {schoolName}
               </h1>
-              <p className="text-blue-100 text-sm mt-1 italic">Honesty and Success</p>
+              <p className="text-blue-600 dark:text-blue-400 text-xs mt-1 font-semibold tracking-wide uppercase">{schoolMotto}</p>
             </div>
 
-            <CardContent className="p-6 sm:p-8">
+            <CardContent className="p-6 pt-2">
               {authPhase === 'authenticating' && (
                 <div className="text-center py-8 animate-in fade-in duration-300">
                   <div className="relative mx-auto w-16 h-16 mb-4">
@@ -352,7 +374,7 @@ export default function Login() {
               {authPhase === 'idle' && (
                 <>
                   <div className="text-center mb-6">
-                    <h2 className="text-xl sm:text-2xl font-bold text-foreground" data-testid="text-login-title">
+                    <h2 className="text-xl font-bold tracking-tight text-foreground" data-testid="text-login-title">
                       Portal Login
                     </h2>
                     <p className="text-sm text-muted-foreground mt-1" data-testid="text-login-subtitle">
@@ -496,10 +518,10 @@ export default function Login() {
 
                     <Button
                       type="submit"
-                      className={`w-full h-12 text-base font-semibold transition-all duration-300 ${
+                      className={`w-full h-12 text-base font-semibold transition-all duration-300 shadow-sm ${
                         isButtonDisabled 
                           ? 'bg-blue-400 cursor-not-allowed' 
-                          : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg hover:scale-[1.02]'
+                          : 'bg-blue-600 hover:bg-blue-700 hover:shadow-md active:scale-[0.98]'
                       }`}
                       disabled={isButtonDisabled}
                       data-testid="button-login"
@@ -518,18 +540,6 @@ export default function Login() {
             </CardContent>
           </Card>
 
-          <div className={`text-center mt-6 transition-all duration-700 delay-300 ${
-            isCardVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-          }`}>
-            <Link
-              href="/"
-              className="text-blue-600 hover:text-blue-700 text-sm font-medium inline-flex items-center gap-2 transition-colors"
-              data-testid="link-back-home"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Website
-            </Link>
-          </div>
         </div>
       </div>
 

@@ -11,10 +11,10 @@ type MulterFile = Express.Multer.File;
  * based on environment configuration.
  */
 
-export type UploadType = 'homepage' | 'gallery' | 'profile' | 'study-resource' | 'general' | 'student' | 'teacher' | 'admin' | 'assignment' | 'result';
+export type UploadType = 'homepage' | 'gallery' | 'profile' | 'study-resource' | 'general' | 'student' | 'teacher' | 'admin' | 'assignment' | 'result' | 'system_settings' | 'system-settings';
 
 export interface UploadOptions {
-  uploadType: UploadType;
+  uploadType: string;
   maxSizeMB?: number;
   userId?: string;
   category?: string;
@@ -31,7 +31,7 @@ export interface UploadResponse {
 }
 
 // Map UploadType to Cloudinary upload types
-const uploadTypeMap: Record<UploadType, CloudinaryUploadType> = {
+const uploadTypeMap: Record<string, CloudinaryUploadType> = {
   'profile': 'profile',
   'homepage': 'homepage',
   'gallery': 'gallery',
@@ -41,7 +41,9 @@ const uploadTypeMap: Record<UploadType, CloudinaryUploadType> = {
   'teacher': 'teacher',
   'admin': 'admin',
   'assignment': 'assignment',
-  'result': 'result'
+  'result': 'result',
+  'system_settings': 'homepage',
+  'system-settings': 'homepage'
 };
 
 /**

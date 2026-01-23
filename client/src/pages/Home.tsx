@@ -10,7 +10,25 @@ import type { HomePageContent } from '@shared/schema';
 import Typed from 'typed.js';
 import { HeroCarousel } from '@/components/hero/HeroCarousel';
 
+interface SettingsData {
+  schoolName: string;
+  schoolMotto: string;
+  schoolEmail: string;
+  schoolPhone: string;
+  schoolAddress: string;
+}
+
 export default function Home() {
+  const { data: settings } = useQuery<SettingsData>({
+    queryKey: ["/api/public/settings"],
+    staleTime: 0,
+    gcTime: 0,
+  });
+
+  const schoolName = settings?.schoolName || "Treasure-Home School";
+  const schoolMotto = settings?.schoolMotto || "Qualitative Education & Moral Excellence";
+  const schoolAddress = settings?.schoolAddress || "Seriki-Soyinka, Ifo, Ogun State";
+
   // Fetch dynamic content from database with optimized caching
   const { data: allHomePageContent = [], isLoading: contentLoading } = useQuery<HomePageContent[]>({
     queryKey: ['/api', 'public', 'homepage-content'],
@@ -192,7 +210,7 @@ export default function Home() {
               </h1>
 
               <p className="text-base sm:text-lg text-blue-100/90 leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in" style={{ animationDelay: '0.3s' }} data-testid="text-hero-description">
-                At Treasure-Home School, we provide qualitative education anchored on moral values and lifelong learning. Located in Seriki-Soyinka, Ifo, Ogun State, we offer comprehensive education from Playgroup to Senior Secondary School — shaping confident, responsible, and successful learners.
+                At {schoolName}, we provide qualitative education anchored on moral values and lifelong learning. Located in {schoolAddress}, we offer comprehensive education from Playgroup to Senior Secondary School — shaping confident, responsible, and successful learners.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center lg:justify-start animate-slide-up pt-4" style={{ animationDelay: '0.4s' }}>
@@ -241,7 +259,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-16 lg:mb-20">
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6 lg:mb-8 animate-slide-down" data-testid="text-features-title">
-              Why Choose Treasure-Home School?
+              Why Choose {schoolName}?
             </h2>
             <p className="text-muted-foreground max-w-3xl mx-auto text-lg sm:text-xl leading-relaxed animate-fade-in" data-testid="text-features-description">
               We provide comprehensive education with modern facilities and experienced teachers, preparing students for academic excellence and moral development.
@@ -389,12 +407,12 @@ export default function Home() {
 
           {galleryImages.length > 0 ? (
             <div className="relative max-w-5xl mx-auto animate-fade-in">
-              {/* Main carousel with optimized responsive design */}
-              <div className="relative min-h-96 sm:min-h-[28rem] md:min-h-[32rem] lg:min-h-[42rem] rounded-3xl overflow-hidden shadow-2xl group bg-gradient-to-br from-gray-200 to-gray-300">
+              {/* Main carousel */}
+              <div className="relative aspect-video rounded-3xl overflow-hidden shadow-2xl group bg-gradient-to-br from-gray-200 to-gray-300">
                 <img
                   src={galleryImages[currentGalleryIndex]?.src}
                   alt={galleryImages[currentGalleryIndex]?.alt}
-                  className="w-full h-full object-cover transition-all duration-700 ease-in-out group-hover:scale-102"
+                  className="w-full h-full object-cover transition-all duration-700 ease-in-out"
                   data-testid={`img-gallery-main-${currentGalleryIndex}`}
                   loading="lazy"
                 />

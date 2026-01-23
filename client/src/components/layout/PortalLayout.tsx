@@ -8,6 +8,14 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -15,7 +23,17 @@ import { useState, useEffect, useTransition } from 'react';
 import schoolLogo from '@assets/1000025432-removebg-preview (1)_1757796555126.png';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { NotificationBell } from '@/components/NotificationBell';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { HeaderSearch } from '@/components/HeaderSearch';
 
+
+import { useQuery } from '@tanstack/react-query';
+
+interface SettingsData {
+  schoolName: string;
+  schoolMotto: string;
+  schoolLogo?: string;
+}
 
 interface NavItem {
   name: string;
@@ -284,6 +302,17 @@ export default function PortalLayout({ children, userRole, userName, userInitial
     window.location.href = '/';
   };
 
+  const { data: settings } = useQuery<SettingsData>({
+    queryKey: ["/api/public/settings"],
+    staleTime: 0,
+    gcTime: 0,
+    refetchInterval: 5000,
+  });
+
+  const schoolName = settings?.schoolName || "Treasure-Home School";
+  const schoolMotto = settings?.schoolMotto || "Qualitative Education & Moral Excellence";
+  const displayLogo = settings?.schoolLogo || schoolLogo;
+
   // Reusable Sidebar Content Component with Modern Design
   const SidebarContent = ({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) => {
   const [, navigate] = useLocation();
@@ -291,19 +320,18 @@ export default function PortalLayout({ children, userRole, userName, userInitial
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-shrink-0 h-[84px] flex items-center border-b border-gray-200 dark:border-gray-700 px-4 bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900">
+      <div className="flex-shrink-0 h-[100px] flex items-center border-b border-gray-200 dark:border-gray-700 px-4 bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900">
         <div className={`flex items-center w-full transition-all duration-300 ease-in-out ${collapsed ? 'justify-center' : 'space-x-3'}`}>
-          <div className="bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-2xl p-2.5 shadow-lg ring-2 ring-white dark:ring-gray-800">
-            <img 
-              src={schoolLogo} 
-              alt="Treasure-Home School Logo" 
-              className={`${collapsed ? 'h-7 w-7' : 'h-11 w-11'} object-contain transition-all duration-300 ease-in-out`}
-            />
-          </div>
+          <img 
+            src={displayLogo} 
+            alt={`${schoolName} Logo`} 
+            className={`${collapsed ? 'h-10 w-10' : 'h-16 w-16'} object-contain transition-all duration-300 ease-in-out drop-shadow-md`}
+          />
           {!collapsed && (
-            <div className="transition-all duration-300 ease-in-out opacity-100">
-              <h1 className="font-bold text-sm bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent">Treasure-Home</h1>
-              <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">{getRoleTitle()}</p>
+            <div className="transition-all duration-300 ease-in-out opacity-100 min-w-0 flex-1">
+              <h1 className="font-bold text-base lg:text-lg bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent truncate leading-tight">{schoolName}</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-normal truncate">{schoolMotto}</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 font-semibold mt-0.5">{getRoleTitle()}</p>
             </div>
           )}
         </div>
@@ -314,7 +342,18 @@ export default function PortalLayout({ children, userRole, userName, userInitial
           const Icon = item.icon;
           if ('type' in item && item.type === 'group') {
             return (
-              <Collapsible key={item.label} open={item.isOpen} onOpenChange={item.setIsOpen}>
+              <Collapsible 
+                key={item.label} 
+                open={item.isOpen} 
+                onOpenChange={(open) => {
+                  if (open) {
+                    // Set this one as open and close others via openMenuKey
+                    item.setIsOpen(true);
+                  } else {
+                    item.setIsOpen(false);
+                  }
+                }}
+              >
                 <CollapsibleTrigger asChild>
                   <Button
                     variant="ghost"
@@ -370,36 +409,49 @@ export default function PortalLayout({ children, userRole, userName, userInitial
           const navItem = item as NavItem;
           const navItemActive = isActive(navItem.href);
           const isLogout = navItem.href === '#logout';
+          if (isLogout) return null;
+
           return (
             <button
               key={navItem.name}
               type="button"
               onClick={() => {
                 onNavigate?.();
-                if (isLogout) {
-                  handleLogout();
-                } else {
-                  startTransition(() => navigate(navItem.href));
-                }
+                startTransition(() => navigate(navItem.href));
               }}
               className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ease-in-out w-full ${
-                isLogout
-                  ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-300'
-                  : navItemActive 
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/50 dark:shadow-blue-500/30 scale-105' 
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 hover:text-blue-700 dark:hover:text-blue-300 hover:scale-102'
+                navItemActive 
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/50 dark:shadow-blue-500/30 scale-105' 
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 hover:text-blue-700 dark:hover:text-blue-300 hover:scale-102'
               }`}
               data-testid={`nav-${navItem.name.toLowerCase().replace(/\s+/g, '-')}`}
               title={collapsed ? navItem.name : undefined}
             >
-              <Icon className={`h-4 w-4 transition-all duration-300 ease-in-out ${isLogout ? 'text-red-600 dark:text-red-400' : ''}`} />
+              <Icon className={`h-4 w-4 transition-all duration-300 ease-in-out`} />
               {!collapsed && <span className="transition-opacity duration-300 ease-in-out">{navItem.name}</span>}
             </button>
           );
         })}
       </nav>
       
-      {/* Spacer for collapse button - only on desktop */}
+      {/* Logout button at the bottom */}
+      <div className={`mt-auto p-3 border-t border-gray-200 dark:border-gray-700 ${collapsed ? 'px-2' : ''}`}>
+        <button
+          key="logout"
+          type="button"
+          onClick={() => {
+            onNavigate?.();
+            handleLogout();
+          }}
+          className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ease-in-out w-full text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-300`}
+          data-testid="nav-logout"
+          title={collapsed ? "Logout" : undefined}
+        >
+          <LogOut className={`h-4 w-4 transition-all duration-300 ease-in-out text-red-600 dark:text-red-400`} />
+          {!collapsed && <span className="transition-opacity duration-300 ease-in-out">Logout</span>}
+        </button>
+      </div>
+
       {!isMobile && <div className="flex-shrink-0 h-20" />}
     </div>
   );
@@ -429,7 +481,7 @@ export default function PortalLayout({ children, userRole, userName, userInitial
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header - Modern Responsive Design - Fixed at Top */}
-        <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-md h-[84px] flex items-center px-4 sm:px-5 md:px-6">
+        <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-md h-[100px] flex items-center px-4 sm:px-5 md:px-6">
           <div className="flex justify-between items-center gap-2 sm:gap-3 w-full max-w-7xl mx-auto">
             <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4 flex-1 min-w-0">
               {/* Modern Mobile Menu Trigger */}
@@ -452,35 +504,58 @@ export default function PortalLayout({ children, userRole, userName, userInitial
                   </SheetContent>
                 </Sheet>
               )}
-              <div className="min-w-0 flex-1">
-                <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold truncate bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent">
-                  Treasure-Home School
+              <div className="flex flex-col ml-2 min-w-0 flex-1">
+                <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent leading-tight">
+                  {schoolName}
                 </h1>
-                <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm md:text-base truncate font-medium">
-                  Qualitative Education & Moral Excellence
+                <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm truncate font-medium">
+                  {schoolMotto}
                 </p>
               </div>
             </div>
             <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 flex-shrink-0">
+              <ThemeToggle />
               <NotificationBell />
-              <div className="flex items-center space-x-2 bg-gray-50 dark:bg-gray-800 rounded-full px-2 sm:px-3 py-1.5 shadow-sm border border-gray-200 dark:border-gray-700">
-                <Avatar className="h-7 w-7 sm:h-8 sm:w-8 ring-2 ring-white dark:ring-gray-800">
-                  <AvatarFallback className="bg-gradient-to-br from-blue-600 to-blue-700 text-white text-xs sm:text-sm font-bold">
-                    {userInitials}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-xs sm:text-sm font-semibold hidden md:inline truncate max-w-[100px] lg:max-w-none text-gray-700 dark:text-gray-300" data-testid="text-username">{userName}</span>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={handleLogout}
-                data-testid="button-logout"
-                title="Logout"
-                className="h-9 w-9 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors duration-200 rounded-lg"
-              >
-                <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center space-x-2 bg-gray-50 dark:bg-gray-800 rounded-full px-2 sm:px-3 py-1.5 shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 outline-none group">
+                    <Avatar className="h-7 w-7 sm:h-8 sm:w-8 ring-2 ring-white dark:ring-gray-800 group-hover:ring-blue-100 dark:group-hover:ring-blue-900 transition-all">
+                      <AvatarFallback className="bg-gradient-to-br from-blue-600 to-blue-700 text-white text-xs sm:text-sm font-bold">
+                        {userInitials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="hidden md:flex flex-col items-start min-w-0 text-left">
+                      <span className="text-xs sm:text-sm font-semibold truncate max-w-[100px] lg:max-w-none text-gray-700 dark:text-gray-300" data-testid="text-username">
+                        {userName}
+                      </span>
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-none capitalize">{userRole}</span>
+                    </div>
+                    <ChevronDown className="h-3.5 w-3.5 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 mt-2 rounded-xl shadow-xl border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm">
+                  <DropdownMenuLabel className="font-normal p-3">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-bold leading-none text-gray-900 dark:text-gray-100">{userName}</p>
+                      <p className="text-xs leading-none text-gray-500 dark:text-gray-400 capitalize">{userRole} Account</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-gray-100 dark:bg-gray-800" />
+                  <DropdownMenuItem onClick={() => window.location.href = `/portal/${userRole}/profile`} className="p-2.5 cursor-pointer focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:text-blue-700 dark:focus:text-blue-300 rounded-lg mx-1 transition-colors">
+                    <User className="mr-2.5 h-4 w-4" />
+                    <span>My Profile</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => window.location.href = `/portal/${userRole}/settings`} className="p-2.5 cursor-pointer focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:text-blue-700 dark:focus:text-blue-300 rounded-lg mx-1 transition-colors">
+                    <Settings className="mr-2.5 h-4 w-4" />
+                    <span>Account Settings</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-gray-100 dark:bg-gray-800" />
+                  <DropdownMenuItem onClick={handleLogout} className="p-2.5 cursor-pointer focus:bg-red-50 dark:focus:bg-red-900/20 text-red-600 dark:text-red-400 focus:text-red-700 dark:focus:text-red-300 rounded-lg mx-1 transition-colors font-medium">
+                    <LogOut className="mr-2.5 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </header>

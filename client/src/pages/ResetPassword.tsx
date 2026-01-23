@@ -7,10 +7,15 @@ import { GraduationCap, CheckCircle, AlertCircle, Mail } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useLocation } from 'wouter';
+
+interface SettingsData {
+  schoolName: string;
+  schoolMotto: string;
+}
 
 const resetPasswordSchema = z.object({
   newPassword: z.string().min(8, 'Password must be at least 8 characters').regex(
@@ -28,6 +33,15 @@ type ResetPasswordForm = z.infer<typeof resetPasswordSchema>;
 export default function ResetPassword() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
+
+  const { data: settings } = useQuery<SettingsData>({
+    queryKey: ["/api/public/settings"],
+    refetchInterval: 5000,
+  });
+
+  const schoolName = settings?.schoolName || "Treasure-Home School";
+  const schoolMotto = settings?.schoolMotto || "Honesty and Success";
+
   const [token, setToken] = useState<string | null>(null);
   const [resetSuccess, setResetSuccess] = useState(false);
 
@@ -99,8 +113,8 @@ export default function ResetPassword() {
               <GraduationCap className="text-primary-foreground h-8 w-8" />
             </div>
             <div className="text-left">
-              <h1 className="text-xl font-bold text-foreground">Treasure-Home School</h1>
-              <p className="text-sm text-muted-foreground">"Honesty and Success"</p>
+              <h1 className="text-xl font-bold text-foreground">{schoolName}</h1>
+              <p className="text-sm text-muted-foreground">{schoolMotto}</p>
             </div>
           </Link>
           <h2 className="text-2xl font-bold text-foreground" data-testid="text-title">

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -205,6 +206,16 @@ export function ProfessionalReportCard({
   isFullReportReady = false,
   hideActionButtons = false
 }: ProfessionalReportCardProps) {
+  const { data: settings } = useQuery<any>({
+    queryKey: ["/api/superadmin/settings"],
+  });
+
+  const schoolName = settings?.schoolName || "TREASURE HOME SCHOOL";
+  const schoolAddress = settings?.schoolAddress || "Seriki-Soyinka, Ifo, Ogun State, Nigeria";
+  const schoolEmail = settings?.schoolEmail || "info@treasurehomeschool.com";
+  const schoolPhone = settings?.schoolPhone || "080-1734-5676";
+  const schoolMotto = settings?.schoolMotto || "Honesty and Success";
+
   const [isSubjectsOpen, setIsSubjectsOpen] = useState(true);
   const [isAffectiveOpen, setIsAffectiveOpen] = useState(true);
   const [isPsychomotorOpen, setIsPsychomotorOpen] = useState(true);
@@ -440,10 +451,10 @@ export function ProfessionalReportCard({
       {/* School Header - Visible on screen */}
       <div className="mb-4 p-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-md border print:hidden">
         <div className="text-center">
-          <h1 className="text-xl sm:text-2xl font-bold text-primary">TREASURE HOME SCHOOL</h1>
-          <p className="text-sm font-medium">Seriki-Soyinka, Ifo, Ogun State, Nigeria</p>
-          <p className="text-xs text-muted-foreground mt-1">Tel: 080-1734-5676 | Email: info@treasurehomeschool.com</p>
-          <p className="text-xs italic mt-2">Motto: "Honesty and Success"</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-primary">{schoolName}</h1>
+          <p className="text-sm font-medium">{schoolAddress}</p>
+          <p className="text-xs text-muted-foreground mt-1">Tel: {schoolPhone} | Email: {schoolEmail}</p>
+          <p className="text-xs italic mt-2">Motto: "{schoolMotto}"</p>
           <Separator className="my-3" />
           <h2 className="text-lg font-semibold">{reportCard.termName?.toUpperCase() || 'FIRST TERM'} STUDENT'S PERFORMANCE REPORT</h2>
           <p className="text-xs text-muted-foreground">Session: {reportCard.academicSession || '2024/2025'}</p>
@@ -453,10 +464,10 @@ export function ProfessionalReportCard({
       {/* Print Header - Hidden on screen, shown only when printing */}
       <div className="hidden print:block mb-6">
         <div className="text-center border-b-2 border-primary pb-4">
-          <h1 className="text-2xl font-bold text-primary">TREASURE HOME SCHOOL</h1>
-          <p className="text-sm font-medium">Seriki-Soyinka, Ifo, Ogun State, Nigeria</p>
-          <p className="text-xs text-muted-foreground">Tel: 080-1734-5676 | Email: info@treasurehomeschool.com</p>
-          <p className="text-xs italic mt-2">Motto: "Honesty and Success"</p>
+          <h1 className="text-2xl font-bold text-primary">{schoolName}</h1>
+          <p className="text-sm font-medium">{schoolAddress}</p>
+          <p className="text-xs text-muted-foreground">Tel: {schoolPhone} | Email: {schoolEmail}</p>
+          <p className="text-xs italic mt-2">Motto: "{schoolMotto}"</p>
         </div>
         <h2 className="text-center text-lg font-semibold mt-4 mb-2">{reportCard.termName?.toUpperCase() || 'FIRST TERM'} STUDENT'S PERFORMANCE REPORT</h2>
         <p className="text-center text-xs text-muted-foreground mb-4">
