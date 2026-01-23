@@ -326,9 +326,10 @@ export default function PortalLayout({ children, userRole, userName, userInitial
             className={`${collapsed ? 'h-10 w-10' : 'h-16 w-16'} object-contain transition-all duration-300 ease-in-out drop-shadow-md`}
           />
           {!collapsed && (
-            <div className="transition-all duration-300 ease-in-out opacity-100">
-              <h1 className="font-bold text-sm bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent truncate max-w-[140px]">{schoolName}</h1>
-              <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">{getRoleTitle()}</p>
+            <div className="transition-all duration-300 ease-in-out opacity-100 min-w-0 flex-1">
+              <h1 className="font-bold text-base lg:text-lg bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent truncate leading-tight">{schoolName}</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-normal truncate italic">{schoolMotto}</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 font-semibold mt-0.5">{getRoleTitle()}</p>
             </div>
           )}
         </div>
@@ -502,10 +503,10 @@ export default function PortalLayout({ children, userRole, userName, userInitial
                 </Sheet>
               )}
               <div className="min-w-0 flex-1">
-                <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold truncate bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent">
+                <h1 className="text-lg sm:text-xl md:text-2xl lg:text-2xl font-bold truncate bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-500 bg-clip-text text-transparent leading-tight">
                   {schoolName}
                 </h1>
-                <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm md:text-base truncate font-medium">
+                <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-sm md:text-base truncate font-medium italic">
                   {schoolMotto}
                 </p>
               </div>
