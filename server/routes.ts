@@ -1169,9 +1169,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Professional compression using sharp
           // Convert to webp for better compression while maintaining quality
+          // Ensure alpha channel is preserved for transparency
           await sharp(originalPath)
             .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
-            .webp({ quality: 80 })
+            .ensureAlpha()
+            .webp({ quality: 80, lossless: false, nearLossless: false, force: true })
             .toFile(compressedPath);
 
           // Update the file object to point to the compressed version
