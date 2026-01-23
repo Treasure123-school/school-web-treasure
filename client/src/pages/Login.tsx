@@ -19,6 +19,7 @@ import schoolLogo from '@assets/school-logo.png';
 interface SettingsData {
   schoolName: string;
   schoolMotto: string;
+  schoolLogo?: string;
 }
 
 const loginSchema = z.object({
