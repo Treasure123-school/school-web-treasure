@@ -8,6 +8,7 @@ import { Link, useLocation } from 'wouter';
 import { useEffect } from 'react';
 import { apiRequest } from '@/lib/queryClient';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
+import { TeacherDashboardSkeleton } from '@/components/ui/page-skeletons';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import { useLoginSuccess } from '@/hooks/use-login-success';
 
@@ -228,12 +229,10 @@ export default function TeacherDashboard() {
   if (!user) {
     return <div>Please log in to access the teacher dashboard.</div>;
   }
-  if (statusLoading || profileLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
+  
+  // Show contextual skeleton during initial data loading
+  if (statusLoading || profileLoading || classesLoading || examsLoading) {
+    return <TeacherDashboardSkeleton />;
   }
   const isLoading = classesLoading || studentsLoading || examsLoading || gradingTasksLoading;
 

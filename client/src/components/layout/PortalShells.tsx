@@ -2,7 +2,8 @@ import { lazy, Suspense } from 'react';
 import { Switch, Route, useLocation } from 'wouter';
 import PortalLayout from './PortalLayout';
 import { useAuth } from '@/lib/auth';
-import { PageContentSkeleton, PortalLayoutSkeleton } from '@/components/ui/skeletons';
+import { PortalLayoutSkeleton } from '@/components/ui/skeletons';
+import { MinimalLoadingFallback } from '@/components/ui/page-skeletons';
 
 const StudentDashboard = lazy(() => import('@/pages/portal/StudentDashboard'));
 const StudentGrades = lazy(() => import('@/pages/portal/StudentGrades'));
@@ -72,7 +73,7 @@ export function StudentPortalShell() {
   
   return (
     <PortalLayout userRole="student" userName={userName} userInitials={userInitials}>
-      <Suspense fallback={<PageContentSkeleton />}>
+      <Suspense fallback={<MinimalLoadingFallback />}>
         <Switch>
           <Route path="/portal/student" component={StudentDashboard} />
           <Route path="/portal/student/exams" component={StudentExams} />
@@ -104,7 +105,7 @@ export function TeacherPortalShell() {
   
   return (
     <PortalLayout userRole="teacher" userName={userName} userInitials={userInitials}>
-      <Suspense fallback={<PageContentSkeleton />}>
+      <Suspense fallback={<MinimalLoadingFallback />}>
         <Switch>
           <Route path="/portal/teacher" component={TeacherDashboard} />
           <Route path="/portal/teacher/profile" component={TeacherProfile} />
@@ -137,7 +138,7 @@ export function AdminPortalShell() {
   
   return (
     <PortalLayout userRole="admin" userName={userName} userInitials={userInitials}>
-      <Suspense fallback={<PageContentSkeleton />}>
+      <Suspense fallback={<MinimalLoadingFallback />}>
         <Switch>
           <Route path="/portal/admin" component={AdminDashboard} />
           <Route path="/portal/admin/job-vacancies" component={VacancyManagement} />
@@ -192,7 +193,7 @@ export function ParentPortalShell() {
   
   return (
     <PortalLayout userRole="parent" userName={userName} userInitials={userInitials}>
-      <Suspense fallback={<PageContentSkeleton />}>
+      <Suspense fallback={<MinimalLoadingFallback />}>
         <Switch>
           <Route path="/portal/parent" component={ParentDashboard} />
           <Route path="/portal/parent/reports" component={ParentReportCards} />

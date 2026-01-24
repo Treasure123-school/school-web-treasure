@@ -11,6 +11,7 @@ import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { MiniLineChart } from '@/components/ui/mini-line-chart';
 import { StatsCardSkeleton, AnnouncementCardSkeleton, SkeletonTransition, ContentFadeIn, SkeletonShimmer } from '@/components/ui/skeletons';
 import { Skeleton } from '@/components/ui/skeleton';
+import { StudentDashboardSkeleton } from '@/components/ui/page-skeletons';
 import type { Exam } from '@shared/schema';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import { useLoginSuccess } from '@/hooks/use-login-success';
@@ -198,6 +199,13 @@ export default function StudentDashboard() {
 
   // Streak calculation (simple version based on attendance)
   const attendanceImprovement = attendancePercentage >= 90;
+
+  // Show contextual skeleton during initial data loading
+  const isInitialLoading = isLoadingGrades && isLoadingAnnouncements && isLoadingAttendance && isLoadingExams;
+  
+  if (isInitialLoading) {
+    return <StudentDashboardSkeleton />;
+  }
 
   return (
     <>

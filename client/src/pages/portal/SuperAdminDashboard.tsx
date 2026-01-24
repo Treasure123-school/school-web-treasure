@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SuperAdminDashboardSkeleton } from "@/components/ui/page-skeletons";
 import { Users, Shield, Activity, Database, TrendingUp, UserPlus, Settings, Award, ChevronRight } from "lucide-react";
 import SuperAdminLayout from "@/components/SuperAdminLayout";
 import { AnimatedCounter } from "@/components/ui/animated-counter";
@@ -77,6 +78,15 @@ export default function SuperAdminDashboard() {
       bgGradient: "from-orange-500/10",
     },
   ];
+
+  // Show contextual skeleton during initial data loading
+  if (isLoading) {
+    return (
+      <SuperAdminLayout>
+        <SuperAdminDashboardSkeleton />
+      </SuperAdminLayout>
+    );
+  }
 
   const quickActions = [
     {
