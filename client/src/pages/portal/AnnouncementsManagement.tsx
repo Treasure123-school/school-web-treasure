@@ -116,23 +116,6 @@ export default function AnnouncementsManagement() {
     queryKey: ['/api/admin/announcements']
   });
 
-  // Listen for specific announcement events for even faster updates
-  useEffect(() => {
-    const handleEvent = (event: any) => {
-      // Check if this is a realtime event from the server
-      if (event.table === 'announcements') {
-        // If it's a delete event and we have the ID, we can handle it specifically
-        // but simple invalidation is safer to avoid state desync
-        queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
-      }
-    };
-
-    // The socket service emits 'realtime-event' on the window object
-    window.addEventListener('realtime-event', handleEvent);
-    return () => window.removeEventListener('realtime-event', handleEvent);
-  }, []);
-
   const { data: classes = [] } = useQuery({
     queryKey: ['/api/classes'],
     queryFn: async () => {
@@ -147,35 +130,25 @@ export default function AnnouncementsManagement() {
       if (!response.ok) throw new Error('Failed to create announcement');
       return response.json();
     },
-    onMutate: async (newAnnouncement) => {
-      await queryClient.cancelQueries({ queryKey: ['/api/admin/announcements'] });
-      const previousAnnouncements = queryClient.getQueryData(['/api/admin/announcements']);
-      queryClient.setQueryData(['/api/admin/announcements'], (old: any) => {
-        if (!old) return [{ ...newAnnouncement, id: 'temp-' + Date.now(), createdAt: new Date() }];
-        return [{ ...newAnnouncement, id: 'temp-' + Date.now(), createdAt: new Date() }, ...old];
-      });
-      return { previousAnnouncements };
-    },
-    onSuccess: (_, variables) => {
-      const action = variables.status === 'draft' ? 'saved as draft' : 'published';
-      toast({
-        title: "Success",
-        description: `Announcement ${action} successfully`,
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
+    onSuccess: (newAnnouncement) => {
+      // Update UI cache immediately for instant visibility
+      queryClient.setQueryData(['/api/admin/announcements'], (old: any) => [newAnnouncement, ...(old || [])]);
+      queryClient.setQueryData(['/api/announcements'], (old: any) => [newAnnouncement, ...(old || [])]);
+
+      toast({ title: "Success", description: "Announcement published successfully" });
       setIsDialogOpen(false);
       reset();
     },
-    onError: (error: any, newAnnouncement, context: any) => {
-      if (context?.previousAnnouncements) {
-        queryClient.setQueryData(['/api/admin/announcements'], context.previousAnnouncements);
-      }
+    onError: (error: any) => {
       toast({
         title: "Error", 
         description: error.message || "Failed to create announcement",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
     },
   });
 
