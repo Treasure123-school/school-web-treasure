@@ -5332,11 +5332,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Emit realtime event for announcement deletion
-      realtimeService.emitAnnouncementEvent('deleted', { ...existingAnnouncement, id: announcementId }, req.user!.id);
+      if (existingAnnouncement) {
+        realtimeService.emitAnnouncementEvent('deleted', { ...existingAnnouncement, id: announcementId }, req.user!.id);
+      }
       
       res.json({ message: 'Announcement deleted successfully' });
-    } catch (error) {
-      res.status(500).json({ message: 'Failed to delete announcement' });
+    } catch (error: any) {
+      console.error('[ANNOUNCEMENT-DELETE] Error:', error);
+      res.status(500).json({ message: error.message || 'Failed to delete announcement' });
     }
   });
 
