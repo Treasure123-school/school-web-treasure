@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
@@ -23,9 +22,10 @@ import {
   Plus, Edit, Search, Megaphone, Calendar, Users, Trash2, 
   Bell, Mail, MessageSquare, Paperclip, Image, Clock, 
   AlertTriangle, AlertCircle, Info, FileText, GraduationCap, 
-  PartyPopper, Siren, Eye, X, Upload, Save, Send
+  PartyPopper, Siren, Eye, X, Upload, Save, Send, Check
 } from 'lucide-react';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
+import { useAuth } from '@/lib/auth';
 
 const announcementFormSchema = z.object({
   title: z.string().min(1, 'Title is required').max(255, 'Title must be less than 255 characters'),
@@ -67,6 +67,7 @@ const typeConfig = {
 
 export default function AnnouncementsManagement() {
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRole, setSelectedRole] = useState<string>('all');
@@ -80,6 +81,7 @@ export default function AnnouncementsManagement() {
   const { control, register, handleSubmit, formState: { errors }, setValue, watch, reset, getValues } = useForm<AnnouncementForm>({
     resolver: zodResolver(announcementFormSchema),
     defaultValues: {
+      authorId: '',
       targetRoles: ['All'],
       targetClasses: [],
       priority: 'normal',
@@ -95,6 +97,12 @@ export default function AnnouncementsManagement() {
   const watchedValues = watch();
   const publishOption = watch('publishOption');
 
+  useEffect(() => {
+    if (isDialogOpen && currentUser && !editingAnnouncement) {
+      setValue('authorId', currentUser.id);
+    }
+  }, [isDialogOpen, currentUser, editingAnnouncement, setValue]);
+
   const { data: announcements = [], isLoading: loadingAnnouncements } = useQuery({
     queryKey: ['/api/announcements'],
     queryFn: async () => {
@@ -106,14 +114,6 @@ export default function AnnouncementsManagement() {
   useSocketIORealtime({ 
     table: 'announcements', 
     queryKey: ['/api/announcements']
-  });
-
-  const { data: users = [] } = useQuery({
-    queryKey: ['/api/users', 'Admin'],
-    queryFn: async () => {
-      const response = await apiRequest('GET', '/api/users?role=Admin');
-      return await response.json();
-    },
   });
 
   const { data: classes = [] } = useQuery({
@@ -702,28 +702,21 @@ export default function AnnouncementsManagement() {
 
                     <TabsContent value="audience" className="space-y-4 mt-0">
                       <div>
-                        <Label htmlFor="authorId">Posted By *</Label>
-                        <Controller
-                          name="authorId"
-                          control={control}
-                          render={({ field }) => (
-                            <Select value={field.value} onValueChange={field.onChange}>
-                              <SelectTrigger data-testid="select-author">
-                                <SelectValue placeholder="Select author" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {users.map((user: any) => (
-                                  <SelectItem key={user.id} value={user.id}>
-                                    {user.firstName} {user.lastName}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                        />
-                        {errors.authorId && (
-                          <p className="text-sm text-destructive mt-1">{errors.authorId.message}</p>
-                        )}
+                        <Label htmlFor="authorId">Posted By</Label>
+                        <div className="mt-1 p-3 bg-muted rounded-lg flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                            <Users className="w-4 h-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium">
+                              {currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'Loading...'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {currentUser?.role || 'Admin'}
+                            </p>
+                          </div>
+                        </div>
+                        <input type="hidden" {...register('authorId')} />
                       </div>
 
                       <div>
@@ -732,27 +725,34 @@ export default function AnnouncementsManagement() {
                           Select who should see this announcement
                         </p>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                          {availableRoles.map((role) => (
-                            <div
-                              key={role}
-                              className={`flex items-center space-x-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                                (watchedValues.targetRoles || []).includes(role)
-                                  ? 'border-primary bg-primary/5'
-                                  : 'border-border hover:border-primary/50'
-                              }`}
-                              onClick={() => handleRoleToggle(role, !(watchedValues.targetRoles || []).includes(role))}
-                            >
-                              <Checkbox
-                                checked={(watchedValues.targetRoles || []).includes(role)}
-                                onCheckedChange={(checked) => handleRoleToggle(role, !!checked)}
+                          {availableRoles.map((role) => {
+                            const isSelected = (watchedValues.targetRoles || []).includes(role);
+                            return (
+                              <button
+                                type="button"
+                                key={role}
+                                className={`flex items-center space-x-3 p-3 rounded-lg border cursor-pointer transition-colors text-left ${
+                                  isSelected
+                                    ? 'border-primary bg-primary/10'
+                                    : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                                }`}
+                                onClick={() => handleRoleToggle(role, !isSelected)}
                                 data-testid={`checkbox-role-${role.toLowerCase()}`}
-                              />
+                              >
+                                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                                  isSelected 
+                                    ? 'bg-primary border-primary' 
+                                    : 'border-muted-foreground/30'
+                                }`}>
+                                  {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
+                                </div>
                               <div className="flex items-center gap-2">
                                 <Users className="w-4 h-4 text-muted-foreground" />
                                 <span className="text-sm font-medium">{role === 'All' ? 'All Users' : `${role}s`}</span>
                               </div>
-                            </div>
-                          ))}
+                              </button>
+                            );
+                          })}
                         </div>
                         {errors.targetRoles && (
                           <p className="text-sm text-destructive mt-1">{errors.targetRoles.message}</p>
@@ -767,24 +767,31 @@ export default function AnnouncementsManagement() {
                             Optionally target specific classes. Leave empty for all classes.
                           </p>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-40 overflow-y-auto p-1">
-                            {classes.map((cls: any) => (
-                              <div
-                                key={cls.id}
-                                className={`flex items-center space-x-2 p-2 rounded-md border cursor-pointer transition-colors text-sm ${
-                                  (watchedValues.targetClasses || []).includes(String(cls.id))
-                                    ? 'border-primary bg-primary/5'
-                                    : 'border-border hover:border-primary/50'
-                                }`}
-                                onClick={() => handleClassToggle(String(cls.id), !(watchedValues.targetClasses || []).includes(String(cls.id)))}
-                              >
-                                <Checkbox
-                                  checked={(watchedValues.targetClasses || []).includes(String(cls.id))}
-                                  onCheckedChange={(checked) => handleClassToggle(String(cls.id), !!checked)}
+                            {classes.map((cls: any) => {
+                              const isClassSelected = (watchedValues.targetClasses || []).includes(String(cls.id));
+                              return (
+                                <button
+                                  type="button"
+                                  key={cls.id}
+                                  className={`flex items-center space-x-2 p-2 rounded-md border cursor-pointer transition-colors text-sm text-left ${
+                                    isClassSelected
+                                      ? 'border-primary bg-primary/10'
+                                      : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                                  }`}
+                                  onClick={() => handleClassToggle(String(cls.id), !isClassSelected)}
                                   data-testid={`checkbox-class-${cls.id}`}
-                                />
-                                <span>{cls.name}</span>
-                              </div>
-                            ))}
+                                >
+                                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors shrink-0 ${
+                                    isClassSelected 
+                                      ? 'bg-primary border-primary' 
+                                      : 'border-muted-foreground/30'
+                                  }`}>
+                                    {isClassSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                                  </div>
+                                  <span>{cls.name}</span>
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
@@ -1065,10 +1072,10 @@ export default function AnnouncementsManagement() {
               <TableBody>
                 {filteredAnnouncements.length > 0 ? (
                   filteredAnnouncements.map((announcement: any) => {
-                    const author = users.find((u: any) => u.id === announcement.authorId);
                     const targetRoles = typeof announcement.targetRoles === 'string'
                       ? JSON.parse(announcement.targetRoles)
                       : announcement.targetRoles || ['All'];
+                    const isCurrentUserAuthor = currentUser?.id === announcement.authorId;
                     
                     return (
                       <TableRow key={announcement.id} data-testid={`row-announcement-${announcement.id}`}>
@@ -1084,11 +1091,9 @@ export default function AnnouncementsManagement() {
                               <div className="text-sm text-muted-foreground line-clamp-2">
                                 {announcement.content}
                               </div>
-                              {author && (
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  by {author.firstName} {author.lastName}
-                                </div>
-                              )}
+                              <div className="text-xs text-muted-foreground mt-1">
+                                by {isCurrentUserAuthor && currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'Admin'}
+                              </div>
                             </div>
                           </div>
                         </TableCell>
