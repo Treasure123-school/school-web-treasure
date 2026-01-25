@@ -3726,7 +3726,7 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteAnnouncement(id: number): Promise<boolean> {
     const result = await db.delete(schema.announcements).where(eq(schema.announcements.id, id));
-    return result.length > 0;
+    return (result.rowCount ?? 0) > 0;
   }
   // Messages
   async sendMessage(message: InsertMessage): Promise<Message> {
