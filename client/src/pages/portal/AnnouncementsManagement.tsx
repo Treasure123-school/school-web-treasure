@@ -119,12 +119,16 @@ export default function AnnouncementsManagement() {
   // Listen for specific announcement events for even faster updates
   useEffect(() => {
     const handleEvent = (event: any) => {
+      // Check if this is a realtime event from the server
       if (event.table === 'announcements') {
+        // If it's a delete event and we have the ID, we can handle it specifically
+        // but simple invalidation is safer to avoid state desync
         queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'] });
         queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
       }
     };
 
+    // The socket service emits 'realtime-event' on the window object
     window.addEventListener('realtime-event', handleEvent);
     return () => window.removeEventListener('realtime-event', handleEvent);
   }, []);

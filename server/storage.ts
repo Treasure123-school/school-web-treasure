@@ -3728,16 +3728,12 @@ export class DatabaseStorage implements IStorage {
     const [announcement] = await db.select().from(schema.announcements).where(eq(schema.announcements.id, id));
     if (!announcement) return false;
 
-    const result = await db.delete(schema.announcements).where(eq(schema.announcements.id, id));
+    await db.delete(schema.announcements).where(eq(schema.announcements.id, id));
     
     // Broadcast deletion in real-time
-    if (typeof (realtimeService as any).emitAnnouncementEvent === 'function') {
-      (realtimeService as any).emitAnnouncementEvent('deleted', { id });
-    } else if (typeof (realtimeService as any).emitTableChange === 'function') {
-      (realtimeService as any).emitTableChange('announcements', 'DELETE', { id });
-    }
+    realtimeService.emitTableChange('announcements', 'DELETE', { id });
 
-    return (result.rowCount ?? 0) > 0;
+    return true;
   }
   // Messages
   async sendMessage(message: InsertMessage): Promise<Message> {
