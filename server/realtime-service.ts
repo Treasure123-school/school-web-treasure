@@ -982,14 +982,20 @@ class RealtimeService {
     }
   }
 
-  emitGalleryEvent(eventType: 'created' | 'deleted', data: any, userId?: string) {
-    const fullEventType = `gallery.${eventType}`;
-    const operation = eventType === 'created' ? 'INSERT' : 'DELETE';
+  emitAnnouncementEvent(operation: 'created' | 'updated' | 'deleted', announcement: any, userId?: string) {
+    const fullEventType = `announcement.${operation}`;
+    const op = operation === 'created' ? 'INSERT' : operation === 'updated' ? 'UPDATE' : 'DELETE';
     
-    this.emitTableChange('gallery', operation, data, undefined, userId);
-    this.emitToRole('admin', fullEventType, data);
-    // Emit publicly for gallery page updates
-    this.emitEvent(fullEventType, { id: data.id });
+    // 1. Standard table change event for generic listeners
+    this.emitTableChange('announcements', op, announcement, undefined, userId);
+    
+    // 2. Specific announcement event for direct listeners
+    this.emitEvent(fullEventType, announcement);
+    
+    // 3. Broadcast to all for legacy/general component sync
+    this.emitEvent('announcements-updated', { operation, id: announcement.id });
+    
+    console.log(`📢 Announcement ${operation} broadcasted: ${announcement.title}`);
   }
 
   emitExamSessionEvent(examId: string | number, sessionId: string | number, eventType: 'started' | 'progress' | 'completed' | 'auto_submitted', data: any, userId?: string) {

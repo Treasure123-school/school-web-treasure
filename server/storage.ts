@@ -3730,8 +3730,8 @@ export class DatabaseStorage implements IStorage {
 
     await db.delete(schema.announcements).where(eq(schema.announcements.id, id));
     
-    // Broadcast deletion in real-time
-    realtimeService.emitTableChange('announcements', 'DELETE', { id });
+    // Broadcast deletion using standardized emitter
+    realtimeService.emitAnnouncementEvent('deleted', { id });
 
     return true;
   }

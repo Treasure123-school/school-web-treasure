@@ -104,7 +104,7 @@ export default function AnnouncementsManagement() {
   }, [isDialogOpen, currentUser, editingAnnouncement, setValue]);
 
   const { data: announcements = [], isLoading: loadingAnnouncements } = useQuery({
-    queryKey: ['/api/announcements', { admin: 'true' }],
+    queryKey: ['/api/announcements', { admin: 'true' }] as any,
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/admin/announcements');
       return await response.json();
@@ -113,7 +113,11 @@ export default function AnnouncementsManagement() {
 
   useSocketIORealtime({ 
     table: 'announcements', 
-    queryKey: ['/api/announcements', { admin: 'true' }]
+    queryKey: ['/api/announcements', { admin: 'true' }] as any,
+    onEvent: (event) => {
+      // Force an immediate refetch on any announcement event
+      queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
+    }
   });
 
   const { data: classes = [] } = useQuery({
@@ -132,7 +136,7 @@ export default function AnnouncementsManagement() {
     },
     onSuccess: (newAnnouncement) => {
       // Update UI cache immediately for instant visibility
-      queryClient.setQueryData(['/api/announcements', { admin: 'true' }], (old: any) => [newAnnouncement, ...(old || [])]);
+      queryClient.setQueryData(['/api/announcements', { admin: 'true' }] as any, (old: any) => [newAnnouncement, ...(old || [])]);
       
       toast({ title: "Success", description: "Announcement published successfully" });
       setIsDialogOpen(false);
@@ -157,9 +161,9 @@ export default function AnnouncementsManagement() {
       return response.json();
     },
     onMutate: async ({ id, data }) => {
-      await queryClient.cancelQueries({ queryKey: ['/api/announcements', { admin: 'true' }] });
-      const previousAnnouncements = queryClient.getQueryData(['/api/announcements', { admin: 'true' }]);
-      queryClient.setQueryData(['/api/announcements', { admin: 'true' }], (old: any) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/announcements', { admin: 'true' }] as any });
+      const previousAnnouncements = queryClient.getQueryData(['/api/announcements', { admin: 'true' }] as any);
+      queryClient.setQueryData(['/api/announcements', { admin: 'true' }] as any, (old: any) => {
         if (!old) return old;
         return old.map((announcement: any) => 
           announcement.id === id ? { ...announcement, ...data } : announcement
@@ -179,7 +183,7 @@ export default function AnnouncementsManagement() {
     },
     onError: (error: any, variables, context: any) => {
       if (context?.previousAnnouncements) {
-        queryClient.setQueryData(['/api/announcements', { admin: 'true' }], context.previousAnnouncements);
+        queryClient.setQueryData(['/api/announcements', { admin: 'true' }] as any, context.previousAnnouncements);
       }
       toast({
         title: "Error",
@@ -200,10 +204,10 @@ export default function AnnouncementsManagement() {
       setAnnouncementToDelete(null);
       
       // 2. Optimistic update: Remove from UI immediately
-      await queryClient.cancelQueries({ queryKey: ['/api/announcements', { admin: 'true' }] });
-      const previousAnnouncements = queryClient.getQueryData(['/api/announcements', { admin: 'true' }]);
+      await queryClient.cancelQueries({ queryKey: ['/api/announcements', { admin: 'true' }] as any });
+      const previousAnnouncements = queryClient.getQueryData(['/api/announcements', { admin: 'true' }] as any);
       
-      queryClient.setQueryData(['/api/announcements', { admin: 'true' }], (old: any) => {
+      queryClient.setQueryData(['/api/announcements', { admin: 'true' }] as any, (old: any) => {
         if (!old) return [];
         return old.filter((announcement: any) => announcement.id !== id);
       });
@@ -221,7 +225,7 @@ export default function AnnouncementsManagement() {
     onError: (error: any, id: number, context: any) => {
       // Rollback only if the server operation actually failed
       if (context?.previousAnnouncements) {
-        queryClient.setQueryData(['/api/announcements', { admin: 'true' }], context.previousAnnouncements);
+        queryClient.setQueryData(['/api/announcements', { admin: 'true' }] as any, context.previousAnnouncements);
       }
       toast({
         title: "Error",

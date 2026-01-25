@@ -5253,7 +5253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const newAnnouncement = await storage.createAnnouncement(announcementData);
       
-      // Emit realtime event for announcement creation to ALL connected clients
+      // Explicitly broadcast using the dedicated announcement event emitter
       realtimeService.emitAnnouncementEvent('created', newAnnouncement, req.user!.id);
       
       res.status(201).json(newAnnouncement);
