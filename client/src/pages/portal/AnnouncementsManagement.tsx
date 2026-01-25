@@ -413,22 +413,13 @@ export default function AnnouncementsManagement() {
                 <Button
                   type="button"
                   variant={previewMode ? 'default' : 'outline'}
-                  size="sm"
+                  size="icon"
                   onClick={() => setPreviewMode(!previewMode)}
                   data-testid="button-toggle-preview"
-                  className="h-8"
+                  className="h-8 w-8"
+                  title={previewMode ? 'Edit Content' : 'Preview Announcement'}
                 >
-                  {previewMode ? (
-                    <>
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit Content
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="w-4 h-4 mr-2" />
-                      Preview
-                    </>
-                  )}
+                  {previewMode ? <Edit className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </Button>
               </div>
             </DialogHeader>
@@ -989,22 +980,19 @@ export default function AnnouncementsManagement() {
                   </ScrollArea>
                 </Tabs>
 
-                <div className="flex flex-col sm:flex-row gap-2 p-6 pt-2 border-t mt-4">
+                <div className="flex items-center gap-2 p-6 pt-2 border-t mt-4">
                   <Button 
                     type="submit" 
-                    className="flex-1 order-1 sm:order-2"
+                    className="flex-1"
                     disabled={createAnnouncementMutation.isPending || updateAnnouncementMutation.isPending}
                     data-testid="button-publish-announcement"
                   >
                     {(createAnnouncementMutation.isPending || updateAnnouncementMutation.isPending) ? (
-                      <>
-                        <Clock className="w-4 h-4 mr-2 animate-spin" />
-                        {editingAnnouncement ? 'Updating...' : 'Publishing...'}
-                      </>
+                      <Clock className="w-4 h-4 animate-spin" />
                     ) : (
                       <>
                         <Send className="w-4 h-4 mr-2" />
-                        {watchedValues.publishOption === 'schedule' ? 'Schedule Announcement' : 'Publish Announcement'}
+                        {watchedValues.publishOption === 'schedule' ? 'Schedule' : 'Publish'}
                       </>
                     )}
                   </Button>
@@ -1012,16 +1000,17 @@ export default function AnnouncementsManagement() {
                   <Button 
                     type="button" 
                     variant="outline" 
-                    className="flex-1 order-2 sm:order-1"
+                    size="icon"
+                    className="h-10 w-10 shrink-0"
                     onClick={() => {
                       const data = getValues();
                       onSubmit(data, true);
                     }}
                     disabled={createAnnouncementMutation.isPending || updateAnnouncementMutation.isPending}
                     data-testid="button-save-draft"
+                    title="Save as Draft"
                   >
-                    <Save className="w-4 h-4 mr-2" />
-                    Save as Draft
+                    <Save className="w-4 h-4" />
                   </Button>
                 </div>
               </form>
