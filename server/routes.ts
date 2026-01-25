@@ -5475,15 +5475,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup/Demo data route (for development) - Admin only for security
   app.post("/api/setup-demo", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
-      // If we are using SQLite in development, we might need to seed roles
-      if (isSqlite) {
-        const existingRoles = await storage.getRoles();
-        if (existingRoles.length === 0) {
-          console.log('📦 Seeding roles for SQLite development...');
-          const roleNames = ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'];
-          for (const name of roleNames) {
-            await db.insert(schema.roles).values({ name, permissions: '[]' });
-          }
+      // Seed roles if none exist
+      const existingRoles = await storage.getRoles();
+      if (existingRoles.length === 0) {
+        console.log('📦 Seeding roles for development...');
+        const roleNames = ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'];
+        for (const name of roleNames) {
+          await db.insert(schema.roles).values({ name, permissions: '[]' });
         }
       }
 

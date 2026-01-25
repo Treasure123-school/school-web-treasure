@@ -263,7 +263,7 @@ export interface IStorage {
 
   // Announcements
   createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement>;
-  getAnnouncements(targetRole?: string): Promise<Announcement[]>;
+  getAnnouncements(targetRole?: string, includeDrafts?: boolean): Promise<Announcement[]>;
   getAnnouncementById(id: number): Promise<Announcement | undefined>;
   updateAnnouncement(id: number, announcement: Partial<InsertAnnouncement>): Promise<Announcement | undefined>;
   deleteAnnouncement(id: number): Promise<boolean>;
