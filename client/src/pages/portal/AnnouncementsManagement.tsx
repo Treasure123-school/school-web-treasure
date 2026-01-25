@@ -981,31 +981,41 @@ export default function AnnouncementsManagement() {
                   </ScrollArea>
                 </Tabs>
 
-                <DialogFooter className="p-6 pt-4 border-t gap-2">
-                  <Button type="button" variant="outline" onClick={handleCloseDialog} data-testid="button-cancel">
-                    Cancel
+                <div className="flex flex-col sm:flex-row gap-2 p-6 pt-2 border-t mt-4">
+                  <Button 
+                    type="submit" 
+                    className="flex-1 order-1 sm:order-2"
+                    disabled={createAnnouncementMutation.isPending || updateAnnouncementMutation.isPending}
+                    data-testid="button-publish-announcement"
+                  >
+                    {(createAnnouncementMutation.isPending || updateAnnouncementMutation.isPending) ? (
+                      <>
+                        <Clock className="w-4 h-4 mr-2 animate-spin" />
+                        {editingAnnouncement ? 'Updating...' : 'Publishing...'}
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 mr-2" />
+                        {watchedValues.publishOption === 'schedule' ? 'Schedule Announcement' : 'Publish Announcement'}
+                      </>
+                    )}
                   </Button>
+                  
                   <Button 
                     type="button" 
-                    variant="secondary"
-                    onClick={() => handleSubmit((data) => onSubmit(data, true))()}
+                    variant="outline" 
+                    className="flex-1 order-2 sm:order-1"
+                    onClick={() => {
+                      const data = getValues();
+                      onSubmit(data, true);
+                    }}
                     disabled={createAnnouncementMutation.isPending || updateAnnouncementMutation.isPending}
                     data-testid="button-save-draft"
                   >
                     <Save className="w-4 h-4 mr-2" />
                     Save as Draft
                   </Button>
-                  <Button 
-                    type="submit"
-                    disabled={createAnnouncementMutation.isPending || updateAnnouncementMutation.isPending}
-                    data-testid="button-publish"
-                  >
-                    <Send className="w-4 h-4 mr-2" />
-                    {createAnnouncementMutation.isPending || updateAnnouncementMutation.isPending ? 'Saving...' : 
-                     editingAnnouncement ? 'Update Announcement' : 
-                     publishOption === 'schedule' ? 'Schedule Announcement' : 'Publish Announcement'}
-                  </Button>
-                </DialogFooter>
+                </div>
               </form>
             )}
           </DialogContent>
