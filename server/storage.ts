@@ -3731,8 +3731,9 @@ export class DatabaseStorage implements IStorage {
     const result = await db.delete(schema.announcements).where(eq(schema.announcements.id, id));
     
     // Broadcast deletion in real-time
-    // Since we are unsure of the exact method name, we'll use the most generic one available
-    if (typeof (realtimeService as any).emitTableChange === 'function') {
+    if (typeof (realtimeService as any).emitAnnouncementEvent === 'function') {
+      (realtimeService as any).emitAnnouncementEvent('deleted', { id });
+    } else if (typeof (realtimeService as any).emitTableChange === 'function') {
       (realtimeService as any).emitTableChange('announcements', 'DELETE', { id });
     }
 

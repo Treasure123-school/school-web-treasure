@@ -5254,7 +5254,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newAnnouncement = await storage.createAnnouncement(announcementData);
       
       // Emit realtime event for announcement creation
-      realtimeService.emitAnnouncementEvent('created', newAnnouncement, req.user!.id);
+      if (typeof (realtimeService as any).emitAnnouncementEvent === 'function') {
+        (realtimeService as any).emitAnnouncementEvent('created', newAnnouncement, req.user!.id);
+      } else {
+        realtimeService.emitTableChange('announcements', 'INSERT', newAnnouncement, undefined, req.user!.id);
+      }
       
       res.status(201).json(newAnnouncement);
     } catch (error: any) {

@@ -116,6 +116,19 @@ export default function AnnouncementsManagement() {
     queryKey: ['/api/admin/announcements']
   });
 
+  // Listen for specific announcement events for even faster updates
+  useEffect(() => {
+    const handleEvent = (event: any) => {
+      if (event.table === 'announcements') {
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
+      }
+    };
+
+    window.addEventListener('realtime-event', handleEvent);
+    return () => window.removeEventListener('realtime-event', handleEvent);
+  }, []);
+
   const { data: classes = [] } = useQuery({
     queryKey: ['/api/classes'],
     queryFn: async () => {
