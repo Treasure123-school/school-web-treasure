@@ -3725,7 +3725,20 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
   async deleteAnnouncement(id: number): Promise<boolean> {
+    const [announcement] = await db.select().from(schema.announcements).where(eq(schema.announcements.id, id));
+    if (!announcement) return false;
+
     const result = await db.delete(schema.announcements).where(eq(schema.announcements.id, id));
+    
+    // Broadcast deletion in real-time
+    realtimeService.broadcast({
+      eventType: 'DELETE',
+      table: 'announcements',
+      operation: 'DELETE',
+      data: { id },
+      timestamp: Date.now()
+    });
+
     return (result.rowCount ?? 0) > 0;
   }
   // Messages

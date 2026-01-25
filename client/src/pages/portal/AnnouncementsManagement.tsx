@@ -206,19 +206,18 @@ export default function AnnouncementsManagement() {
     mutationFn: async (id: number) => {
       const response = await apiRequest('DELETE', `/api/announcements/${id}`);
       if (!response.ok) throw new Error('Failed to delete announcement');
-      if (response.status === 204) return null;
-      return response.json();
+      return response.status === 204 ? null : response.json();
     },
     onMutate: async (id: number) => {
-      // Close the dialog IMMEDIATELY for the fastest possible UI response
+      // 1. Close the dialog IMMEDIATELY
       setAnnouncementToDelete(null);
       
-      // Optimistic update for "real-time" feel and no flicker
+      // 2. Optimistic update: Remove from UI immediately
       await queryClient.cancelQueries({ queryKey: ['/api/admin/announcements'] });
       const previousAnnouncements = queryClient.getQueryData(['/api/admin/announcements']);
       
       queryClient.setQueryData(['/api/admin/announcements'], (old: any) => {
-        if (!old) return old;
+        if (!old) return [];
         return old.filter((announcement: any) => announcement.id !== id);
       });
       
@@ -229,12 +228,11 @@ export default function AnnouncementsManagement() {
         title: "Success",
         description: "Announcement deleted successfully",
       });
-      // Invalidate to ensure sync with server, but UI is already updated
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
+      // Invalidate silently in the background
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'], exact: true });
     },
     onError: (error: any, id: number, context: any) => {
-      // Rollback if delete fails
+      // Rollback only if the server operation actually failed
       if (context?.previousAnnouncements) {
         queryClient.setQueryData(['/api/admin/announcements'], context.previousAnnouncements);
       }
