@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Users, Calendar, BookOpen, MessageSquare, TrendingUp, Heart, ChevronRight, UserCircle, Award, Bell, FileText, GraduationCap, Users as UsersIcon } from 'lucide-react';
 import { Link } from 'wouter';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
+import { ParentDashboardSkeleton } from '@/components/ui/page-skeletons';
 import { useSocketIORealtime } from '@/hooks/useSocketIORealtime';
 import { useLoginSuccess } from '@/hooks/use-login-success';
 
@@ -82,6 +83,12 @@ export default function ParentDashboard() {
   if (!user) {
     return <div>Please log in to access the parent portal.</div>;
   }
+  
+  // Show contextual skeleton during initial data loading
+  if (loadingChildren) {
+    return <ParentDashboardSkeleton />;
+  }
+  
   // Transform linked children data to include display properties for UI
   const mockChildren = linkedChildren.map((child, index) => {
     const colors = ['bg-primary', 'bg-secondary', 'bg-green-500', 'bg-blue-500', 'bg-purple-500'];

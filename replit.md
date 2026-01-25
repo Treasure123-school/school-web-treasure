@@ -54,6 +54,20 @@ The backend is an Express.js application built with Node.js and TypeScript, leve
   - Teacher profiles include digital signature setup for class teacher signing
   - SuperAdmin portal does not have principal signature (reserved for Admin role)
 - **File Management**: Unified upload interface with Cloudinary CDN.
+- **Enhanced Announcement System**: Professional announcement creation with comprehensive features:
+  - Title and rich content body (supports paragraphs and bullet points)
+  - Target audience selection: All users, Students, Teachers, Parents, Admin, or specific classes
+  - Priority levels: Normal, Important (amber tag), Urgent (red tag - shows at top)
+  - Announcement types: General, Academic, Examination, Event, Emergency
+  - Publishing options: Publish immediately or schedule for later (date & time picker)
+  - Expiry date for automatic visibility removal
+  - Attachments support (PDF, Word, Excel, Images) and optional cover image
+  - Notification settings: In-app notifications, Email, SMS (toggleable)
+  - Advanced options: Allow comments, Allow edit after publishing
+  - Preview mode before publishing
+  - Action buttons: Cancel, Save as Draft, Publish/Schedule Announcement
+  - View count tracking and analytics
+  - Tabbed interface (Content, Audience, Schedule, Settings) for organized form filling
 - **Unified Subject Assignment System**: Centralized subject visibility and assignment configuration, serving as the single source of truth for all subject-related operations. Supports JSS classes and SSS departments with bulk assignment capabilities.
 - **Automatic Student Subject Sync**: Modifying subject assignments automatically synchronizes `student_subject_assignments` for affected students.
 - **Quick Student Creation**: Optimized modal with essential fields.

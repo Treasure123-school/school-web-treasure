@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertCircle, Eye, EyeOff, Lock, User, KeyRound, ArrowLeft, Shield, CheckCircle2 } from 'lucide-react';
 import { useForm, useWatch } from 'react-hook-form';
@@ -94,6 +95,7 @@ export default function Login() {
   const [authPhase, setAuthPhase] = useState<'idle' | 'authenticating' | 'success'>('idle');
   const [rateLimitInfo, setRateLimitInfo] = useState<RateLimitData>(getRateLimitData());
   const [lockoutRemaining, setLockoutRemaining] = useState<number>(0);
+  const [rememberMe, setRememberMe] = useState(false);
   const lastErrorRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -426,7 +428,11 @@ export default function Login() {
                     </div>
                   )}
 
-                  <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                  <form 
+                    onSubmit={handleSubmit(onSubmit)} 
+                    className="space-y-5"
+                    autoComplete={rememberMe ? "on" : "off"}
+                  >
                     <div className="space-y-2">
                       <Label htmlFor="identifier" className="text-sm font-medium flex items-center gap-2">
                         <User className="h-4 w-4 text-muted-foreground" />
@@ -444,7 +450,7 @@ export default function Login() {
                             : ''
                         }`}
                         placeholder="Enter your username or email"
-                        autoComplete="username"
+                        autoComplete={rememberMe ? "username" : "off"}
                         disabled={isLockedOut}
                         data-testid="input-identifier"
                         onChange={(e) => {
@@ -478,7 +484,7 @@ export default function Login() {
                               : ''
                           }`}
                           placeholder="Enter your password"
-                          autoComplete="current-password"
+                          autoComplete={rememberMe ? "current-password" : "off"}
                           disabled={isLockedOut}
                           data-testid="input-password"
                           onChange={(e) => {
@@ -505,7 +511,22 @@ export default function Login() {
                       )}
                     </div>
 
-                    <div className="flex justify-end">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="remember-me"
+                          checked={rememberMe}
+                          onCheckedChange={(checked) => setRememberMe(checked === true)}
+                          disabled={isLockedOut}
+                          data-testid="checkbox-remember-me"
+                        />
+                        <Label
+                          htmlFor="remember-me"
+                          className="text-sm font-medium text-muted-foreground cursor-pointer select-none"
+                        >
+                          Remember me
+                        </Label>
+                      </div>
                       <Link
                         href="/forgot-password"
                         className="text-sm text-primary hover:text-primary/80 font-medium inline-flex items-center gap-1.5 transition-colors"

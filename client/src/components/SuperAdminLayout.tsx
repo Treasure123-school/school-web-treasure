@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect, useTransition } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
@@ -200,11 +200,14 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
 
   // Reusable Sidebar Content Component aligned with PortalLayout
   const SidebarContent = ({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) => {
-    const [, navigate] = useLocation();
-    const [isPending, startTransition] = useTransition();
-
     const isChildActive = (children?: { label: string; path: string }[]) => {
       return children?.some(child => isActive(child.path)) ?? false;
+    };
+    
+    // Handle navigation with immediate sidebar close
+    const handleNavigation = (path: string) => {
+      onNavigate?.();
+      navigate(path);
     };
 
     return (
@@ -242,8 +245,7 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
                     onClick={() => {
                       if (collapsed) {
                         if (item.children?.[0]) {
-                          onNavigate?.();
-                          startTransition(() => navigate(item.children![0].path));
+                          handleNavigation(item.children![0].path);
                         }
                       } else {
                         // Exclusive dropdown behavior (Accordion style)
@@ -277,10 +279,7 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
                         <button
                           key={child.path}
                           type="button"
-                          onClick={() => {
-                            onNavigate?.();
-                            startTransition(() => navigate(child.path));
-                          }}
+                          onClick={() => handleNavigation(child.path)}
                           className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 w-full text-left ${
                             isActive(child.path)
                               ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/50 dark:shadow-blue-500/30' 
@@ -300,10 +299,7 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
               <button
                 key={item.path}
                 type="button"
-                onClick={() => {
-                  onNavigate?.();
-                  if (item.path) startTransition(() => navigate(item.path!));
-                }}
+                onClick={() => item.path && handleNavigation(item.path)}
                 className={`flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ease-in-out w-full ${
                   navItemActive 
                     ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/50 dark:shadow-blue-500/30 scale-105' 

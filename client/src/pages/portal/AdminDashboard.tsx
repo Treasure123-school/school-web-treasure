@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AdminDashboardSkeleton } from '@/components/ui/page-skeletons';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@tanstack/react-query';
 import { ROLE_IDS } from '@/lib/roles';
@@ -56,6 +57,11 @@ export default function AdminDashboard() {
   ];
 
   if (!user) return <div className="p-8 text-center">Please log in to access the admin portal.</div>;
+
+  // Show contextual skeleton during initial data loading
+  if (analyticsLoading) {
+    return <AdminDashboardSkeleton />;
+  }
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
