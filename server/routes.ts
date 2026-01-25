@@ -5219,7 +5219,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new announcement - Admin only
   app.post('/api/announcements', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
-      const { title, content, targetRole, priority, expiresAt } = req.body;
+      const { title, content, targetRoles, targetClasses, priority, announcementType, publishOption, scheduledAt, expiryDate, attachments, coverImageUrl, notificationSettings, allowComments, allowEdit, status, isPublished, publishedAt } = req.body;
       
       if (!title || !content) {
         return res.status(400).json({ message: 'Title and content are required' });
@@ -5228,9 +5228,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const announcementData = {
         title,
         content,
-        targetRole: targetRole || null,
+        authorId: req.user!.id,
+        targetRoles: Array.isArray(targetRoles) ? JSON.stringify(targetRoles) : targetRoles || JSON.stringify(['All']),
+        targetClasses: Array.isArray(targetClasses) ? JSON.stringify(targetClasses) : targetClasses || JSON.stringify([]),
         priority: priority || 'normal',
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        announcementType: announcementType || 'general',
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+        expiryDate: expiryDate ? new Date(expiryDate) : null,
+        attachments: Array.isArray(attachments) ? JSON.stringify(attachments) : attachments || JSON.stringify([]),
+        coverImageUrl: coverImageUrl || null,
+        notificationSettings: typeof notificationSettings === 'object' ? JSON.stringify(notificationSettings) : notificationSettings || JSON.stringify({ inApp: true, email: false, sms: false }),
+        allowComments: allowComments ?? false,
+        allowEdit: allowEdit ?? true,
+        status: status || 'published',
+        isPublished: isPublished ?? true,
+        publishedAt: publishedAt ? new Date(publishedAt) : new Date(),
         createdBy: req.user!.id,
         isActive: true
       };
@@ -5260,13 +5272,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Announcement not found' });
       }
       
-      const { title, content, targetRoles, targetClasses, isPublished, publishedAt } = req.body;
+      const { 
+        title, content, targetRoles, targetClasses, priority, 
+        announcementType, scheduledAt, expiryDate, attachments, 
+        coverImageUrl, notificationSettings, allowComments, allowEdit, 
+        status, isPublished, publishedAt 
+      } = req.body;
       
       const updatedAnnouncement = await storage.updateAnnouncement(announcementId, {
         title,
         content,
-        targetRoles,
-        targetClasses,
+        targetRoles: Array.isArray(targetRoles) ? JSON.stringify(targetRoles) : targetRoles,
+        targetClasses: Array.isArray(targetClasses) ? JSON.stringify(targetClasses) : targetClasses,
+        priority,
+        announcementType,
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
+        expiryDate: expiryDate ? new Date(expiryDate) : undefined,
+        attachments: Array.isArray(attachments) ? JSON.stringify(attachments) : attachments,
+        coverImageUrl,
+        notificationSettings: typeof notificationSettings === 'object' ? JSON.stringify(notificationSettings) : notificationSettings,
+        allowComments,
+        allowEdit,
+        status,
         isPublished,
         publishedAt: publishedAt ? new Date(publishedAt) : undefined
       });
@@ -5444,6 +5471,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup/Demo data route (for development) - Admin only for security
   app.post("/api/setup-demo", authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
     try {
+      // If we are using SQLite in development, we might need to seed roles
+      if (isSqlite) {
+        const existingRoles = await storage.getRoles();
+        if (existingRoles.length === 0) {
+          console.log('📦 Seeding roles for SQLite development...');
+          const roleNames = ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'];
+          for (const name of roleNames) {
+            await db.insert(schema.roles).values({ name, permissions: '[]' });
+          }
+        }
+      }
 
       // First check if roles exist, if not this will tell us about database structure
       try {

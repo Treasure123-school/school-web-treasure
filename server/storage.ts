@@ -3701,9 +3701,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.announcements.isPublished, true))
       .orderBy(desc(schema.announcements.publishedAt));
 
-    if (targetRole) {
-      // Note: This would need proper array contains logic for PostgreSQL
-      // For now, return all published announcements ordered by date
+    if (targetRole && targetRole !== 'all') {
+      // Improved filtering logic for JSON strings in both SQLite and PostgreSQL
+      return await query.where(or(
+        like(schema.announcements.targetRoles, `%\"All\"%`),
+        like(schema.announcements.targetRoles, `%\"${targetRole}\"%`),
+        eq(schema.announcements.targetRoles, '["All"]'),
+        eq(schema.announcements.targetRoles, `["${targetRole}"]`)
+      ));
     }
     return await query;
   }
