@@ -404,24 +404,32 @@ export default function AnnouncementsManagement() {
               Add Announcement
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[95vh] p-0">
-            <DialogHeader className="p-6 pb-0">
-              <div className="flex items-center justify-between">
+          <DialogContent className="max-w-4xl max-h-[95vh] p-0 overflow-hidden">
+            <DialogHeader className="p-6 pb-4 border-b">
+              <div className="flex items-center justify-between pr-8">
                 <DialogTitle className="text-xl font-semibold">
                   {editingAnnouncement ? 'Edit Announcement' : 'Create New Announcement'}
                 </DialogTitle>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant={previewMode ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setPreviewMode(!previewMode)}
-                    data-testid="button-toggle-preview"
-                  >
-                    <Eye className="w-4 h-4 mr-1" />
-                    {previewMode ? 'Edit' : 'Preview'}
-                  </Button>
-                </div>
+                <Button
+                  type="button"
+                  variant={previewMode ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPreviewMode(!previewMode)}
+                  data-testid="button-toggle-preview"
+                  className="h-8"
+                >
+                  {previewMode ? (
+                    <>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit Content
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="w-4 h-4 mr-2" />
+                      Preview
+                    </>
+                  )}
+                </Button>
               </div>
             </DialogHeader>
 
