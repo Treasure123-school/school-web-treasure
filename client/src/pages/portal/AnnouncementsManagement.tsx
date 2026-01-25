@@ -104,7 +104,7 @@ export default function AnnouncementsManagement() {
   }, [isDialogOpen, currentUser, editingAnnouncement, setValue]);
 
   const { data: announcements = [], isLoading: loadingAnnouncements } = useQuery({
-    queryKey: ['/api/admin/announcements'],
+    queryKey: ['/api/announcements', { admin: true }],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/admin/announcements');
       return await response.json();
@@ -113,7 +113,7 @@ export default function AnnouncementsManagement() {
 
   useSocketIORealtime({ 
     table: 'announcements', 
-    queryKey: ['/api/admin/announcements']
+    queryKey: ['/api/announcements', { admin: true }]
   });
 
   const { data: classes = [] } = useQuery({
@@ -132,9 +132,8 @@ export default function AnnouncementsManagement() {
     },
     onSuccess: (newAnnouncement) => {
       // Update UI cache immediately for instant visibility
-      queryClient.setQueryData(['/api/admin/announcements'], (old: any) => [newAnnouncement, ...(old || [])]);
-      queryClient.setQueryData(['/api/announcements'], (old: any) => [newAnnouncement, ...(old || [])]);
-
+      queryClient.setQueryData(['/api/announcements', { admin: true }], (old: any) => [newAnnouncement, ...(old || [])]);
+      
       toast({ title: "Success", description: "Announcement published successfully" });
       setIsDialogOpen(false);
       reset();
@@ -147,7 +146,6 @@ export default function AnnouncementsManagement() {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'] });
       queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
     },
   });
@@ -159,9 +157,9 @@ export default function AnnouncementsManagement() {
       return response.json();
     },
     onMutate: async ({ id, data }) => {
-      await queryClient.cancelQueries({ queryKey: ['/api/admin/announcements'] });
-      const previousAnnouncements = queryClient.getQueryData(['/api/admin/announcements']);
-      queryClient.setQueryData(['/api/admin/announcements'], (old: any) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/announcements', { admin: true }] });
+      const previousAnnouncements = queryClient.getQueryData(['/api/announcements', { admin: true }]);
+      queryClient.setQueryData(['/api/announcements', { admin: true }], (old: any) => {
         if (!old) return old;
         return old.map((announcement: any) => 
           announcement.id === id ? { ...announcement, ...data } : announcement
@@ -174,7 +172,6 @@ export default function AnnouncementsManagement() {
         title: "Success",
         description: "Announcement updated successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'] });
       queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
       setIsDialogOpen(false);
       setEditingAnnouncement(null);
@@ -182,7 +179,7 @@ export default function AnnouncementsManagement() {
     },
     onError: (error: any, variables, context: any) => {
       if (context?.previousAnnouncements) {
-        queryClient.setQueryData(['/api/admin/announcements'], context.previousAnnouncements);
+        queryClient.setQueryData(['/api/announcements', { admin: true }], context.previousAnnouncements);
       }
       toast({
         title: "Error",
@@ -203,10 +200,10 @@ export default function AnnouncementsManagement() {
       setAnnouncementToDelete(null);
       
       // 2. Optimistic update: Remove from UI immediately
-      await queryClient.cancelQueries({ queryKey: ['/api/admin/announcements'] });
-      const previousAnnouncements = queryClient.getQueryData(['/api/admin/announcements']);
+      await queryClient.cancelQueries({ queryKey: ['/api/announcements', { admin: true }] });
+      const previousAnnouncements = queryClient.getQueryData(['/api/announcements', { admin: true }]);
       
-      queryClient.setQueryData(['/api/admin/announcements'], (old: any) => {
+      queryClient.setQueryData(['/api/announcements', { admin: true }], (old: any) => {
         if (!old) return [];
         return old.filter((announcement: any) => announcement.id !== id);
       });
@@ -219,12 +216,12 @@ export default function AnnouncementsManagement() {
         description: "Announcement deleted successfully",
       });
       // Invalidate silently in the background
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'], exact: true });
+      queryClient.invalidateQueries({ queryKey: ['/api/announcements'], exact: false });
     },
     onError: (error: any, id: number, context: any) => {
       // Rollback only if the server operation actually failed
       if (context?.previousAnnouncements) {
-        queryClient.setQueryData(['/api/admin/announcements'], context.previousAnnouncements);
+        queryClient.setQueryData(['/api/announcements', { admin: true }], context.previousAnnouncements);
       }
       toast({
         title: "Error",

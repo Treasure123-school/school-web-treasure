@@ -5209,19 +5209,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin endpoint to get announcements (includes drafts)
-  app.get('/api/admin/announcements', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+  // Consolidated endpoint for fetching announcements
+  app.get('/api/admin/announcements', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.TEACHER), async (req, res) => {
     try {
-      const { targetRole } = req.query;
-      const announcements = await storage.getAnnouncements(targetRole as string, true);
+      const { targetRole, includeDrafts } = req.query;
+      const announcements = await storage.getAnnouncements(targetRole as string, includeDrafts === 'true');
       res.json(announcements);
     } catch (error) {
-      res.status(500).json({ message: 'Failed to fetch announcements for admin' });
+      res.status(500).json({ message: 'Failed to fetch announcements' });
     }
   });
 
-  // Create a new announcement - Admin only
-  app.post('/api/announcements', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+  // Create a new announcement
+  app.post('/api/announcements', authenticateUser, authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.TEACHER), async (req, res) => {
     try {
       const { title, content, targetRoles, targetClasses, priority, announcementType, publishOption, scheduledAt, expiryDate, attachments, coverImageUrl, notificationSettings, allowComments, allowEdit, status, isPublished, publishedAt } = req.body;
       
@@ -5253,7 +5253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const newAnnouncement = await storage.createAnnouncement(announcementData);
       
-      // Emit realtime event for announcement creation
+      // Emit realtime event for announcement creation to ALL connected clients
       realtimeService.emitAnnouncementEvent('created', newAnnouncement, req.user!.id);
       
       res.status(201).json(newAnnouncement);
