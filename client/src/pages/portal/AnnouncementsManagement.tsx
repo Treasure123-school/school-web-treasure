@@ -210,6 +210,9 @@ export default function AnnouncementsManagement() {
       return response.json();
     },
     onMutate: async (id: number) => {
+      // Close the dialog IMMEDIATELY for the fastest possible UI response
+      setAnnouncementToDelete(null);
+      
       // Optimistic update for "real-time" feel and no flicker
       await queryClient.cancelQueries({ queryKey: ['/api/admin/announcements'] });
       const previousAnnouncements = queryClient.getQueryData(['/api/admin/announcements']);
@@ -229,7 +232,6 @@ export default function AnnouncementsManagement() {
       // Invalidate to ensure sync with server, but UI is already updated
       queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'] });
       queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
-      setAnnouncementToDelete(null);
     },
     onError: (error: any, id: number, context: any) => {
       // Rollback if delete fails
