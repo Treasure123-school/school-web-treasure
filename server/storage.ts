@@ -3696,21 +3696,25 @@ export class DatabaseStorage implements IStorage {
     const result = await db.insert(schema.announcements).values(announcement).returning();
     return result[0];
   }
-  async getAnnouncements(targetRole?: string): Promise<Announcement[]> {
-    const query = db.select().from(schema.announcements)
-      .where(eq(schema.announcements.isPublished, true))
-      .orderBy(desc(schema.announcements.publishedAt));
+  async getAnnouncements(targetRole?: string, includeDrafts: boolean = false): Promise<Announcement[]> {
+    let query = db.select().from(schema.announcements);
+    
+    // Filter by published status unless includeDrafts is true
+    if (!includeDrafts) {
+      query = query.where(eq(schema.announcements.isPublished, true));
+    }
 
     if (targetRole && targetRole !== 'all') {
       // Improved filtering logic for JSON strings in both SQLite and PostgreSQL
-      return await query.where(or(
+      query = query.where(or(
         like(schema.announcements.targetRoles, `%\"All\"%`),
         like(schema.announcements.targetRoles, `%\"${targetRole}\"%`),
         eq(schema.announcements.targetRoles, '["All"]'),
         eq(schema.announcements.targetRoles, `["${targetRole}"]`)
       ));
     }
-    return await query;
+    
+    return await query.orderBy(desc(schema.announcements.publishedAt), desc(schema.announcements.createdAt));
   }
   async getAnnouncementById(id: number): Promise<Announcement | undefined> {
     const result = await db.select().from(schema.announcements).where(eq(schema.announcements.id, id)).limit(1);

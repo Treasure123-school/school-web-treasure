@@ -5197,22 +5197,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Public endpoint to get announcements (no auth required for public website)
+  // Public endpoint to get announcements (only published)
   app.get('/api/announcements', async (req, res) => {
     try {
       const { targetRole } = req.query;
-      // Use cache for announcements (semi-static, high read frequency)
-      const cacheKey = targetRole 
-        ? PerformanceCache.keys.announcementsByRole(targetRole as string)
-        : PerformanceCache.keys.announcements();
-      const announcements = await performanceCache.getOrSet(
-        cacheKey,
-        () => storage.getAnnouncements(targetRole as string),
-        PerformanceCache.TTL.SHORT // 30 second cache for more dynamic content
-      );
+      // Public view never includes drafts
+      const announcements = await storage.getAnnouncements(targetRole as string, false);
       res.json(announcements);
     } catch (error) {
       res.status(500).json({ message: 'Failed to get announcements' });
+    }
+  });
+
+  // Admin endpoint to get announcements (includes drafts)
+  app.get('/api/admin/announcements', authenticateUser, authorizeRoles(ROLES.ADMIN), async (req, res) => {
+    try {
+      const { targetRole } = req.query;
+      const announcements = await storage.getAnnouncements(targetRole as string, true);
+      res.json(announcements);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch announcements for admin' });
     }
   });
 
