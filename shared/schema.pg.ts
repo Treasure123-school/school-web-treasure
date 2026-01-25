@@ -517,6 +517,29 @@ export const announcements = pgTable("announcements", {
   isPublished: boolean("is_published").notNull().default(false),
   publishedAt: timestamp("published_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  
+  // Priority & Type
+  priority: varchar("priority", { length: 20 }).notNull().default('normal'), // 'normal', 'important', 'urgent'
+  announcementType: varchar("announcement_type", { length: 50 }).notNull().default('general'), // 'general', 'academic', 'examination', 'event', 'emergency'
+  
+  // Scheduling & Expiry
+  scheduledAt: timestamp("scheduled_at"),
+  expiryDate: timestamp("expiry_date"),
+  
+  // Attachments (JSON array of file URLs)
+  attachments: text("attachments").notNull().default('[]'),
+  coverImageUrl: text("cover_image_url"),
+  
+  // Notification Settings (JSON object)
+  notificationSettings: text("notification_settings").notNull().default('{"inApp": true, "email": false, "sms": false}'),
+  
+  // Status & Analytics
+  status: varchar("status", { length: 20 }).notNull().default('draft'), // 'draft', 'scheduled', 'published', 'expired', 'archived'
+  viewCount: integer("view_count").notNull().default(0),
+  allowComments: boolean("allow_comments").notNull().default(false),
+  allowEdit: boolean("allow_edit").notNull().default(true),
+  
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 // Messages table

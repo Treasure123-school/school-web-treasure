@@ -521,6 +521,29 @@ export const announcements = sqliteTable("announcements", {
   isPublished: integer("is_published", { mode: "boolean" }).notNull().default(false),
   publishedAt: integer("published_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  
+  // Priority & Type
+  priority: text("priority").notNull().default('normal'), // 'normal', 'important', 'urgent'
+  announcementType: text("announcement_type").notNull().default('general'), // 'general', 'academic', 'examination', 'event', 'emergency'
+  
+  // Scheduling & Expiry
+  scheduledAt: integer("scheduled_at", { mode: "timestamp" }),
+  expiryDate: integer("expiry_date", { mode: "timestamp" }),
+  
+  // Attachments (JSON array of file URLs)
+  attachments: text("attachments").notNull().default('[]'),
+  coverImageUrl: text("cover_image_url"),
+  
+  // Notification Settings (JSON object)
+  notificationSettings: text("notification_settings").notNull().default('{"inApp": true, "email": false, "sms": false}'),
+  
+  // Status & Analytics
+  status: text("status").notNull().default('draft'), // 'draft', 'scheduled', 'published', 'expired', 'archived'
+  viewCount: integer("view_count").notNull().default(0),
+  allowComments: integer("allow_comments", { mode: "boolean" }).notNull().default(false),
+  allowEdit: integer("allow_edit", { mode: "boolean" }).notNull().default(true),
+  
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
 // Messages table
