@@ -400,80 +400,95 @@ export default function SuperAdminSettings() {
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Logo and Favicon Section */}
-              <div className="flex flex-col sm:flex-row gap-6 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg">
+              <div className="flex flex-col md:flex-row gap-8 p-6 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800">
                 {/* School Logo */}
-                <div className="flex flex-col items-center">
-                  <Label className="text-sm font-medium mb-2 dark:text-slate-200">School Logo</Label>
-                  <div className="w-28 h-28 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center overflow-hidden bg-white dark:bg-slate-800">
-                    {formData.schoolLogo ? (
-                      <img 
-                        src={formData.schoolLogo} 
-                        alt="School Logo" 
-                        className="w-full h-full object-contain"
-                        data-testid="img-school-logo"
-                      />
-                    ) : (
-                      <div className="text-center p-2">
-                        <Image className="h-8 w-8 mx-auto text-slate-400" />
-                        <span className="text-xs text-slate-500 mt-1">No logo</span>
-                      </div>
-                    )}
+                <div className="flex-1 flex flex-col items-center justify-center space-y-4">
+                  <div className="text-center">
+                    <Label className="text-sm font-semibold mb-1 block dark:text-slate-200 text-slate-700">School Logo</Label>
+                    <p className="text-[10px] text-slate-500 mb-3">Main logo used on headers and reports</p>
                   </div>
-                  {isEditing && (
-                    <Label htmlFor="logo-upload" className="cursor-pointer mt-2">
-                      <div className="text-xs text-blue-600 hover:text-blue-700 font-medium text-center">
-                        {uploadingLogo ? "Uploading..." : "Upload Logo"}
-                      </div>
-                      <Input 
-                        id="logo-upload"
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={(e) => handleFileUpload(e, 'logo')}
-                        disabled={uploadingLogo}
-                        data-testid="input-logo-upload"
-                      />
-                    </Label>
-                  )}
+                  
+                  <div className="relative group">
+                    <div className="w-32 h-32 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center overflow-hidden bg-white dark:bg-slate-800 shadow-inner transition-all duration-300 group-hover:border-blue-400 dark:group-hover:border-blue-500">
+                      {formData.schoolLogo ? (
+                        <img 
+                          src={formData.schoolLogo} 
+                          alt="School Logo" 
+                          className="w-full h-full object-contain p-2"
+                          data-testid="img-school-logo"
+                        />
+                      ) : (
+                        <div className="text-center p-2">
+                          <Image className="h-10 w-10 mx-auto text-slate-300 dark:text-slate-600" />
+                          <span className="text-xs text-slate-400 mt-2 block">No Logo</span>
+                        </div>
+                      )}
+                      
+                      {isEditing && (
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
+                          <Label htmlFor="logo-upload" className="cursor-pointer">
+                            <div className="bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg hover:scale-105 transition-transform">
+                              {uploadingLogo ? "..." : "Change"}
+                            </div>
+                            <Input 
+                              id="logo-upload"
+                              type="file"
+                              className="hidden"
+                              accept="image/*"
+                              onChange={(e) => handleFileUpload(e, 'logo')}
+                              disabled={uploadingLogo}
+                            />
+                          </Label>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
+                <div className="hidden md:block w-px bg-slate-200 dark:bg-slate-800 self-stretch my-2" />
+
                 {/* Favicon */}
-                <div className="flex flex-col items-center">
-                  <Label className="text-sm font-medium mb-2 dark:text-slate-200">Favicon</Label>
-                  <div className="w-16 h-16 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center overflow-hidden bg-white dark:bg-slate-800">
-                    {formData.favicon ? (
-                      <img 
-                        src={formData.favicon} 
-                        alt="Favicon" 
-                        className="w-full h-full object-contain"
-                        data-testid="img-favicon"
-                      />
-                    ) : (
-                      <div className="text-center p-1">
-                        <Globe className="h-5 w-5 mx-auto text-slate-400" />
-                        <span className="text-[10px] text-slate-500">Icon</span>
-                      </div>
-                    )}
+                <div className="flex-1 flex flex-col items-center justify-center space-y-4">
+                  <div className="text-center">
+                    <Label className="text-sm font-semibold mb-1 block dark:text-slate-200 text-slate-700">Site Favicon</Label>
+                    <p className="text-[10px] text-slate-500 mb-3">Browser tab icon (Square PNG/ICO)</p>
                   </div>
-                  {isEditing && (
-                    <Label htmlFor="favicon-upload" className="cursor-pointer mt-2">
-                      <div className="text-xs text-blue-600 hover:text-blue-700 font-medium text-center">
-                        {uploadingFavicon ? "Uploading..." : "Upload Favicon"}
-                      </div>
-                      <Input 
-                        id="favicon-upload"
-                        type="file"
-                        className="hidden"
-                        accept="image/*,.ico"
-                        onChange={(e) => handleFileUpload(e, 'favicon')}
-                        disabled={uploadingFavicon}
-                        data-testid="input-favicon-upload"
-                      />
-                    </Label>
-                  )}
-                  <p className="text-[10px] text-slate-500 mt-1 text-center max-w-[100px]">
-                    Browser tab icon (16x16 or 32x32 px)
-                  </p>
+
+                  <div className="relative group">
+                    <div className="w-20 h-20 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center overflow-hidden bg-white dark:bg-slate-800 shadow-inner transition-all duration-300 group-hover:border-blue-400 dark:group-hover:border-blue-500">
+                      {formData.favicon ? (
+                        <img 
+                          src={formData.favicon} 
+                          alt="Favicon" 
+                          className="w-12 h-12 object-contain"
+                          data-testid="img-favicon"
+                        />
+                      ) : (
+                        <div className="text-center">
+                          <Globe className="h-8 w-8 mx-auto text-slate-300 dark:text-slate-600" />
+                          <span className="text-[10px] text-slate-400 mt-1 block">No Icon</span>
+                        </div>
+                      )}
+
+                      {isEditing && (
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[1px]">
+                          <Label htmlFor="favicon-upload" className="cursor-pointer">
+                            <div className="bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 px-2.5 py-1.25 rounded-full text-[10px] font-bold shadow-lg hover:scale-105 transition-transform">
+                              {uploadingFavicon ? "..." : "Change"}
+                            </div>
+                            <Input 
+                              id="favicon-upload"
+                              type="file"
+                              className="hidden"
+                              accept="image/*,.ico"
+                              onChange={(e) => handleFileUpload(e, 'favicon')}
+                              disabled={uploadingFavicon}
+                            />
+                          </Label>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
