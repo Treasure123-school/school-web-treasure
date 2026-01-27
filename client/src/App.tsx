@@ -47,6 +47,8 @@ const ProfileOnboarding = lazy(() => import("@/pages/ProfileOnboarding"));
 function RealtimeProvider({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
+const SuperAdminSecurityPolicies = lazy(() => import("@/pages/portal/SuperAdminSecurityPolicies"));
+
 function Router() {
   return (
     <Suspense fallback={<MinimalRouteFallback />}>
@@ -98,6 +100,11 @@ function Router() {
         <Route path="/portal/superadmin/all-users">
           <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
             <SuperAdminAllUsers />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/portal/superadmin/settings/security">
+          <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
+            <SuperAdminSecurityPolicies />
           </ProtectedRoute>
         </Route>
         <Route path="/portal/superadmin/settings/authentication">

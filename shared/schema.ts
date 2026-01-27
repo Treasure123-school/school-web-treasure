@@ -300,6 +300,19 @@ export const systemSettings = sqliteTable("system_settings", {
   requireAdminApproval: integer("require_admin_approval", { mode: "boolean" }).notNull().default(true),
   redirectAfterLogin: text("redirect_after_login").notNull().default('dashboard'), // 'dashboard', 'last_page'
   loginErrorDisplay: text("login_error_display").notNull().default('generic'), // 'generic', 'detailed'
+  // Security Policies
+  minPasswordLength: integer("min_password_length").notNull().default(8),
+  requirePasswordNumbers: integer("require_password_numbers", { mode: "boolean" }).notNull().default(true),
+  requirePasswordLetters: integer("require_password_letters", { mode: "boolean" }).notNull().default(true),
+  requirePasswordSpecial: integer("require_password_special", { mode: "boolean" }).notNull().default(true),
+  maxFailedLoginAttempts: integer("max_failed_login_attempts").notNull().default(5),
+  enableLockAccount: integer("enable_lock_account", { mode: "boolean" }).notNull().default(true),
+  lockoutDuration: integer("lockout_duration").notNull().default(15), // minutes
+  passwordResetExpiry: integer("password_reset_expiry").notNull().default(30), // minutes
+  invalidateOldPasswordOnReset: integer("invalidate_old_password_on_reset", { mode: "boolean" }).notNull().default(true),
+  enableTwoFactor: integer("enable_two_factor", { mode: "boolean" }).notNull().default(false),
+  twoFactorTarget: text("two_factor_target").notNull().default('admins'), // 'admins', 'all'
+  logoutOnPasswordChange: integer("logout_on_password_change", { mode: "boolean" }).notNull().default(true),
   updatedBy: text("updated_by").references(() => users.id, { onDelete: 'set null' }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
