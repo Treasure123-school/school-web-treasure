@@ -287,6 +287,19 @@ export const systemSettings = sqliteTable("system_settings", {
   allowTeacherOverrides: integer("allow_teacher_overrides", { mode: "boolean" }).notNull().default(true),
   positioningMethod: text("positioning_method").notNull().default('average'),
   deletedUserRetentionDays: integer("deleted_user_retention_days").notNull().default(30),
+  // Authentication Settings
+  loginIdentifier: text("login_identifier").notNull().default('username'), // 'email', 'username', 'both'
+  enableRememberMe: integer("enable_remember_me", { mode: "boolean" }).notNull().default(true),
+  enableStudentPortal: integer("enable_student_portal", { mode: "boolean" }).notNull().default(true),
+  enableAdminPortal: integer("enable_admin_portal", { mode: "boolean" }).notNull().default(true),
+  allowRegistration: integer("allow_registration", { mode: "boolean" }).notNull().default(false),
+  defaultRegistrationRoleId: integer("default_registration_role_id").notNull().default(4),
+  sessionTimeout: integer("session_timeout").notNull().default(30), // minutes
+  allowMultipleLogins: integer("allow_multiple_logins", { mode: "boolean" }).notNull().default(false),
+  autoDisableInactiveDays: integer("auto_disable_inactive_days").notNull().default(90),
+  requireAdminApproval: integer("require_admin_approval", { mode: "boolean" }).notNull().default(true),
+  redirectAfterLogin: text("redirect_after_login").notNull().default('dashboard'), // 'dashboard', 'last_page'
+  loginErrorDisplay: text("login_error_display").notNull().default('generic'), // 'generic', 'detailed'
   updatedBy: text("updated_by").references(() => users.id, { onDelete: 'set null' }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
