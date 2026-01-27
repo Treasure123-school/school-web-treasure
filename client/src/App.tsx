@@ -48,6 +48,7 @@ function RealtimeProvider({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 const SuperAdminSecurityPolicies = lazy(() => import("@/pages/portal/SuperAdminSecurityPolicies"));
+const SuperAdminBrandingTheme = lazy(() => import("@/pages/portal/SuperAdminBrandingTheme"));
 
 function Router() {
   return (
@@ -105,6 +106,11 @@ function Router() {
         <Route path="/portal/superadmin/settings/security">
           <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
             <SuperAdminSecurityPolicies />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/portal/superadmin/settings/branding">
+          <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
+            <SuperAdminBrandingTheme />
           </ProtectedRoute>
         </Route>
         <Route path="/portal/superadmin/settings/authentication">

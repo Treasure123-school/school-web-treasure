@@ -148,7 +148,7 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
         { label: "General Configuration", path: "/portal/superadmin/settings" },
         { label: "Authentication", path: "/portal/superadmin/settings/authentication" },
         { label: "Security Policies", path: "/portal/superadmin/settings/security" },
-        { label: "Branding & Theme", path: "/portal/superadmin/placeholder?page=branding" },
+        { label: "Branding & Theme", path: "/portal/superadmin/settings/branding" },
         { label: "API Keys", path: "/portal/superadmin/placeholder?page=api-keys" },
         { label: "Backup & Restore", path: "/portal/superadmin/placeholder?page=backup" },
         { label: "Integrations", path: "/portal/superadmin/placeholder?page=integrations" },

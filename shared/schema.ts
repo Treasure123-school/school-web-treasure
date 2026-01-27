@@ -300,6 +300,18 @@ export const systemSettings = sqliteTable("system_settings", {
   requireAdminApproval: integer("require_admin_approval", { mode: "boolean" }).notNull().default(true),
   redirectAfterLogin: text("redirect_after_login").notNull().default('dashboard'), // 'dashboard', 'last_page'
   loginErrorDisplay: text("login_error_display").notNull().default('generic'), // 'generic', 'detailed'
+  // Branding & Theme
+  primaryColor: text("primary_color").notNull().default('#3b82f6'),
+  secondaryColor: text("secondary_color").notNull().default('#1e293b'),
+  defaultTheme: text("default_theme").notNull().default('light'), // 'light', 'dark'
+  loginPageText: text("login_page_text").notNull().default('Welcome to Treasure Home School Portal'),
+  dashboardWelcomeMessage: text("dashboard_welcome_message").notNull().default('Welcome back to your dashboard'),
+  // General Configuration
+  portalName: text("portal_name").notNull().default('Treasure Home School Portal'),
+  timezone: text("timezone").notNull().default('Africa/Lagos'),
+  language: text("language").notNull().default('en'),
+  dateFormat: text("date_format").notNull().default('DD/MM/YYYY'),
+  timeFormat: text("time_format").notNull().default('HH:mm'),
   // Security Policies
   minPasswordLength: integer("min_password_length").notNull().default(8),
   requirePasswordNumbers: integer("require_password_numbers", { mode: "boolean" }).notNull().default(true),
