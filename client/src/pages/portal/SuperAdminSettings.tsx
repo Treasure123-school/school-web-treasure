@@ -477,6 +477,37 @@ export default function SuperAdminSettings() {
                 </div>
               </div>
 
+              {/* Added Website Title and Footer Text Settings */}
+              <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="websiteTitle" className="dark:text-slate-200 font-medium">Website Title (Browser Tab)</Label>
+                  <Input
+                    id="websiteTitle"
+                    data-testid="input-website-title"
+                    value={formData.websiteTitle || ""}
+                    readOnly={!isEditing}
+                    placeholder="e.g. Treasure-Home School"
+                    onChange={(e) => setFormData({ ...formData, websiteTitle: e.target.value })}
+                    className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+                  />
+                  <p className="text-[10px] text-slate-500">This appears in the browser tab</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="footerText" className="dark:text-slate-200 font-medium">Footer Text</Label>
+                  <Input
+                    id="footerText"
+                    data-testid="input-footer-text"
+                    value={formData.footerText || ""}
+                    readOnly={!isEditing}
+                    placeholder="e.g. © 2026 Treasure-Home School. All rights reserved."
+                    onChange={(e) => setFormData({ ...formData, footerText: e.target.value })}
+                    className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+                  />
+                  <p className="text-[10px] text-slate-500">Appears at the bottom of every page</p>
+                </div>
+              </div>
+
               {/* Basic Info Section */}
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
                 <div className="space-y-2">

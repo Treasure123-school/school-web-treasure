@@ -16,6 +16,7 @@ interface SettingsData {
   schoolEmail: string;
   schoolPhone: string;
   schoolAddress: string;
+  websiteTitle?: string;
 }
 
 export default function Home() {
@@ -28,6 +29,13 @@ export default function Home() {
   const schoolName = settings?.schoolName || "Treasure-Home School";
   const schoolMotto = settings?.schoolMotto || "Qualitative Education & Moral Excellence";
   const schoolAddress = settings?.schoolAddress || "Seriki-Soyinka, Ifo, Ogun State";
+  const websiteTitle = settings?.websiteTitle || schoolName;
+
+  useEffect(() => {
+    if (websiteTitle) {
+      document.title = websiteTitle;
+    }
+  }, [websiteTitle]);
 
   // Fetch dynamic content from database with optimized caching
   const { data: allHomePageContent = [], isLoading: contentLoading } = useQuery<HomePageContent[]>({

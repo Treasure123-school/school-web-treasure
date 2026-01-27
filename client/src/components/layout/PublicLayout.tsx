@@ -16,6 +16,7 @@ interface SettingsData {
   schoolPhone: string;
   schoolAddress: string;
   schoolLogo?: string;
+  footerText?: string;
 }
 
 export default function PublicLayout({ children }: PublicLayoutProps) {
@@ -40,6 +41,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
   const schoolPhone = settings?.schoolPhone || "08037906249, 08107921359";
   const schoolAddress = settings?.schoolAddress || "Seriki-Soyinka Ifo, Ogun State, Nigeria";
   const displayLogo = settings?.schoolLogo || schoolLogo;
+  const footerText = settings?.footerText || `© ${new Date().getFullYear()} ${schoolName}. All rights reserved. | Built with excellence in education.`;
 
   const navigation = [
     { name: 'Home', href: '/' },
@@ -273,7 +275,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
           {/* Bottom Bar */}
           <div className="pt-8 border-t border-border/50 text-center">
             <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} {schoolName}. All rights reserved. | Built with excellence in education.
+              {footerText}
             </p>
           </div>
         </div>

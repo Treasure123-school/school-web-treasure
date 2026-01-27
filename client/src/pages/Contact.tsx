@@ -11,6 +11,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { MapPin, Phone, Mail, Clock, Car, Calendar } from 'lucide-react';
+import { useEffect } from 'react';
 
 interface SettingsData {
   schoolName: string;
@@ -18,6 +19,7 @@ interface SettingsData {
   schoolEmail: string;
   schoolPhone: string;
   schoolAddress: string;
+  websiteTitle?: string;
 }
 
 const contactSchema = z.object({
@@ -40,6 +42,13 @@ export default function Contact() {
   const schoolEmail = settings?.schoolEmail || "treasurehomeschool@gmail.com";
   const schoolPhone = settings?.schoolPhone || "08037906249, 08107921359";
   const schoolAddress = settings?.schoolAddress || "Seriki-Soyinka Ifo, Ogun State, Nigeria";
+  const websiteTitle = settings?.websiteTitle || `${schoolName} - Contact Us`;
+
+  useEffect(() => {
+    if (websiteTitle) {
+      document.title = websiteTitle;
+    }
+  }, [websiteTitle]);
   
   const {
     register,
