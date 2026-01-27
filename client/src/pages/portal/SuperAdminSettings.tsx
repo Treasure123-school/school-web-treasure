@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import SuperAdminLayout from "@/components/SuperAdminLayout";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Save, AlertTriangle, GraduationCap, BarChart3, Settings2, FileText, Eye, Trash2 } from "lucide-react";
+import { Save, AlertTriangle, GraduationCap, BarChart3, Settings2, FileText, Eye, Trash2, Plus, X, Phone, Mail, Building2, Globe, Image } from "lucide-react";
 import { GRADING_SCALES, getGradeColor, getGradeBgColor, type GradingConfig } from "@shared/grading-utils";
 
 interface SettingsData {
@@ -25,8 +25,8 @@ interface SettingsData {
   schoolAddress: string;
   schoolLogo?: string;
   favicon?: string;
-  schoolPhones: string; // JSON string
-  schoolEmails: string; // JSON string
+  schoolPhones: string;
+  schoolEmails: string;
   websiteTitle: string;
   footerText: string;
   maintenanceMode: boolean;
@@ -47,6 +47,34 @@ interface SettingsData {
   allowTeacherOverrides: boolean;
   deletedUserRetentionDays: number;
 }
+
+interface PhoneEntry {
+  countryCode: string;
+  number: string;
+}
+
+const COUNTRY_CODES = [
+  { code: "+234", country: "Nigeria", flag: "NG" },
+  { code: "+1", country: "USA/Canada", flag: "US" },
+  { code: "+44", country: "United Kingdom", flag: "GB" },
+  { code: "+233", country: "Ghana", flag: "GH" },
+  { code: "+27", country: "South Africa", flag: "ZA" },
+  { code: "+254", country: "Kenya", flag: "KE" },
+  { code: "+91", country: "India", flag: "IN" },
+  { code: "+86", country: "China", flag: "CN" },
+  { code: "+61", country: "Australia", flag: "AU" },
+  { code: "+49", country: "Germany", flag: "DE" },
+  { code: "+33", country: "France", flag: "FR" },
+  { code: "+39", country: "Italy", flag: "IT" },
+  { code: "+34", country: "Spain", flag: "ES" },
+  { code: "+55", country: "Brazil", flag: "BR" },
+  { code: "+81", country: "Japan", flag: "JP" },
+  { code: "+82", country: "South Korea", flag: "KR" },
+  { code: "+971", country: "UAE", flag: "AE" },
+  { code: "+966", country: "Saudi Arabia", flag: "SA" },
+  { code: "+20", country: "Egypt", flag: "EG" },
+  { code: "+212", country: "Morocco", flag: "MA" },
+];
 
 export default function SuperAdminSettings() {
   const { toast } = useToast();
@@ -135,6 +163,62 @@ export default function SuperAdminSettings() {
       if (type === 'logo') setUploadingLogo(false);
       else setUploadingFavicon(false);
     }
+  };
+
+  const parsePhones = (phonesJson: string): PhoneEntry[] => {
+    try {
+      const parsed = JSON.parse(phonesJson || '[]');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const parseEmails = (emailsJson: string): string[] => {
+    try {
+      const parsed = JSON.parse(emailsJson || '[]');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const addPhone = () => {
+    const phones = parsePhones(formData.schoolPhones);
+    phones.push({ countryCode: "+234", number: "" });
+    setFormData({ ...formData, schoolPhones: JSON.stringify(phones) });
+  };
+
+  const updatePhone = (index: number, field: keyof PhoneEntry, value: string) => {
+    const phones = parsePhones(formData.schoolPhones);
+    if (phones[index]) {
+      phones[index][field] = value;
+      setFormData({ ...formData, schoolPhones: JSON.stringify(phones) });
+    }
+  };
+
+  const removePhone = (index: number) => {
+    const phones = parsePhones(formData.schoolPhones);
+    phones.splice(index, 1);
+    setFormData({ ...formData, schoolPhones: JSON.stringify(phones) });
+  };
+
+  const addEmail = () => {
+    const emails = parseEmails(formData.schoolEmails);
+    emails.push("");
+    setFormData({ ...formData, schoolEmails: JSON.stringify(emails) });
+  };
+
+  const updateEmail = (index: number, value: string) => {
+    const emails = parseEmails(formData.schoolEmails);
+    emails[index] = value;
+    setFormData({ ...formData, schoolEmails: JSON.stringify(emails) });
+  };
+
+  const removeEmail = (index: number) => {
+    const emails = parseEmails(formData.schoolEmails);
+    emails.splice(index, 1);
+    setFormData({ ...formData, schoolEmails: JSON.stringify(emails) });
   };
 
   useEffect(() => {
@@ -306,99 +390,134 @@ export default function SuperAdminSettings() {
           {/* School Information */}
           <Card className="dark:bg-slate-800 dark:border-slate-700 shadow-sm">
             <CardHeader>
-              <CardTitle className="dark:text-white">School Information</CardTitle>
+              <CardTitle className="flex items-center gap-2 dark:text-white">
+                <Building2 className="h-5 w-5" />
+                School Information
+              </CardTitle>
               <CardDescription className="dark:text-slate-400">
-                Basic information about your school
+                Basic information about your school - these details appear on the website and official documents
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-col items-center sm:flex-row sm:items-start gap-6 mb-6">
-                <div className="relative group">
-                  <div className="w-32 h-32 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-900/50">
+            <CardContent className="space-y-6">
+              {/* Logo and Favicon Section */}
+              <div className="flex flex-col sm:flex-row gap-6 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg">
+                {/* School Logo */}
+                <div className="flex flex-col items-center">
+                  <Label className="text-sm font-medium mb-2 dark:text-slate-200">School Logo</Label>
+                  <div className="w-28 h-28 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center overflow-hidden bg-white dark:bg-slate-800">
                     {formData.schoolLogo ? (
                       <img 
                         src={formData.schoolLogo} 
                         alt="School Logo" 
                         className="w-full h-full object-contain"
+                        data-testid="img-school-logo"
                       />
                     ) : (
                       <div className="text-center p-2">
-                        <FileText className="h-8 w-8 mx-auto text-slate-400" />
+                        <Image className="h-8 w-8 mx-auto text-slate-400" />
                         <span className="text-xs text-slate-500 mt-1">No logo</span>
                       </div>
                     )}
                   </div>
                   {isEditing && (
-                    <div className="mt-2">
-                      <Label htmlFor="logo-upload" className="cursor-pointer">
-                        <div className="text-xs text-blue-600 hover:text-blue-700 font-medium text-center">
-                          {uploadingLogo ? "Uploading..." : "Click to upload logo"}
-                        </div>
-                        <Input 
-                          id="logo-upload"
-                          type="file"
-                          className="hidden"
-                          accept="image/*"
-                          onChange={handleLogoUpload}
-                          disabled={uploadingLogo}
-                        />
-                      </Label>
-                    </div>
+                    <Label htmlFor="logo-upload" className="cursor-pointer mt-2">
+                      <div className="text-xs text-blue-600 hover:text-blue-700 font-medium text-center">
+                        {uploadingLogo ? "Uploading..." : "Upload Logo"}
+                      </div>
+                      <Input 
+                        id="logo-upload"
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => handleFileUpload(e, 'logo')}
+                        disabled={uploadingLogo}
+                        data-testid="input-logo-upload"
+                      />
+                    </Label>
                   )}
                 </div>
-                <div className="flex-1 w-full space-y-4">
-                  <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="schoolName" className="dark:text-slate-200">School Name</Label>
-                      <Input
-                        id="schoolName"
-                        data-testid="input-school-name"
-                        value={formData.schoolName}
-                        readOnly={!isEditing}
-                        onChange={(e) => setFormData({ ...formData, schoolName: e.target.value })}
-                        className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+
+                {/* Favicon */}
+                <div className="flex flex-col items-center">
+                  <Label className="text-sm font-medium mb-2 dark:text-slate-200">Favicon</Label>
+                  <div className="w-16 h-16 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center overflow-hidden bg-white dark:bg-slate-800">
+                    {formData.favicon ? (
+                      <img 
+                        src={formData.favicon} 
+                        alt="Favicon" 
+                        className="w-full h-full object-contain"
+                        data-testid="img-favicon"
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="schoolMotto" className="dark:text-slate-200">School Motto</Label>
-                      <Input
-                        id="schoolMotto"
-                        data-testid="input-school-motto"
-                        value={formData.schoolMotto}
-                        readOnly={!isEditing}
-                        onChange={(e) => setFormData({ ...formData, schoolMotto: e.target.value })}
-                        className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
-                      />
-                    </div>
+                    ) : (
+                      <div className="text-center p-1">
+                        <Globe className="h-5 w-5 mx-auto text-slate-400" />
+                        <span className="text-[10px] text-slate-500">Icon</span>
+                      </div>
+                    )}
                   </div>
+                  {isEditing && (
+                    <Label htmlFor="favicon-upload" className="cursor-pointer mt-2">
+                      <div className="text-xs text-blue-600 hover:text-blue-700 font-medium text-center">
+                        {uploadingFavicon ? "Uploading..." : "Upload Favicon"}
+                      </div>
+                      <Input 
+                        id="favicon-upload"
+                        type="file"
+                        className="hidden"
+                        accept="image/*,.ico"
+                        onChange={(e) => handleFileUpload(e, 'favicon')}
+                        disabled={uploadingFavicon}
+                        data-testid="input-favicon-upload"
+                      />
+                    </Label>
+                  )}
+                  <p className="text-[10px] text-slate-500 mt-1 text-center max-w-[100px]">
+                    Browser tab icon (16x16 or 32x32 px)
+                  </p>
                 </div>
               </div>
 
+              {/* Basic Info Section */}
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="schoolEmail" className="dark:text-slate-200">School Email</Label>
+                  <Label htmlFor="schoolName" className="dark:text-slate-200">School Name *</Label>
                   <Input
-                    id="schoolEmail"
-                    type="email"
-                    data-testid="input-school-email"
-                    value={formData.schoolEmail}
+                    id="schoolName"
+                    data-testid="input-school-name"
+                    value={formData.schoolName}
                     readOnly={!isEditing}
-                    onChange={(e) => setFormData({ ...formData, schoolEmail: e.target.value })}
+                    placeholder="e.g. Treasure-Home School"
+                    onChange={(e) => setFormData({ ...formData, schoolName: e.target.value })}
                     className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="schoolPhone" className="dark:text-slate-200">School Phone</Label>
+                  <Label htmlFor="schoolShortName" className="dark:text-slate-200">School Short Name / Acronym</Label>
                   <Input
-                    id="schoolPhone"
-                    data-testid="input-school-phone"
-                    value={formData.schoolPhone}
+                    id="schoolShortName"
+                    data-testid="input-school-short-name"
+                    value={formData.schoolShortName}
                     readOnly={!isEditing}
-                    onChange={(e) => setFormData({ ...formData, schoolPhone: e.target.value })}
+                    placeholder="e.g. THS"
+                    onChange={(e) => setFormData({ ...formData, schoolShortName: e.target.value })}
                     className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
                   />
                 </div>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="schoolMotto" className="dark:text-slate-200">School Motto</Label>
+                <Input
+                  id="schoolMotto"
+                  data-testid="input-school-motto"
+                  value={formData.schoolMotto}
+                  readOnly={!isEditing}
+                  placeholder="e.g. Honesty and Success"
+                  onChange={(e) => setFormData({ ...formData, schoolMotto: e.target.value })}
+                  className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="schoolAddress" className="dark:text-slate-200">School Address</Label>
                 <Textarea
@@ -406,9 +525,172 @@ export default function SuperAdminSettings() {
                   data-testid="input-school-address"
                   value={formData.schoolAddress}
                   readOnly={!isEditing}
+                  placeholder="e.g. 123 Education Street, City, State, Country"
                   onChange={(e) => setFormData({ ...formData, schoolAddress: e.target.value })}
-                  className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+                  className="dark:bg-slate-900 dark:border-slate-700 dark:text-white min-h-[80px]"
                 />
+              </div>
+
+              {/* Phone Numbers Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="dark:text-slate-200 flex items-center gap-2">
+                    <Phone className="h-4 w-4" />
+                    Phone Numbers
+                  </Label>
+                  {isEditing && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={addPhone}
+                      data-testid="button-add-phone"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Phone
+                    </Button>
+                  )}
+                </div>
+                {parsePhones(formData.schoolPhones).length === 0 ? (
+                  <p className="text-sm text-slate-500 dark:text-slate-400 italic">
+                    No phone numbers added. Click "Add Phone" to add one.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {parsePhones(formData.schoolPhones).map((phone, index) => (
+                      <div key={index} className="flex items-center gap-2" data-testid={`phone-entry-${index}`}>
+                        <Select
+                          disabled={!isEditing}
+                          value={phone.countryCode}
+                          onValueChange={(value) => updatePhone(index, 'countryCode', value)}
+                        >
+                          <SelectTrigger className="w-[140px] dark:bg-slate-900 dark:border-slate-700" data-testid={`select-country-code-${index}`}>
+                            <SelectValue placeholder="Code" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {COUNTRY_CODES.map((cc) => (
+                              <SelectItem key={cc.code} value={cc.code}>
+                                {cc.code} ({cc.flag})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          type="tel"
+                          value={phone.number}
+                          readOnly={!isEditing}
+                          placeholder="Phone number"
+                          onChange={(e) => updatePhone(index, 'number', e.target.value)}
+                          className="flex-1 dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+                          data-testid={`input-phone-number-${index}`}
+                        />
+                        {isEditing && (
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => removePhone(index)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            data-testid={`button-remove-phone-${index}`}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Email Addresses Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="dark:text-slate-200 flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    Official Email Addresses
+                  </Label>
+                  {isEditing && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={addEmail}
+                      data-testid="button-add-email"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Email
+                    </Button>
+                  )}
+                </div>
+                {parseEmails(formData.schoolEmails).length === 0 ? (
+                  <p className="text-sm text-slate-500 dark:text-slate-400 italic">
+                    No email addresses added. Click "Add Email" to add one.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {parseEmails(formData.schoolEmails).map((email, index) => (
+                      <div key={index} className="flex items-center gap-2" data-testid={`email-entry-${index}`}>
+                        <Input
+                          type="email"
+                          value={email}
+                          readOnly={!isEditing}
+                          placeholder="email@school.com"
+                          onChange={(e) => updateEmail(index, e.target.value)}
+                          className="flex-1 dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+                          data-testid={`input-email-${index}`}
+                        />
+                        {isEditing && (
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => removeEmail(index)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            data-testid={`button-remove-email-${index}`}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Website Settings Section */}
+              <div className="border-t pt-4 dark:border-slate-700">
+                <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
+                  <Globe className="h-4 w-4" />
+                  Website Settings
+                </h4>
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="websiteTitle" className="dark:text-slate-200">Website Title (Browser Tab)</Label>
+                    <Input
+                      id="websiteTitle"
+                      data-testid="input-website-title"
+                      value={formData.websiteTitle}
+                      readOnly={!isEditing}
+                      placeholder="e.g. Treasure-Home School"
+                      onChange={(e) => setFormData({ ...formData, websiteTitle: e.target.value })}
+                      className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+                    />
+                    <p className="text-xs text-slate-500">This appears in the browser tab</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="footerText" className="dark:text-slate-200">Footer Text</Label>
+                    <Input
+                      id="footerText"
+                      data-testid="input-footer-text"
+                      value={formData.footerText}
+                      readOnly={!isEditing}
+                      placeholder="e.g. © 2026 School Name. All rights reserved."
+                      onChange={(e) => setFormData({ ...formData, footerText: e.target.value })}
+                      className="dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+                    />
+                    <p className="text-xs text-slate-500">Appears at the bottom of every page</p>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
