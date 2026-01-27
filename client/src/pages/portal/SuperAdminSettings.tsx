@@ -18,11 +18,17 @@ import { GRADING_SCALES, getGradeColor, getGradeBgColor, type GradingConfig } fr
 
 interface SettingsData {
   schoolName: string;
+  schoolShortName: string;
   schoolMotto: string;
   schoolEmail: string;
   schoolPhone: string;
   schoolAddress: string;
   schoolLogo?: string;
+  favicon?: string;
+  schoolPhones: string; // JSON string
+  schoolEmails: string; // JSON string
+  websiteTitle: string;
+  footerText: string;
   maintenanceMode: boolean;
   maintenanceModeMessage: string;
   enableSmsNotifications: boolean;
@@ -54,13 +60,19 @@ export default function SuperAdminSettings() {
     refetchInterval: 5000, // Added polling for real-time updates
   });
 
-  const [formData, setFormData] = useState<SettingsData & { schoolLogo?: string }>({
+  const [formData, setFormData] = useState<SettingsData & { schoolLogo?: string; favicon?: string }>({
     schoolName: "",
+    schoolShortName: "",
     schoolMotto: "",
     schoolEmail: "",
     schoolPhone: "",
     schoolAddress: "",
     schoolLogo: "",
+    favicon: "",
+    schoolPhones: "[]",
+    schoolEmails: "[]",
+    websiteTitle: "",
+    footerText: "",
     maintenanceMode: false,
     maintenanceModeMessage: "",
     enableSmsNotifications: false,
@@ -81,12 +93,15 @@ export default function SuperAdminSettings() {
   });
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingFavicon, setUploadingFavicon] = useState(false);
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'favicon') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setUploadingLogo(true);
+    if (type === 'logo') setUploadingLogo(true);
+    else setUploadingFavicon(true);
+
     const uploadFormData = new FormData();
     uploadFormData.append("file", file);
     uploadFormData.append("uploadType", "system_settings");
@@ -103,8 +118,13 @@ export default function SuperAdminSettings() {
       if (!response.ok) throw new Error("Upload failed");
 
       const data = await response.json();
-      setFormData(prev => ({ ...prev, schoolLogo: data.url }));
-      toast({ title: "Logo uploaded", description: "Save changes to apply the new logo." });
+      if (type === 'logo') {
+        setFormData(prev => ({ ...prev, schoolLogo: data.url }));
+        toast({ title: "Logo uploaded", description: "Save changes to apply the new logo." });
+      } else {
+        setFormData(prev => ({ ...prev, favicon: data.url }));
+        toast({ title: "Favicon uploaded", description: "Save changes to apply the new favicon." });
+      }
     } catch (error: any) {
       toast({
         title: "Upload failed",
@@ -112,7 +132,8 @@ export default function SuperAdminSettings() {
         variant: "destructive",
       });
     } finally {
-      setUploadingLogo(false);
+      if (type === 'logo') setUploadingLogo(false);
+      else setUploadingFavicon(false);
     }
   };
 
@@ -122,6 +143,12 @@ export default function SuperAdminSettings() {
         ...prev,
         ...settings,
         schoolLogo: settings.schoolLogo || "",
+        favicon: settings.favicon || "",
+        schoolShortName: settings.schoolShortName || "",
+        schoolPhones: settings.schoolPhones || "[]",
+        schoolEmails: settings.schoolEmails || "[]",
+        websiteTitle: settings.websiteTitle || "",
+        footerText: settings.footerText || "",
         testWeight: settings.testWeight ?? 40,
         examWeight: settings.examWeight ?? 60,
         defaultGradingScale: settings.defaultGradingScale ?? "standard",
@@ -176,11 +203,17 @@ export default function SuperAdminSettings() {
     // Create a clean object to send, ensuring no extra fields that might cause issues
     const dataToSave = {
       schoolName: formData.schoolName,
+      schoolShortName: formData.schoolShortName,
       schoolMotto: formData.schoolMotto,
       schoolEmail: formData.schoolEmail,
       schoolPhone: formData.schoolPhone,
       schoolAddress: formData.schoolAddress,
       schoolLogo: formData.schoolLogo,
+      favicon: formData.favicon,
+      schoolPhones: formData.schoolPhones,
+      schoolEmails: formData.schoolEmails,
+      websiteTitle: formData.websiteTitle,
+      footerText: formData.footerText,
       maintenanceMode: formData.maintenanceMode,
       maintenanceModeMessage: formData.maintenanceModeMessage,
       enableSmsNotifications: formData.enableSmsNotifications,
