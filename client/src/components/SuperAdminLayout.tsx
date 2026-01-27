@@ -145,7 +145,7 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
       label: "System Settings",
       icon: Settings,
       children: [
-        { label: "Portal Configuration", path: "/portal/superadmin/settings" },
+        { label: "General Configuration", path: "/portal/superadmin/settings" },
         { label: "Authentication", path: "/portal/superadmin/settings/authentication" },
         { label: "Security Policies", path: "/portal/superadmin/placeholder?page=security" },
         { label: "Branding & Theme", path: "/portal/superadmin/placeholder?page=branding" },
