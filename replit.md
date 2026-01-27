@@ -84,6 +84,15 @@ The backend is an Express.js application built with Node.js and TypeScript, leve
   - Automatic daily cleanup at 2:00 AM removes expired deleted users
   - Full audit logging of recovery actions
   - Role-based permission enforcement to prevent privilege escalation
+- **School Information Management**: Comprehensive school settings in Super Admin portal:
+  - School name, short name/abbreviation, address, and motto
+  - Multiple phone numbers with country code support (20+ countries, Nigeria +234 default)
+  - Multiple email addresses for different departments
+  - School logo and favicon uploads with independent management
+  - Website title and footer text customization
+  - All fields are editable and persist across sessions
+  - Phone numbers stored as JSON array with {countryCode, number} structure
+  - Emails stored as JSON string array
 
 ### System Design Choices
 - **Stateless Backend**: Achieved by offloading database to Neon PostgreSQL and file storage to Cloudinary.
