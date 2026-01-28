@@ -160,7 +160,7 @@ function Router() {
       </Route>
       <Route path="/portal/superadmin/users/access-control">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
-          <SuperAdminPlaceholder title="Login Access Control" category="Users" description="Manage login restrictions and access policies" />
+          <SuperAdminPlaceholder title="User Access Control" category="Users" description="Manage user-level login restrictions and access policies" />
         </ProtectedRoute>
       </Route>
 

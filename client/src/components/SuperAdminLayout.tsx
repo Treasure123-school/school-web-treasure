@@ -107,8 +107,8 @@ export default function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
       children: [
         { label: "All Users", path: "/portal/superadmin/all-users" },
         { label: "Admins", path: "/portal/superadmin/admins" },
-        { label: "Roles & Permissions", path: "/portal/superadmin/placeholder?page=roles" },
-        { label: "Login Access Control", path: "/portal/superadmin/placeholder?page=access-control" },
+        { label: "Roles & Permissions", path: "/portal/superadmin/users/roles" },
+        { label: "User Access Control", path: "/portal/superadmin/users/access-control" },
       ],
     },
     {
