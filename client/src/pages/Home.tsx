@@ -1,7 +1,6 @@
 import PublicLayout from '@/components/layout/PublicLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useState, useEffect, useRef } from 'react';
@@ -9,6 +8,7 @@ import { Calendar, Clock, ChevronLeft, ChevronRight, Users, Award, GraduationCap
 import type { HomePageContent } from '@shared/schema';
 import Typed from 'typed.js';
 import { HeroCarousel } from '@/components/hero/HeroCarousel';
+import { motion } from 'framer-motion';
 
 interface SettingsData {
   schoolName: string;
@@ -18,6 +18,23 @@ interface SettingsData {
   schoolAddress: string;
   websiteTitle?: string;
 }
+
+const fadeIn = {
+  initial: { opacity: 0, y: 20 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: "-100px" },
+  transition: { duration: 0.6, ease: "easeOut" }
+};
+
+const staggerContainer = {
+  initial: {},
+  whileInView: {
+    transition: {
+      staggerChildren: 0.2
+    }
+  },
+  viewport: { once: true, margin: "-100px" }
+};
 
 export default function Home() {
   const { data: settings } = useQuery<SettingsData>({
@@ -37,13 +54,11 @@ export default function Home() {
     }
   }, [websiteTitle]);
 
-  // Fetch dynamic content from database with optimized caching
   const { data: allHomePageContent = [], isLoading: contentLoading } = useQuery<HomePageContent[]>({
     queryKey: ['/api', 'public', 'homepage-content'],
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000, 
   });
 
-  // Filter content by type
   const heroImages = allHomePageContent.filter(content => content.contentType === 'hero_image');
   const galleryPreviewImages = allHomePageContent.filter(content => 
     content.contentType === 'gallery_preview_1' || 
@@ -51,19 +66,16 @@ export default function Home() {
     content.contentType === 'gallery_preview_3'
   );
 
-  // Fetch latest published announcements for homepage preview
   const { data: allAnnouncements = [] } = useQuery<any[]>({
     queryKey: ['/api', 'announcements'],
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 2 * 60 * 1000,
   });
 
-  // Filter and sort announcements client-side for better caching
   const recentAnnouncements = allAnnouncements
     .filter((ann: any) => ann.isPublished && ann.publishedAt)
     .sort((a: any, b: any) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
     .slice(0, 3);
 
-  // Gallery carousel state
   const [currentGalleryIndex, setCurrentGalleryIndex] = useState(0);
 
   const features = [
@@ -94,7 +106,6 @@ export default function Home() {
     { value: '95%', label: 'Success Rate' }
   ];
 
-  // Combine dynamic gallery preview images with fallbacks
   const dynamicGalleryImages = galleryPreviewImages
     .filter(img => img.isActive && img.imageUrl)
     .sort((a, b) => a.displayOrder - b.displayOrder)
@@ -104,18 +115,17 @@ export default function Home() {
       alt: img.altText || img.caption || 'School gallery image'
     }));
 
-  // Fallback images if no dynamic images are available
   const fallbackGalleryImages = [
     {
-      src: 'https://images.unsplash.com/photo-1497486751825-1233686d5d80?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=300',
+      src: 'https://images.unsplash.com/photo-1497486751825-1233686d5d80?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300',
       alt: 'Students engaged in classroom learning'
     },
     {
-      src: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=300',
+      src: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300',
       alt: 'Students participating in sports activities'
     },
     {
-      src: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=300',
+      src: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300',
       alt: 'Students conducting science experiments'
     },
     {
@@ -124,10 +134,8 @@ export default function Home() {
     }
   ];
 
-  // Use dynamic images if available, otherwise use fallbacks
   const galleryImages = dynamicGalleryImages.length > 0 ? dynamicGalleryImages : fallbackGalleryImages;
 
-  // Gallery carousel navigation
   const nextGalleryImage = () => {
     setCurrentGalleryIndex((prev) => (prev + 1) % galleryImages.length);
   };
@@ -136,7 +144,6 @@ export default function Home() {
     setCurrentGalleryIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
   };
 
-  // Auto-advance gallery carousel
   useEffect(() => {
     if (galleryImages.length > 1) {
       const timer = setInterval(nextGalleryImage, 5000);
@@ -144,7 +151,6 @@ export default function Home() {
     }
   }, [galleryImages.length]);
 
-  // Helper to format announcement date
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
@@ -153,23 +159,19 @@ export default function Home() {
     });
   };
 
-  // Helper to truncate text
   const truncateText = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
   };
 
-  // Typed.js animation for changing text
   const typedElementRef = useRef<HTMLSpanElement>(null);
   const typedInstance = useRef<Typed | null>(null);
 
   useEffect(() => {
     if (typedElementRef.current) {
-      // Destroy previous instance if it exists
       if (typedInstance.current) {
         typedInstance.current.destroy();
       }
-      // Create new Typed instance
       typedInstance.current = new Typed(typedElementRef.current, {
         strings: ["Integrity", "Excellence", "Confidence", "Creativity", "Compassion"],
         typeSpeed: 80,
@@ -182,22 +184,17 @@ export default function Home() {
         smartBackspace: true
       });
     }
-    // Cleanup on unmount
     return () => {
       if (typedInstance.current) {
         typedInstance.current.destroy();
       }
     };
-  }, []); // Empty dependency array means this runs once on mount
+  }, []);
 
   return (
     <PublicLayout>
-      {/* Advanced Hero Section with Image Carousel */}
       <section className="relative min-h-[85vh] lg:min-h-[90vh] overflow-hidden">
-        {/* Background gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-blue-700 to-blue-900 z-0"></div>
-        
-        {/* Animated background patterns */}
         <div className="absolute inset-0 opacity-10 z-0">
           <div className="absolute top-0 -left-4 w-72 h-72 bg-white rounded-full mix-blend-overlay filter blur-3xl animate-blob"></div>
           <div className="absolute top-0 -right-4 w-72 h-72 bg-yellow-300 rounded-full mix-blend-overlay filter blur-3xl animate-blob animation-delay-2000"></div>
@@ -206,9 +203,13 @@ export default function Home() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 py-24 lg:py-32">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center min-h-[75vh]">
-            {/* Left Content */}
-            <div className="text-white order-2 lg:order-1 text-center lg:text-left space-y-8">
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl text-white leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in font-normal" data-testid="text-hero-tagline">
+            <motion.div 
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8 }}
+              className="text-white order-2 lg:order-1 text-center lg:text-left space-y-8"
+            >
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl text-white leading-relaxed max-w-2xl mx-auto lg:mx-0 font-normal" data-testid="text-hero-tagline">
                 <span className="block">
                   <span className="inline">Nurturing Bright Minds with</span>{' '}
                   <span className="inline-block align-baseline min-w-[200px] sm:min-w-[240px] lg:min-w-[300px]">
@@ -217,11 +218,11 @@ export default function Home() {
                 </span>
               </h1>
 
-              <p className="text-base sm:text-lg text-blue-100/90 leading-relaxed max-w-2xl mx-auto lg:mx-0 animate-fade-in" style={{ animationDelay: '0.3s' }} data-testid="text-hero-description">
+              <p className="text-base sm:text-lg text-blue-100/90 leading-relaxed max-w-2xl mx-auto lg:mx-0" data-testid="text-hero-description">
                 At {schoolName}, we provide qualitative education anchored on moral values and lifelong learning. Located in {schoolAddress}, we offer comprehensive education from Playgroup to Senior Secondary School — shaping confident, responsible, and successful learners.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center lg:justify-start animate-slide-up pt-4" style={{ animationDelay: '0.4s' }}>
+              <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center lg:justify-start pt-4">
                 <Button 
                   asChild 
                   size="lg"
@@ -240,21 +241,24 @@ export default function Home() {
                   <Link href="/contact">Contact Us</Link>
                 </Button>
               </div>
-            </div>
+            </motion.div>
 
-            {/* Right Content - Hero Carousel */}
-            <div className="order-1 lg:order-2 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8 }}
+              className="order-1 lg:order-2"
+            >
               <HeroCarousel
                 images={heroImages}
                 isLoading={contentLoading}
                 autoRotateInterval={5000}
                 transitionDuration={700}
               />
-            </div>
+            </motion.div>
           </div>
         </div>
 
-        {/* Decorative bottom wave */}
         <div className="absolute bottom-0 left-0 right-0">
           <svg className="w-full h-16 lg:h-24 fill-current text-white" viewBox="0 0 1440 74" xmlns="http://www.w3.org/2000/svg">
             <path d="M0,32L48,37.3C96,43,192,53,288,48C384,43,480,21,576,16C672,11,768,21,864,26.7C960,32,1056,32,1152,26.7C1248,21,1344,11,1392,5.3L1440,0L1440,74L1392,74C1344,74,1248,74,1152,74C1056,74,960,74,864,74C768,74,672,74,576,74C480,74,384,74,288,74C192,74,96,74,48,74L0,74Z"></path>
@@ -262,130 +266,163 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Enhanced Key Features Section */}
       <section className="section-gradient-light py-20 md:py-24 lg:py-32 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center mb-16 lg:mb-20">
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6 lg:mb-8 animate-slide-down" data-testid="text-features-title">
+          <motion.div 
+            {...fadeIn}
+            className="text-center mb-16 lg:mb-20"
+          >
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6 lg:mb-8" data-testid="text-features-title">
               Why Choose {schoolName}?
             </h2>
-            <p className="text-muted-foreground max-w-3xl mx-auto text-lg sm:text-xl leading-relaxed animate-fade-in" data-testid="text-features-description">
+            <p className="text-muted-foreground max-w-3xl mx-auto text-lg sm:text-xl leading-relaxed" data-testid="text-features-description">
               We provide comprehensive education with modern facilities and experienced teachers, preparing students for academic excellence and moral development.
             </p>
-          </div>
+          </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10">
+          <motion.div 
+            variants={staggerContainer}
+            initial="initial"
+            whileInView="whileInView"
+            viewport={{ once: true, margin: "-100px" }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10"
+          >
             {features.map((feature, index) => (
-              <Card key={index} className="card-hover bg-white/80 backdrop-blur-sm border-0 shadow-xl animate-slide-up" data-testid={`card-feature-${index}`}>
-                <CardContent className="p-8 lg:p-10 text-center">
-                  <div className={`w-16 h-16 lg:w-20 lg:h-20 rounded-2xl flex items-center justify-center mb-6 mx-auto transform transition-all duration-300 ${
-                    feature.color === 'primary' ? 'bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25' :
-                    feature.color === 'secondary' ? 'bg-gradient-to-br from-yellow-400 to-orange-500 shadow-lg shadow-yellow-500/25' :
-                    'bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/25'
-                  }`}>
-                    <feature.icon className="text-white h-8 w-8 lg:h-10 lg:w-10" />
-                  </div>
-                  <h3 className="text-xl lg:text-2xl font-bold mb-4 text-gray-900" data-testid={`text-feature-title-${index}`}>
-                    {feature.title}
-                  </h3>
-                  <p className="text-gray-600 text-base lg:text-lg leading-relaxed" data-testid={`text-feature-description-${index}`}>
-                    {feature.description}
-                  </p>
-                </CardContent>
-              </Card>
+              <motion.div key={index} variants={fadeIn}>
+                <Card className="card-hover bg-white/80 backdrop-blur-sm border-0 shadow-xl h-full" data-testid={`card-feature-${index}`}>
+                  <CardContent className="p-8 lg:p-10 text-center">
+                    <div className={`w-16 h-16 lg:w-20 lg:h-20 rounded-2xl flex items-center justify-center mb-6 mx-auto transform transition-all duration-300 ${
+                      feature.color === 'primary' ? 'bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25' :
+                      feature.color === 'secondary' ? 'bg-gradient-to-br from-yellow-400 to-orange-500 shadow-lg shadow-yellow-500/25' :
+                      'bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/25'
+                    }`}>
+                      <feature.icon className="text-white h-8 w-8 lg:h-10 lg:w-10" />
+                    </div>
+                    <h3 className="text-xl lg:text-2xl font-bold mb-4 text-gray-900" data-testid={`text-feature-title-${index}`}>
+                      {feature.title}
+                    </h3>
+                    <p className="text-gray-600 text-base lg:text-lg leading-relaxed" data-testid={`text-feature-description-${index}`}>
+                      {feature.description}
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* Enhanced Stats Section */}
       <section className="py-20 bg-gradient-to-br from-white to-blue-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          <motion.div 
+            variants={staggerContainer}
+            initial="initial"
+            whileInView="whileInView"
+            viewport={{ once: true }}
+            className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center"
+          >
             {stats.map((stat, index) => (
-              <div key={index} className="group animate-bounce-gentle" style={{ animationDelay: `${index * 0.2}s` }} data-testid={`stat-${index}`}>
+              <motion.div key={index} variants={fadeIn} className="group" data-testid={`stat-${index}`}>
                 <div className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent mb-3 group-hover:scale-110 transition-transform duration-300" data-testid={`text-stat-value-${index}`}>
                   {stat.value}
                 </div>
                 <div className="text-gray-600 font-medium text-sm lg:text-base" data-testid={`text-stat-label-${index}`}>
                   {stat.label}
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* Beautiful Mission/Vision Section */}
       <section className="section-gradient-accent py-20 lg:py-28 relative overflow-hidden">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold gradient-text mb-6 animate-slide-down">Our Mission & Vision</h2>
+          <motion.div {...fadeIn} className="text-center mb-12">
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold gradient-text mb-6">Our Mission & Vision</h2>
             <div className="w-24 h-1 bg-gradient-to-r from-blue-500 to-teal-500 mx-auto rounded-full"></div>
-          </div>
+          </motion.div>
 
           <div className="grid md:grid-cols-2 gap-12 lg:gap-16">
-            <div className="text-center md:text-left animate-slide-up">
-              <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 lg:p-10 shadow-xl card-hover">
-                <h3 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">Our Mission</h3>
+            <motion.div 
+              initial={{ opacity: 0, x: -50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+              className="text-center md:text-left"
+            >
+              <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 lg:p-10 shadow-xl card-hover h-full">
+                <h3 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6 border-b border-blue-100 pb-2">Our Mission</h3>
                 <p className="text-gray-600 text-lg leading-relaxed">
                   To provide quality, comprehensive education from playgroup to senior secondary level, fostering academic excellence and moral development. We are committed to nurturing students with our core values of <strong className="text-blue-600">honesty and success</strong> through innovative teaching methods and modern facilities.
                 </p>
               </div>
-            </div>
+            </motion.div>
 
-            <div className="text-center md:text-left animate-slide-up" style={{ animationDelay: '0.2s' }}>
-              <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 lg:p-10 shadow-xl card-hover">
-                <h3 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">Our Vision</h3>
+            <motion.div 
+              initial={{ opacity: 0, x: 50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+              className="text-center md:text-left"
+            >
+              <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 lg:p-10 shadow-xl card-hover h-full">
+                <h3 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6 border-b border-green-100 pb-2">Our Vision</h3>
                 <p className="text-gray-600 text-lg leading-relaxed">
                   To be a leading educational institution that shapes future leaders with strong moral character, academic excellence, and practical skills. We envision a generation of students who embody <strong className="text-green-600">integrity, knowledge, and success</strong> in all their endeavors.
                 </p>
               </div>
-            </div>
+            </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Recent Announcements Preview */}
       <section className="py-16 bg-muted/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
+          <motion.div {...fadeIn} className="text-center mb-12">
             <h2 className="text-3xl font-bold text-foreground mb-4" data-testid="text-announcements-title">
               Latest School News
             </h2>
             <p className="text-muted-foreground" data-testid="text-announcements-description">
               Stay informed with our latest updates and important announcements
             </p>
-          </div>
+          </motion.div>
 
           {recentAnnouncements.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <motion.div 
+              variants={staggerContainer}
+              initial="initial"
+              whileInView="whileInView"
+              viewport={{ once: true }}
+              className="grid grid-cols-1 md:grid-cols-3 gap-6"
+            >
               {recentAnnouncements.map((announcement: any, index: number) => (
-                <Card key={announcement.id} className="card-hover h-full" data-testid={`card-announcement-${index}`}>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <Badge variant="secondary" className="text-xs">
-                        <Calendar className="h-3 w-3 mr-1" />
-                        {formatDate(announcement.publishedAt)}
-                      </Badge>
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <h3 className="text-lg font-semibold mb-3 line-clamp-2" data-testid={`text-announcement-title-${index}`}>
-                      {announcement.title}
-                    </h3>
-                    <p className="text-muted-foreground text-sm mb-4 line-clamp-3" data-testid={`text-announcement-content-${index}`}>
-                      {truncateText(announcement.content, 120)}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">School Administration</span>
-                      <Button variant="ghost" size="sm" className="p-0 h-auto text-primary hover:text-primary/80">
-                        Read more →
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <motion.div key={announcement.id} variants={fadeIn}>
+                  <Card className="card-hover h-full" data-testid={`card-announcement-${index}`}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <Badge variant="secondary" className="text-xs">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          {formatDate(announcement.publishedAt)}
+                        </Badge>
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-lg font-semibold mb-3 line-clamp-2" data-testid={`text-announcement-title-${index}`}>
+                        {announcement.title}
+                      </h3>
+                      <p className="text-muted-foreground text-sm mb-4 line-clamp-3" data-testid={`text-announcement-content-${index}`}>
+                        {truncateText(announcement.content, 120)}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">School Administration</span>
+                        <Button variant="ghost" size="sm" className="p-0 h-auto text-primary hover:text-primary/80">
+                          Read more →
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           ) : (
             <div className="text-center py-12">
               <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -401,21 +438,25 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Gallery Carousel */}
       <section className="py-20 lg:py-28">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16 lg:mb-20">
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6 animate-slide-down" data-testid="text-gallery-title">
+          <motion.div {...fadeIn} className="text-center mb-16 lg:mb-20">
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6" data-testid="text-gallery-title">
               School Life Gallery
             </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto animate-fade-in" data-testid="text-gallery-description">
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto" data-testid="text-gallery-description">
               Capturing moments of learning, growth, and achievement
             </p>
-          </div>
+          </motion.div>
 
           {galleryImages.length > 0 ? (
-            <div className="relative max-w-5xl mx-auto animate-fade-in">
-              {/* Main carousel */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+              className="relative max-w-5xl mx-auto"
+            >
               <div className="relative aspect-video rounded-3xl overflow-hidden shadow-2xl group bg-gradient-to-br from-gray-200 to-gray-300">
                 <img
                   src={galleryImages[currentGalleryIndex]?.src}
@@ -425,7 +466,6 @@ export default function Home() {
                   loading="lazy"
                 />
 
-                {/* Enhanced navigation arrows with better styling */}
                 <div className="absolute inset-0 flex items-center justify-between px-4 sm:px-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <Button
                     variant="ghost"
@@ -446,10 +486,8 @@ export default function Home() {
                     <ChevronRight className="h-6 w-6 sm:h-7 sm:w-7" />
                   </Button>
                 </div>
-
               </div>
-
-            </div>
+            </motion.div>
           ) : (
             <div className="text-center py-12">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
