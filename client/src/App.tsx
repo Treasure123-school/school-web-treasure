@@ -31,6 +31,8 @@ const SuperAdminSettings = lazy(() => import("@/pages/portal/SuperAdminSettings"
 const SuperAdminProfile = lazy(() => import("@/pages/portal/SuperAdminProfile"));
 const SuperAdminLogs = lazy(() => import("@/pages/portal/SuperAdminLogs"));
 const SuperAdminAllUsers = lazy(() => import("@/pages/portal/SuperAdminAllUsers"));
+const SuperAdminRolesPermissions = lazy(() => import("@/pages/portal/SuperAdminRolesPermissions"));
+const SuperAdminUserAccessControl = lazy(() => import("@/pages/portal/SuperAdminUserAccessControl"));
 const SuperAdminAuthenticationSettings = lazy(() => import("@/pages/portal/SuperAdminAuthenticationSettings"));
 const SuperAdminPlaceholder = lazy(() => import("@/pages/portal/SuperAdminPlaceholder"));
 const AdminRecoveryTools = lazy(() => import("@/pages/portal/AdminRecoveryTools"));
@@ -155,12 +157,12 @@ function Router() {
       </Route>
       <Route path="/portal/superadmin/users/roles">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
-          <SuperAdminPlaceholder title="Roles & Permissions" category="Users" description="Configure user roles and permission levels" />
+          <SuperAdminRolesPermissions />
         </ProtectedRoute>
       </Route>
       <Route path="/portal/superadmin/users/access-control">
         <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
-          <SuperAdminPlaceholder title="User Access Control" category="Users" description="Manage user-level login restrictions and access policies" />
+          <SuperAdminUserAccessControl />
         </ProtectedRoute>
       </Route>
 
