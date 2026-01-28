@@ -21,8 +21,7 @@ import {
   Users,
   Ban,
   Eye,
-  Search,
-  Filter
+  Search
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -252,70 +251,6 @@ export default function UserManagement() {
           </Table>
         </div>
       </Card>
-
-      {/* Mobile Card View (Hidden on Tablet/Desktop) */}
-      <div className="md:hidden space-y-4">
-        {filteredUsers.map((user) => (
-          <Card key={user.id} className="border-slate-200 dark:border-slate-800 shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10 border border-slate-200 dark:border-slate-800">
-                    <AvatarImage src={user.profileImageUrl || undefined} />
-                    <AvatarFallback className="bg-blue-600 text-white text-xs font-bold uppercase">
-                      {user.firstName[0]}{user.lastName[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col min-w-0">
-                    <span className="font-bold text-slate-900 dark:text-slate-100 truncate">
-                      {user.firstName} {user.lastName}
-                    </span>
-                    <Badge className="w-fit text-[9px] h-4 mt-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900 font-bold uppercase">
-                      {getRoleNameById(user.roleId)}
-                    </Badge>
-                  </div>
-                </div>
-                <Badge className={`${
-                  user.status === 'active' ? 'bg-green-100 text-green-700 border-green-200' :
-                  user.status === 'pending' ? 'bg-amber-100 text-amber-700 border-amber-200' :
-                  'bg-red-100 text-red-700 border-red-200'
-                } font-black text-[9px] uppercase tracking-tighter h-5 px-1.5 border`}>
-                  {user.status}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between text-xs text-slate-500">
-                <span className="truncate max-w-[200px]">{user.email}</span>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-7 text-[10px] font-bold uppercase tracking-widest px-3 border-slate-200 dark:border-slate-800">
-                      Options
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56 p-1 rounded-xl shadow-xl border-slate-200 dark:border-slate-800">
-                    <DropdownMenuItem className="rounded-lg py-2 text-sm cursor-pointer flex items-center gap-2 font-medium">
-                      <Eye className="h-4 w-4 text-blue-500" />
-                      View Profile
-                    </DropdownMenuItem>
-                    {user.status === 'pending' && (
-                      <DropdownMenuItem 
-                        className="rounded-lg py-2 text-sm cursor-pointer flex items-center gap-2 text-green-600 font-bold"
-                        onClick={() => approveMutation.mutate(user.id)}
-                      >
-                        <CheckCircle className="h-4 w-4" />
-                        Verify
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem className="rounded-lg py-2 text-sm cursor-pointer flex items-center gap-2 font-medium">
-                      <KeyRound className="h-4 w-4 text-amber-500" />
-                      Reset Pass
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
     </div>
   );
 }
