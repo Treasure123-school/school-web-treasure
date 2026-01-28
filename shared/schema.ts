@@ -312,6 +312,17 @@ export const systemSettings = sqliteTable("system_settings", {
   language: text("language").notNull().default('en'),
   dateFormat: text("date_format").notNull().default('DD/MM/YYYY'),
   timeFormat: text("time_format").notNull().default('HH:mm'),
+  // Integrations
+  enableSmsNotifications: integer("enable_sms_notifications", { mode: "boolean" }).notNull().default(false),
+  enableEmailNotifications: integer("enable_email_notifications", { mode: "boolean" }).notNull().default(true),
+  enableOnlinePayments: integer("enable_online_payments", { mode: "boolean" }).notNull().default(false),
+  // Backup & Restore
+  autoBackup: integer("auto_backup", { mode: "boolean" }).notNull().default(false),
+  backupFrequency: text("backup_frequency").notNull().default('daily'), // 'daily', 'weekly'
+  lastBackupDate: integer("last_backup_date", { mode: "timestamp" }),
+  // API & Access Tokens
+  enableApiAccess: integer("enable_api_access", { mode: "boolean" }).notNull().default(false),
+  apiAccessKey: text("api_access_key"),
   // Security Policies
   minPasswordLength: integer("min_password_length").notNull().default(8),
   requirePasswordNumbers: integer("require_password_numbers", { mode: "boolean" }).notNull().default(true),

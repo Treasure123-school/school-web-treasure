@@ -49,6 +49,9 @@ function RealtimeProvider({ children }: { children: React.ReactNode }) {
 }
 const SuperAdminSecurityPolicies = lazy(() => import("@/pages/portal/SuperAdminSecurityPolicies"));
 const SuperAdminBrandingTheme = lazy(() => import("@/pages/portal/SuperAdminBrandingTheme"));
+const SuperAdminIntegrations = lazy(() => import("@/pages/portal/SuperAdminIntegrations"));
+const SuperAdminBackupRestore = lazy(() => import("@/pages/portal/SuperAdminBackupRestore"));
+const SuperAdminApiAccess = lazy(() => import("@/pages/portal/SuperAdminApiAccess"));
 
 function Router() {
   return (
@@ -111,6 +114,21 @@ function Router() {
         <Route path="/portal/superadmin/settings/branding">
           <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
             <SuperAdminBrandingTheme />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/portal/superadmin/settings/integrations">
+          <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
+            <SuperAdminIntegrations />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/portal/superadmin/settings/backup">
+          <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
+            <SuperAdminBackupRestore />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/portal/superadmin/settings/api">
+          <ProtectedRoute allowedRoleIds={[ROLE_IDS.SUPER_ADMIN]}>
+            <SuperAdminApiAccess />
           </ProtectedRoute>
         </Route>
         <Route path="/portal/superadmin/settings/authentication">
